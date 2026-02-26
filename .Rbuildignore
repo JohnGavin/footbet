@@ -3,6 +3,8 @@
 ^default\.nix$
 ^default\.sh$
 ^default-ci\.nix$
+^package\.nix$
+^push_to_cachix\.sh$
 ^prompt_football\.md$
 ^plans$
 ^_targets\.R$

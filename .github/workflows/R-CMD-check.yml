@@ -1,0 +1,57 @@
+name: R-CMD-check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  R-CMD-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+        with:
+          logger: pretty
+          log-directives: nix_installer=trace
+          backtrace: full
+
+      - name: Setup magic Nix cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: Setup Cachix (rstats-on-nix + johngavin)
+        uses: cachix/cachix-action@v15
+        with:
+          name: rstats-on-nix
+          extraPullNames: johngavin
+
+      - name: Build development environment
+        run: nix-build default.nix -A shell --no-out-link
+
+      - name: Run R CMD check
+        run: |
+          nix-shell default.nix -A shell --run "Rscript -e 'devtools::document(); devtools::check(error_on = \"error\", check_dir = \"check\")'"
+
+      - name: Validate targets pipeline
+        if: hashFiles('_targets.R') != ''
+        run: |
+          nix-shell default.nix -A shell --run "Rscript -e '
+            targets::tar_validate()
+            cat(\"Pipeline valid:\", length(targets::tar_manifest()\$name), \"targets\\n\")
+          '"
+
+      - name: Upload check results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: R-CMD-check-results
+          path: check/
+          retention-days: 7
