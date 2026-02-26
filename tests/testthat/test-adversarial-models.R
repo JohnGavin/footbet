@@ -11,9 +11,9 @@ test_that("score_matrix: zero lambdas", {
 
 test_that("score_matrix: very large lambda", {
   mat <- score_matrix(10, 10, max_goals = 7L)
-  # Most probability mass will be truncated
-  expect_true(sum(mat) < 1)
-  expect_true(sum(mat) > 0)
+  # Normalisation ensures sum == 1 even with heavy Poisson truncation
+  expect_equal(sum(mat), 1, tolerance = 1e-10)
+  expect_true(all(mat >= 0))
 })
 
 test_that("score_matrix: negative lambda", {
