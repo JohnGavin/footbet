@@ -16,3 +16,6 @@
 ^footbet\.Rproj$
 ^\.claude$
 ^\.vscode$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
