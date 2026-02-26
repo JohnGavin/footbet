@@ -20,6 +20,9 @@ if they do not already exist.
 Other storage: 
 \code{\link{connect_db}()},
 \code{\link{disconnect_db}()},
-\code{\link{insert_matches}()}
+\code{\link{insert_match_odds}()},
+\code{\link{insert_matches}()},
+\code{\link{write_matches_parquet}()},
+\code{\link{write_odds_parquet}()}
 }
 \concept{storage}
