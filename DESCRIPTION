@@ -9,6 +9,7 @@ Description: Download, process, and model European football match data and
     Elo ratings, and Kelly-criterion staking for value betting on full-time
     and half-time outcomes.
 License: MIT + file LICENSE
+Depends: R (>= 4.1.0)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
@@ -18,6 +19,7 @@ Imports:
     dplyr,
     duckdb,
     glue,
+    here,
     httr2,
     lubridate,
     rlang,
@@ -33,7 +35,6 @@ Suggests:
     gert,
     ggplot2,
     goalmodel,
-    here,
     knitr,
     lme4,
     mirai,
