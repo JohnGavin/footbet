@@ -1,0 +1,38 @@
+# Nix
+nix-shell-root
+result
+
+# R package build artifacts
+*.Rcheck/
+*.tar.gz
+
+# Targets pipeline
+_targets/
+
+# R session
+.Rproj.user
+.Rhistory
+.RData
+.Rproj.user
+
+# IDE
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data cache (large files)
+inst/extdata/raw/
+inst/extdata/parquet/
+
+# DuckDB databases
+*.duckdb
+*.duckdb.wal
+
+# Coverage
+covr_report/
+
+# Quarto
+/.quarto/

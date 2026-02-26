@@ -1,0 +1,55 @@
+Package: footbet
+Title: European Football Betting Analytics with Sharp Odds
+Version: 0.0.0.9000
+Authors@R:
+    person("John", "Gavin", email = "john.b.gavin@gmail.com",
+           role = c("aut", "cre"))
+Description: Download, process, and model European football match data and
+    sharp bookmaker odds (Pinnacle). Implements Poisson/Dixon-Coles models,
+    Elo ratings, and Kelly-criterion staking for value betting on full-time
+    and half-time outcomes.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    cli,
+    DBI,
+    dplyr,
+    duckdb,
+    glue,
+    httr2,
+    lubridate,
+    rlang,
+    tibble,
+    tidyr
+Suggests:
+    arrow,
+    covr,
+    crew,
+    dbplyr,
+    DT,
+    elo,
+    gert,
+    ggplot2,
+    goalmodel,
+    here,
+    knitr,
+    lme4,
+    mirai,
+    pins,
+    plotly,
+    probably,
+    quarto,
+    ranger,
+    rmarkdown,
+    rsample,
+    scales,
+    scoring,
+    tarchetypes,
+    targets,
+    testthat (>= 3.0.0),
+    vetiver,
+    withr,
+    worldfootballR
+Config/testthat/edition: 3

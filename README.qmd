@@ -1,0 +1,79 @@
+---
+format: gfm
+---
+
+# footbet
+
+European Football Betting Analytics with Sharp Odds.
+
+Download, process, and model European football match data and sharp bookmaker
+odds (Pinnacle). Implements Poisson/Dixon-Coles models, Elo ratings, and
+Kelly-criterion staking for value betting on full-time and half-time outcomes.
+
+## Installation
+
+### Standard R
+
+```r
+# install.packages("remotes")
+remotes::install_github("johngavin/footbet")
+```
+
+### Nix (Recommended)
+
+```bash
+git clone https://github.com/johngavin/footbet.git
+cd footbet
+./default.sh
+```
+
+### rix Integration
+
+```r
+library(rix)
+rix(
+  r_pkgs = c("dplyr", "arrow", "duckdb"),
+  git_pkgs = list(
+    list(
+      package_name = "footbet",
+      repo_url = "https://github.com/johngavin/footbet",
+      commit = "HEAD"
+    )
+  ),
+  ide = "none",
+  project_path = ".",
+  overwrite = TRUE
+)
+```
+
+## Coverage
+
+10 leagues (top 2 divisions) across 5 countries, 10 years of history:
+
+| Country | Division 1 | Division 2 |
+|---------|-----------|-----------|
+| England | E0 (Premier League) | E1 (Championship) |
+| Germany | D1 (Bundesliga) | D2 (2. Bundesliga) |
+| Italy | I1 (Serie A) | I2 (Serie B) |
+| Spain | SP1 (La Liga) | SP2 (Segunda) |
+| France | F1 (Ligue 1) | F2 (Ligue 2) |
+
+## Model Pipeline
+
+1. **Data**: football-data.co.uk match results + Pinnacle closing odds
+2. **Features**: Rolling goals, Elo ratings, devigged implied probabilities
+3. **Models**: Poisson GLM baseline, Dixon-Coles, Elo-based
+4. **Evaluation**: Walk-forward CV with log-loss, Brier score, calibration
+5. **Decisions**: Fractional Kelly staking with drawdown guardrails
+
+## Project Structure
+
+```{r}
+#| echo: false
+#| eval: true
+fs::dir_tree(recurse = 2)
+```
+
+## License
+
+MIT
