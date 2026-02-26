@@ -3,7 +3,7 @@
 # >rix(date = "2026-01-05",
 #  > r_pkgs = r_pkgs,
 #  > system_pkgs = c("qpdf"),
-#  > git_pkgs = NULL,
+#  > git_pkgs = git_pkgs,
 #  > ide = "none",
 #  > project_path = ".",
 #  > overwrite = TRUE,
@@ -33,7 +33,6 @@ let
       ggplot2
       gh
       glue
-      goalmodel
       here
       httr2
       knitr
@@ -64,6 +63,22 @@ let
       withr
       worldfootballR;
   };
+ 
+    goalmodel = (pkgs.rPackages.buildRPackage {
+      name = "goalmodel";
+      src = pkgs.fetchgit {
+        url = "https://github.com/opisthokonta/goalmodel";
+        rev = "84ecd6c2bbad3ccb967abf88ef49e5bcd074e545";
+        sha256 = "sha256-InAgUuPsVME4hdyGS2pQsMXFkzlPKlILNP7N6ESnjy8=";
+      };
+      propagatedBuildInputs = builtins.attrValues {
+        inherit (pkgs.rPackages) 
+          MASS
+          engsoccerdata
+          dplyr
+          Rcpp;
+      };
+    });
       
   system_packages = builtins.attrValues {
     inherit (pkgs) 
@@ -85,7 +100,7 @@ let
     LC_PAPER = "en_US.UTF-8";
     LC_MEASUREMENT = "en_US.UTF-8";
     
-    buildInputs = [ rpkgs system_packages ];
+    buildInputs = [ goalmodel rpkgs system_packages ];
     
   }; 
 in
