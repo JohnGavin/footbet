@@ -64,6 +64,11 @@ let
       worldfootballR;
   };
  
+    # engsoccerdata is marked broken in nixpkgs but goalmodel Imports it
+    engsoccerdata = pkgs.rPackages.engsoccerdata.overrideAttrs (_: {
+      meta = { broken = false; };
+    });
+
     goalmodel = (pkgs.rPackages.buildRPackage {
       name = "goalmodel";
       src = pkgs.fetchgit {
@@ -71,10 +76,11 @@ let
         rev = "84ecd6c2bbad3ccb967abf88ef49e5bcd074e545";
         sha256 = "sha256-InAgUuPsVME4hdyGS2pQsMXFkzlPKlILNP7N6ESnjy8=";
       };
-      propagatedBuildInputs = builtins.attrValues {
-        inherit (pkgs.rPackages) 
+      propagatedBuildInputs = [
+        engsoccerdata
+      ] ++ builtins.attrValues {
+        inherit (pkgs.rPackages)
           MASS
-          engsoccerdata
           dplyr
           Rcpp;
       };

@@ -46,3 +46,34 @@ rix(
   print = TRUE,
   date = "2026-01-05"
 )
+
+# Post-process: engsoccerdata is marked broken in nixpkgs but is in
+# goalmodel's Imports. Override the broken mark and use list concatenation
+# for goalmodel's propagatedBuildInputs.
+nix_text <- paste(readLines("default.nix"), collapse = "\n")
+nix_text <- sub(
+  "    goalmodel = \\(pkgs\\.rPackages\\.buildRPackage \\{\n      name = \"goalmodel\";\n      src = pkgs\\.fetchgit \\{\n        url = \"https://github\\.com/opisthokonta/goalmodel\";\n        rev = \"[^\"]+\";\n        sha256 = \"[^\"]+\";\n      \\};\n      propagatedBuildInputs = builtins\\.attrValues \\{\n        inherit \\(pkgs\\.rPackages\\) \n          MASS\n          engsoccerdata\n          dplyr\n          Rcpp;\n      \\};",
+  "    # engsoccerdata is marked broken in nixpkgs but goalmodel Imports it
+    engsoccerdata = pkgs.rPackages.engsoccerdata.overrideAttrs (_: {
+      meta = { broken = false; };
+    });
+
+    goalmodel = (pkgs.rPackages.buildRPackage {
+      name = \"goalmodel\";
+      src = pkgs.fetchgit {
+        url = \"https://github.com/opisthokonta/goalmodel\";
+        rev = \"84ecd6c2bbad3ccb967abf88ef49e5bcd074e545\";
+        sha256 = \"sha256-InAgUuPsVME4hdyGS2pQsMXFkzlPKlILNP7N6ESnjy8=\";
+      };
+      propagatedBuildInputs = [
+        engsoccerdata
+      ] ++ builtins.attrValues {
+        inherit (pkgs.rPackages)
+          MASS
+          dplyr
+          Rcpp;
+      };",
+  nix_text
+)
+writeLines(nix_text, "default.nix")
+message("Post-processed: engsoccerdata broken override applied")
