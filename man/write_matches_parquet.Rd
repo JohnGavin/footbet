@@ -29,6 +29,7 @@ Other storage:
 \code{\link{disconnect_db}()},
 \code{\link{insert_match_odds}()},
 \code{\link{insert_matches}()},
+\code{\link{insert_transfers}()},
 \code{\link{write_odds_parquet}()}
 }
 \concept{storage}
