@@ -24,6 +24,9 @@ by a fractional multiplier (default quarter Kelly).
 \seealso{
 Other decisions: 
 \code{\link{apply_guardrails}()},
-\code{\link{identify_value_bet}()}
+\code{\link{find_value_bets}()},
+\code{\link{identify_value_bet}()},
+\code{\link{simulate_pnl}()},
+\code{\link{summarise_pnl}()}
 }
 \concept{decisions}
