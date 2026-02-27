@@ -25,7 +25,10 @@ by goal difference).
 \seealso{
 Other evaluation: 
 \code{\link{brier_1x2}()},
+\code{\link{evaluate_glm_baseline}()},
 \code{\link{log_loss}()},
+\code{\link{pinnacle_implied}()},
+\code{\link{summarise_cv}()},
 \code{\link{walk_forward_splits}()}
 }
 \concept{evaluation}

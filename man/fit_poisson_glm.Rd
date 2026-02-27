@@ -21,6 +21,8 @@ advanced models must beat.
 Other models: 
 \code{\link{fit_dixon_coles}()},
 \code{\link{predict_dc}()},
+\code{\link{predict_glm}()},
+\code{\link{predict_matches_glm}()},
 \code{\link{score_matrix}()},
 \code{\link{score_matrix_to_1x2}()},
 \code{\link{score_matrix_to_ah}()},

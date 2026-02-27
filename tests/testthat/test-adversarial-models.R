@@ -180,3 +180,145 @@ test_that("walk_forward_splits: unsorted dates still work", {
   # Should produce splits (function uses min/max, not order)
   expect_true(length(splits) > 0)
 })
+
+# ---- predict_glm (new) ----
+
+test_that("predict_glm: NULL model errors", {
+  expect_error(predict_glm(NULL, "A", "B"))
+})
+
+test_that("predict_glm: unknown team in predict", {
+  long <- tibble::tibble(
+    team = rep(c("A", "B"), 5),
+    opponent = rep(c("B", "A"), 5),
+    goals = as.integer(c(2, 1, 0, 1, 1, 0, 2, 1, 3, 0)),
+    home = rep(c(1L, 0L), 5)
+  )
+  model <- fit_poisson_glm(long)
+  # Team "Z" not in training data
+  expect_error(predict_glm(model, "Z", "A"))
+})
+
+# ---- predict_matches_glm (new) ----
+
+test_that("predict_matches_glm: NULL model errors", {
+  expect_error(predict_matches_glm(NULL, tibble::tibble(
+    match_id = "m1", home_team = "A", away_team = "B"
+  )))
+})
+
+test_that("predict_matches_glm: all unknown teams give all NA", {
+  long <- tibble::tibble(
+    team = rep(c("A", "B"), 5),
+    opponent = rep(c("B", "A"), 5),
+    goals = as.integer(c(2, 1, 0, 1, 1, 0, 2, 1, 3, 0)),
+    home = rep(c(1L, 0L), 5)
+  )
+  model <- fit_poisson_glm(long)
+
+  matches <- tibble::tibble(
+    match_id = c("m1", "m2"),
+    home_team = c("X", "Y"),
+    away_team = c("Z", "W")
+  )
+  preds <- predict_matches_glm(model, matches)
+  expect_equal(nrow(preds), 2L)
+  expect_true(all(is.na(preds$pred_h)))
+})
+
+test_that("predict_matches_glm: empty matches returns empty", {
+  long <- tibble::tibble(
+    team = rep(c("A", "B"), 5),
+    opponent = rep(c("B", "A"), 5),
+    goals = as.integer(c(2, 1, 0, 1, 1, 0, 2, 1, 3, 0)),
+    home = rep(c(1L, 0L), 5)
+  )
+  model <- fit_poisson_glm(long)
+  empty <- tibble::tibble(
+    match_id = character(), home_team = character(), away_team = character()
+  )
+  preds <- predict_matches_glm(model, empty)
+  expect_equal(nrow(preds), 0L)
+})
+
+# ---- evaluate_glm_baseline (new) ----
+
+test_that("evaluate_glm_baseline: NULL long_df errors", {
+  expect_error(evaluate_glm_baseline(NULL, tibble::tibble()))
+})
+
+test_that("evaluate_glm_baseline: NULL matches_df errors", {
+  expect_error(evaluate_glm_baseline(tibble::tibble(), NULL))
+})
+
+test_that("evaluate_glm_baseline: too few matches warns and returns empty", {
+  matches <- tibble::tibble(
+    match_id = paste0("m", 1:5),
+    match_date = as.Date("2024-01-01") + 0:4,
+    home_team = c("A", "B", "A", "B", "A"),
+    away_team = c("B", "A", "B", "A", "B"),
+    fthg = 1L, ftag = 0L, ftr = "H",
+    season = "2324", league_code = "E0"
+  )
+  long <- matches_to_long(matches)
+  expect_warning(
+    result <- evaluate_glm_baseline(long, matches, train_months = 24L),
+    "No valid walk-forward splits"
+  )
+  expect_equal(nrow(result), 0L)
+})
+
+# ---- pinnacle_implied (new) ----
+
+test_that("pinnacle_implied: NULL input errors", {
+  expect_error(pinnacle_implied(NULL))
+})
+
+test_that("pinnacle_implied: mixed NA and valid", {
+  odds <- tibble::tibble(
+    match_id = c("m1", "m2"),
+    psh = c(2.0, NA_real_),
+    psd = c(3.0, NA_real_),
+    psa = c(4.0, NA_real_)
+  )
+  result <- pinnacle_implied(odds)
+  expect_false(is.na(result$implied_h[1]))
+  expect_true(is.na(result$implied_h[2]))
+})
+
+test_that("pinnacle_implied: extreme favourite (odds near 1)", {
+  odds <- tibble::tibble(
+    match_id = "m1",
+    psh = 1.01, psd = 50.0, psa = 100.0
+  )
+  result <- pinnacle_implied(odds)
+  expect_true(result$implied_h > 0.95)
+})
+
+# ---- summarise_cv (new) ----
+
+test_that("summarise_cv: NULL input errors", {
+  expect_error(summarise_cv(NULL))
+})
+
+test_that("summarise_cv: single fold has NA sd", {
+  cv <- tibble::tibble(
+    fold = 1L, n_train = 100L, n_test = 10L,
+    log_loss = 1.05, brier = 0.55, rps = 0.22
+  )
+  result <- summarise_cv(cv)
+  expect_true(is.na(result$sd[1]))
+  expect_equal(result$n_folds[1], 1L)
+})
+
+test_that("summarise_cv: NA values in metrics", {
+  cv <- tibble::tibble(
+    fold = 1:3, n_train = rep(100L, 3), n_test = rep(10L, 3),
+    log_loss = c(1.0, NA_real_, 1.2),
+    brier = c(0.5, 0.6, 0.7),
+    rps = c(0.2, 0.25, 0.3)
+  )
+  result <- summarise_cv(cv)
+  # log_loss should have n_folds = 2 (NA dropped)
+  expect_equal(result$n_folds[result$metric == "log_loss"], 2L)
+})

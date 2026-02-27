@@ -23,8 +23,11 @@ Compute Brier score for 1X2 predictions
 }
 \seealso{
 Other evaluation: 
+\code{\link{evaluate_glm_baseline}()},
 \code{\link{log_loss}()},
+\code{\link{pinnacle_implied}()},
 \code{\link{rps_1x2}()},
+\code{\link{summarise_cv}()},
 \code{\link{walk_forward_splits}()}
 }
 \concept{evaluation}

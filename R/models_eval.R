@@ -119,3 +119,169 @@ walk_forward_splits <- function(dates,
 
   splits
 }
+
+#' Run walk-forward evaluation for the Poisson GLM baseline
+#'
+#' For each time split, fits [fit_poisson_glm()] on the training set,
+#' predicts on the test set, and computes scoring metrics.
+#'
+#' @param long_df Long-format match data from [matches_to_long()].
+#' @param matches_df Original match data (wide format) with `match_id`, `ftr`.
+#' @param train_months Integer. Training window (default 24).
+#' @param test_months Integer. Test period (default 1).
+#' @return A tibble with one row per fold and columns for log_loss,
+#'   brier, rps, fold number, n_train, n_test.
+#' @family evaluation
+#' @export
+evaluate_glm_baseline <- function(long_df,
+                                  matches_df,
+                                  train_months = 24L,
+                                  test_months = 1L) {
+  rlang::check_required(long_df)
+  rlang::check_required(matches_df)
+  if (!is.data.frame(long_df)) {
+    cli::cli_abort("{.arg long_df} must be a data frame, not {.cls {class(long_df)}}.")
+  }
+  if (!is.data.frame(matches_df)) {
+    cli::cli_abort("{.arg matches_df} must be a data frame, not {.cls {class(matches_df)}}.")
+  }
+
+  # Use unique match dates for splits (wide format)
+  dates <- sort(unique(matches_df$match_date))
+  splits <- walk_forward_splits(dates, train_months, test_months)
+
+  if (length(splits) == 0L) {
+    cli::cli_warn("No valid walk-forward splits. Need > {train_months} months of data.")
+    return(tibble::tibble(
+      fold = integer(), n_train = integer(), n_test = integer(),
+      log_loss = numeric(), brier = numeric(), rps = numeric(),
+      train_start = as.Date(character()), test_start = as.Date(character()),
+      test_end = as.Date(character())
+    ))
+  }
+
+  results <- vector("list", length(splits))
+
+  for (k in seq_along(splits)) {
+    sp <- splits[[k]]
+
+    # Split long_df by date
+    train_long <- long_df[long_df$match_date >= sp$train_start &
+                            long_df$match_date < sp$test_start, ]
+    test_matches <- matches_df[matches_df$match_date >= sp$test_start &
+                                 matches_df$match_date < sp$test_end, ]
+
+    if (nrow(train_long) < 20L || nrow(test_matches) == 0L) next
+
+    # Fit model
+    model <- tryCatch(
+      fit_poisson_glm(train_long),
+      error = function(e) NULL
+    )
+    if (is.null(model)) next
+
+    # Predict
+    preds <- predict_matches_glm(model, test_matches)
+
+    # Join with actual results
+    eval_df <- dplyr::inner_join(preds, test_matches[, c("match_id", "ftr")],
+                                  by = "match_id") |>
+      dplyr::filter(!is.na(.data$pred_h))
+
+    if (nrow(eval_df) == 0L) next
+
+    # Compute prob of actual outcome for log loss
+    prob_actual <- dplyr::case_when(
+      eval_df$ftr == "H" ~ eval_df$pred_h,
+      eval_df$ftr == "D" ~ eval_df$pred_d,
+      eval_df$ftr == "A" ~ eval_df$pred_a,
+      TRUE ~ NA_real_
+    )
+    prob_actual <- prob_actual[!is.na(prob_actual)]
+
+    if (length(prob_actual) == 0L) next
+
+    results[[k]] <- tibble::tibble(
+      fold = k,
+      n_train = nrow(train_long),
+      n_test = nrow(eval_df),
+      log_loss = log_loss(prob_actual),
+      brier = brier_1x2(eval_df$pred_h, eval_df$pred_d, eval_df$pred_a,
+                          eval_df$ftr),
+      rps = rps_1x2(eval_df$pred_h, eval_df$pred_d, eval_df$pred_a,
+                      eval_df$ftr),
+      train_start = sp$train_start,
+      test_start = sp$test_start,
+      test_end = sp$test_end
+    )
+  }
+
+  dplyr::bind_rows(results)
+}
+
+#' Compute implied probabilities from Pinnacle odds (benchmark)
+#'
+#' Computes naive implied probabilities from raw Pinnacle 1X2 odds
+#' by normalising to sum to 1. Used as benchmark — if a model can't
+#' beat Pinnacle's log-loss, it has no edge.
+#'
+#' @param odds_df A tibble with `match_id`, `psh`, `psd`, `psa`.
+#' @return A tibble with `match_id`, `implied_h`, `implied_d`, `implied_a`.
+#' @family evaluation
+#' @export
+pinnacle_implied <- function(odds_df) {
+  rlang::check_required(odds_df)
+
+  if (nrow(odds_df) == 0L) {
+    return(tibble::tibble(
+      match_id = character(),
+      implied_h = numeric(), implied_d = numeric(), implied_a = numeric()
+    ))
+  }
+
+  raw_h <- 1 / odds_df$psh
+  raw_d <- 1 / odds_df$psd
+  raw_a <- 1 / odds_df$psa
+
+  total <- raw_h + raw_d + raw_a
+
+  tibble::tibble(
+    match_id = odds_df$match_id,
+    implied_h = ifelse(is.na(total), NA_real_, raw_h / total),
+    implied_d = ifelse(is.na(total), NA_real_, raw_d / total),
+    implied_a = ifelse(is.na(total), NA_real_, raw_a / total)
+  )
+}
+
+#' Summarise walk-forward evaluation results
+#'
+#' Computes mean metrics across folds with optional benchmarking
+#' against Pinnacle implied probabilities.
+#'
+#' @param cv_results A tibble from [evaluate_glm_baseline()].
+#' @return A tibble with mean/median/sd of scoring metrics across folds.
+#' @family evaluation
+#' @export
+summarise_cv <- function(cv_results) {
+  rlang::check_required(cv_results)
+
+  if (nrow(cv_results) == 0L) {
+    return(tibble::tibble(
+      metric = character(), mean = numeric(),
+      median = numeric(), sd = numeric(), n_folds = integer()
+    ))
+  }
+
+  metrics <- c("log_loss", "brier", "rps")
+  dplyr::bind_rows(lapply(metrics, function(m) {
+    vals <- cv_results[[m]]
+    vals <- vals[!is.na(vals)]
+    tibble::tibble(
+      metric = m,
+      mean = mean(vals),
+      median = stats::median(vals),
+      sd = stats::sd(vals),
+      n_folds = length(vals)
+    )
+  }))
+}
