@@ -4,7 +4,7 @@
 \alias{predict_dc}
 \title{Predict match probabilities from a Dixon-Coles model}
 \usage{
-predict_dc(model, home_team, away_team)
+predict_dc(model, home_team, away_team, max_goals = 7L)
 }
 \arguments{
 \item{model}{A goalmodel object from \code{\link[=fit_dixon_coles]{fit_dixon_coles()}}.}
@@ -12,19 +12,25 @@ predict_dc(model, home_team, away_team)
 \item{home_team}{Character. Home team name.}
 
 \item{away_team}{Character. Away team name.}
+
+\item{max_goals}{Integer. Maximum goals for score matrix (default 7).}
 }
 \value{
-A list with \code{score_matrix}, \code{probs_1x2}, \code{probs_ou25},
-\code{probs_ah05}.
+A list with \code{probs_1x2}, \code{probs_ou25}, \code{probs_ah05},
+\code{lambda_home}, \code{lambda_away}.
 }
 \description{
-Predict match probabilities from a Dixon-Coles model
+Uses \code{goalmodel::predict_result()} for 1X2 probabilities and
+\code{goalmodel::predict_goals()} for expected goals, then builds
+a score matrix for O/U and AH markets.
 }
 \seealso{
 Other models: 
+\code{\link{evaluate_dc}()},
 \code{\link{fit_dixon_coles}()},
 \code{\link{fit_poisson_glm}()},
 \code{\link{predict_glm}()},
+\code{\link{predict_matches_dc}()},
 \code{\link{predict_matches_glm}()},
 \code{\link{score_matrix}()},
 \code{\link{score_matrix_to_1x2}()},
