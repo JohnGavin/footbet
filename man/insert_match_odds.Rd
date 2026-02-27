@@ -25,6 +25,7 @@ Other storage:
 \code{\link{create_schema}()},
 \code{\link{disconnect_db}()},
 \code{\link{insert_matches}()},
+\code{\link{insert_transfers}()},
 \code{\link{write_matches_parquet}()},
 \code{\link{write_odds_parquet}()}
 }

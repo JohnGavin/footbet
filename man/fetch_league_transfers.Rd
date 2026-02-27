@@ -6,26 +6,26 @@
 \usage{
 fetch_league_transfers(
   country,
-  start_year = 2015L,
-  end_year = 2025L,
-  transfer_window = "all"
+  start_year = 2024L,
+  transfer_window = "all",
+  delay = 7
 )
 }
 \arguments{
 \item{country}{Character. Country name (e.g. "England").}
 
-\item{start_year}{Integer. First season start year.}
+\item{start_year}{Integer. Season start year (e.g. 2024 for 2024/25).}
 
-\item{end_year}{Integer. Last season start year.}
+\item{transfer_window}{Character. "all", "summer", or "winter".}
 
-\item{transfer_window}{Character. "summer" or "winter".}
+\item{delay}{Numeric. Seconds to pause between requests (default 7).}
 }
 \value{
-A tibble of transfer records.
+A tibble of transfer records with standardised columns.
 }
 \description{
-Wraps \code{worldfootballR::tm_league_transfers()} with rate limiting
-and error handling.
+Gets team URLs for a league/season, then fetches transfers for
+each team with rate limiting. Standardises output columns.
 }
 \seealso{
 Other data-acquisition: 

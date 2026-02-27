@@ -4,7 +4,7 @@
 \alias{fetch_squad_values}
 \title{Fetch squad market values from Transfermarkt}
 \usage{
-fetch_squad_values(country, start_year = 2025L)
+fetch_squad_values(country, start_year = 2024L)
 }
 \arguments{
 \item{country}{Character. Country name.}
