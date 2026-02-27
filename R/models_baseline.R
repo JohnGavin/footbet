@@ -121,3 +121,116 @@ score_matrix_to_ah <- function(mat, line = -0.5) {
   }
   c(win = p_win, push = p_push, lose = p_lose)
 }
+
+#' Predict match probabilities from a fitted Poisson GLM
+#'
+#' Uses [stats::predict()] to get expected goals (lambda) for each team,
+#' then builds a score matrix and derives 1X2, O/U, and AH probabilities.
+#'
+#' @param model A fitted `glm` object from [fit_poisson_glm()].
+#' @param home_team Character. Home team name.
+#' @param away_team Character. Away team name.
+#' @param max_goals Integer. Maximum goals for score matrix (default 7).
+#' @return A list with `lambda_home`, `lambda_away`, `score_mat`,
+#'   `probs_1x2`, `probs_ou25`, `probs_ah05`.
+#' @family models
+#' @export
+predict_glm <- function(model, home_team, away_team, max_goals = 7L) {
+  rlang::check_required(model)
+
+  # Predict expected goals
+  new_home <- data.frame(
+    home = 1L,
+    team = home_team,
+    opponent = away_team,
+    stringsAsFactors = FALSE
+  )
+  new_away <- data.frame(
+    home = 0L,
+    team = away_team,
+    opponent = home_team,
+    stringsAsFactors = FALSE
+  )
+
+  lambda_home <- stats::predict(model, newdata = new_home, type = "response")
+  lambda_away <- stats::predict(model, newdata = new_away, type = "response")
+
+  mat <- score_matrix(lambda_home, lambda_away, max_goals = max_goals)
+
+  list(
+    lambda_home = as.numeric(lambda_home),
+    lambda_away = as.numeric(lambda_away),
+    score_mat = mat,
+    probs_1x2 = score_matrix_to_1x2(mat),
+    probs_ou25 = score_matrix_to_ou(mat),
+    probs_ah05 = score_matrix_to_ah(mat, line = -0.5)
+  )
+}
+
+#' Predict 1X2 probabilities for all matches in a dataset
+#'
+#' Applies [predict_glm()] to each row and returns a tibble of predictions.
+#'
+#' @param model A fitted `glm` object from [fit_poisson_glm()].
+#' @param matches_df A tibble with `match_id`, `home_team`, `away_team`.
+#' @return A tibble with `match_id`, `pred_h`, `pred_d`, `pred_a`,
+#'   `pred_over25`, `pred_under25`.
+#' @family models
+#' @export
+predict_matches_glm <- function(model, matches_df) {
+  rlang::check_required(model)
+  if (!inherits(model, "glm")) {
+    cli::cli_abort("{.arg model} must be a {.cls glm} object, not {.cls {class(model)}}.")
+  }
+  rlang::check_required(matches_df)
+
+  if (nrow(matches_df) == 0L) {
+    return(tibble::tibble(
+      match_id = character(),
+      pred_h = numeric(), pred_d = numeric(), pred_a = numeric(),
+      pred_over25 = numeric(), pred_under25 = numeric()
+    ))
+  }
+
+  # Get teams that the model knows about
+  model_teams <- unique(c(
+    levels(model$data$team),
+    as.character(unique(model$data$team))
+  ))
+
+  n <- nrow(matches_df)
+  pred_h <- rep(NA_real_, n)
+  pred_d <- rep(NA_real_, n)
+  pred_a <- rep(NA_real_, n)
+  pred_over25 <- rep(NA_real_, n)
+  pred_under25 <- rep(NA_real_, n)
+
+  for (i in seq_len(n)) {
+    ht <- matches_df$home_team[i]
+    at <- matches_df$away_team[i]
+
+    # Skip teams not in training data
+    if (!(ht %in% model_teams) || !(at %in% model_teams)) next
+
+    p <- tryCatch(
+      predict_glm(model, ht, at),
+      error = function(e) NULL
+    )
+    if (is.null(p)) next
+
+    pred_h[i] <- p$probs_1x2[["H"]]
+    pred_d[i] <- p$probs_1x2[["D"]]
+    pred_a[i] <- p$probs_1x2[["A"]]
+    pred_over25[i] <- p$probs_ou25[["over"]]
+    pred_under25[i] <- p$probs_ou25[["under"]]
+  }
+
+  tibble::tibble(
+    match_id = matches_df$match_id,
+    pred_h = pred_h,
+    pred_d = pred_d,
+    pred_a = pred_a,
+    pred_over25 = pred_over25,
+    pred_under25 = pred_under25
+  )
+}

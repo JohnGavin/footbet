@@ -1,17 +1,32 @@
 # plan_models.R
-# Model training: GLM baseline, Dixon-Coles, Elo
+# Model training: GLM baseline with walk-forward evaluation
 
 plan_models <- list(
 
-  # TODO (PR #6-7): Add targets for:
-  # - walk-forward train/test split
-  # - fit_poisson_glm on each training fold
-  # - fit_dixon_coles on each training fold
-  # - Elo-based predictions
-  # - pin models with vetiver
-
+  # Walk-forward time splits using match dates
   targets::tar_target(
-    models_placeholder,
-    "Model targets will be added in PR #6-7"
+    wf_splits,
+    walk_forward_splits(
+      dates = sort(unique(parsed_matches$match_date)),
+      train_months = 24L,
+      test_months = 1L
+    )
+  ),
+
+  # GLM Poisson baseline: walk-forward cross-validation
+  targets::tar_target(
+    glm_baseline_cv,
+    evaluate_glm_baseline(
+      long_df = matches_long,
+      matches_df = parsed_matches,
+      train_months = 24L,
+      test_months = 1L
+    )
+  ),
+
+  # Pinnacle implied probabilities as benchmark
+  targets::tar_target(
+    pinnacle_benchmark,
+    pinnacle_implied(parsed_odds)
   )
 )

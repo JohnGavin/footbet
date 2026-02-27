@@ -19,7 +19,10 @@ Compute log loss for probability predictions
 \seealso{
 Other evaluation: 
 \code{\link{brier_1x2}()},
+\code{\link{evaluate_glm_baseline}()},
+\code{\link{pinnacle_implied}()},
 \code{\link{rps_1x2}()},
+\code{\link{summarise_cv}()},
 \code{\link{walk_forward_splits}()}
 }
 \concept{evaluation}

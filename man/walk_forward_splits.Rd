@@ -23,7 +23,10 @@ Training set rolls forward in time; test set is the next period.
 \seealso{
 Other evaluation: 
 \code{\link{brier_1x2}()},
+\code{\link{evaluate_glm_baseline}()},
 \code{\link{log_loss}()},
-\code{\link{rps_1x2}()}
+\code{\link{pinnacle_implied}()},
+\code{\link{rps_1x2}()},
+\code{\link{summarise_cv}()}
 }
 \concept{evaluation}

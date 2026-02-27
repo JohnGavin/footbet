@@ -24,6 +24,8 @@ correction enabled and exponential time-decay weights.
 Other models: 
 \code{\link{fit_poisson_glm}()},
 \code{\link{predict_dc}()},
+\code{\link{predict_glm}()},
+\code{\link{predict_matches_glm}()},
 \code{\link{score_matrix}()},
 \code{\link{score_matrix_to_1x2}()},
 \code{\link{score_matrix_to_ah}()},
