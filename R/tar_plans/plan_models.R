@@ -1,5 +1,5 @@
 # plan_models.R
-# Model training: GLM baseline with walk-forward evaluation
+# Model training: GLM baseline + Dixon-Coles with walk-forward evaluation
 
 plan_models <- list(
 
@@ -21,6 +21,17 @@ plan_models <- list(
       matches_df = parsed_matches,
       train_months = 24L,
       test_months = 1L
+    )
+  ),
+
+  # Dixon-Coles: walk-forward cross-validation
+  targets::tar_target(
+    dc_cv,
+    evaluate_dc(
+      matches_df = parsed_matches,
+      train_months = 24L,
+      test_months = 1L,
+      xi = 0.003
     )
   ),
 

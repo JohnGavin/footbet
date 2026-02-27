@@ -47,23 +47,44 @@ plan_evaluation <- list(
     }
   ),
 
-  # Model vs Pinnacle comparison
+  # Dixon-Coles summary metrics
+  targets::tar_target(
+    dc_eval_summary,
+    summarise_cv(dc_cv)
+  ),
+
+  # Model vs Pinnacle comparison (all models)
   targets::tar_target(
     model_vs_pinnacle,
     {
-      if (nrow(glm_eval_summary) == 0L || nrow(pinnacle_eval) == 0L) {
+      if (nrow(pinnacle_eval) == 0L) {
         return(tibble::tibble(
-          metric = character(), model_mean = numeric(),
-          pinnacle = numeric(), edge = numeric()
+          model = character(), metric = character(),
+          model_mean = numeric(), pinnacle = numeric(), edge = numeric()
         ))
       }
 
-      dplyr::inner_join(
-        dplyr::select(glm_eval_summary, metric, model_mean = mean),
-        dplyr::select(pinnacle_eval, metric, pinnacle = value),
-        by = "metric"
-      ) |>
-        dplyr::mutate(edge = pinnacle - model_mean)
+      pinnacle_tbl <- dplyr::select(pinnacle_eval, metric, pinnacle = value)
+
+      # GLM baseline
+      glm_comp <- if (nrow(glm_eval_summary) > 0L) {
+        dplyr::inner_join(
+          dplyr::select(glm_eval_summary, metric, model_mean = mean),
+          pinnacle_tbl, by = "metric"
+        ) |> dplyr::mutate(model = "glm_poisson")
+      }
+
+      # Dixon-Coles
+      dc_comp <- if (nrow(dc_eval_summary) > 0L) {
+        dplyr::inner_join(
+          dplyr::select(dc_eval_summary, metric, model_mean = mean),
+          pinnacle_tbl, by = "metric"
+        ) |> dplyr::mutate(model = "dixon_coles")
+      }
+
+      dplyr::bind_rows(glm_comp, dc_comp) |>
+        dplyr::mutate(edge = pinnacle - model_mean) |>
+        dplyr::select(model, metric, model_mean, pinnacle, edge)
       # Positive edge = model is better (lower score)
     }
   )
