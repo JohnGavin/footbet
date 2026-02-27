@@ -22,6 +22,8 @@ of recent matches, using only information available before each match.
 }
 \seealso{
 Other features: 
+\code{\link{compute_elo}()},
+\code{\link{devig_odds}()},
 \code{\link{matches_to_long}()}
 }
 \concept{features}
