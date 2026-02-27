@@ -33,7 +33,10 @@ Halves the stake when cumulative drawdown exceeds threshold.
 }
 \seealso{
 Other decisions: 
+\code{\link{find_value_bets}()},
 \code{\link{identify_value_bet}()},
-\code{\link{kelly_fraction}()}
+\code{\link{kelly_fraction}()},
+\code{\link{simulate_pnl}()},
+\code{\link{summarise_pnl}()}
 }
 \concept{decisions}

@@ -36,6 +36,9 @@ probabilities and flags bets with sufficient edge.
 \seealso{
 Other decisions: 
 \code{\link{apply_guardrails}()},
-\code{\link{kelly_fraction}()}
+\code{\link{find_value_bets}()},
+\code{\link{kelly_fraction}()},
+\code{\link{simulate_pnl}()},
+\code{\link{summarise_pnl}()}
 }
 \concept{decisions}
