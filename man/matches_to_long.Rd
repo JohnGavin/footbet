@@ -19,6 +19,8 @@ suitable for GLM/GLMM Poisson regression.
 }
 \seealso{
 Other features: 
+\code{\link{compute_elo}()},
+\code{\link{devig_odds}()},
 \code{\link{rolling_goals}()}
 }
 \concept{features}

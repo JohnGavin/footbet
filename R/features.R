@@ -109,3 +109,122 @@ matches_to_long <- function(matches_df) {
 
   dplyr::bind_rows(home, away)
 }
+
+#' Compute Elo ratings for a league
+#'
+#' Updates Elo ratings match-by-match using the `elo` package.
+#' Matches must be sorted by date. Returns ratings after each match.
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`, `ftr`.
+#' @param k Numeric. K-factor (default 20).
+#' @param home_advantage Numeric. Home advantage in Elo points (default 65).
+#' @param init Numeric. Initial Elo rating (default 1500).
+#' @return A tibble with columns `team`, `match_date`, `elo`.
+#' @family features
+#' @export
+compute_elo <- function(matches_df, k = 20, home_advantage = 65, init = 1500) {
+  rlang::check_installed("elo", reason = "to compute Elo ratings")
+  rlang::check_required(matches_df)
+
+  if (nrow(matches_df) == 0L) {
+    return(tibble::tibble(team = character(), match_date = as.Date(character()),
+                          elo = numeric()))
+  }
+
+  # Convert FTR to numeric result: H=1, D=0.5, A=0
+  matches_df <- matches_df |>
+    dplyr::arrange(.data$match_date) |>
+    dplyr::mutate(
+      result = dplyr::case_when(
+        .data$ftr == "H" ~ 1,
+        .data$ftr == "D" ~ 0.5,
+        .data$ftr == "A" ~ 0,
+        TRUE ~ NA_real_
+      )
+    ) |>
+    dplyr::filter(!is.na(.data$result))
+
+  if (nrow(matches_df) == 0L) {
+    return(tibble::tibble(team = character(), match_date = as.Date(character()),
+                          elo = numeric()))
+  }
+
+  elo_run <- elo::elo.run(
+    result ~ elo::adjust(home_team, home_advantage) + away_team,
+    k = k,
+    data = matches_df,
+    initial.elos = init
+  )
+
+  # Extract final ratings
+  final <- elo::final.elos(elo_run)
+  tibble::tibble(
+    team = names(final),
+    elo = as.numeric(final)
+  )
+}
+
+#' Devig Pinnacle odds for all matches
+#'
+#' Applies Shin devig to 1X2 odds and power devig to over/under odds
+#' for each match in the odds tibble.
+#'
+#' @param odds_df A tibble from [parse_fd_odds()] with columns
+#'   `psh`, `psd`, `psa`, `p_over25`, `p_under25`.
+#' @return A tibble with `match_id` and devigged probability columns.
+#' @family features
+#' @export
+devig_odds <- function(odds_df) {
+  rlang::check_required(odds_df)
+  if (nrow(odds_df) == 0L) {
+    return(tibble::tibble(
+      match_id = character(),
+      fair_h = numeric(), fair_d = numeric(), fair_a = numeric(),
+      fair_over25 = numeric(), fair_under25 = numeric()
+    ))
+  }
+
+  n <- nrow(odds_df)
+  fair_h <- rep(NA_real_, n)
+  fair_d <- rep(NA_real_, n)
+  fair_a <- rep(NA_real_, n)
+  fair_over25 <- rep(NA_real_, n)
+  fair_under25 <- rep(NA_real_, n)
+
+  for (i in seq_len(n)) {
+    # 1X2: use Shin method (best for 3-way markets)
+    h <- odds_df$psh[i]
+    d <- odds_df$psd[i]
+    a <- odds_df$psa[i]
+    if (!is.na(h) && !is.na(d) && !is.na(a) && h > 1 && d > 1 && a > 1) {
+      probs <- tryCatch(
+        devig_shin(c(h, d, a)),
+        error = function(e) c(NA_real_, NA_real_, NA_real_)
+      )
+      fair_h[i] <- probs[1]
+      fair_d[i] <- probs[2]
+      fair_a[i] <- probs[3]
+    }
+
+    # O/U 2.5: use power method (best for 2-way markets)
+    ov <- odds_df$p_over25[i]
+    un <- odds_df$p_under25[i]
+    if (!is.na(ov) && !is.na(un) && ov > 1 && un > 1) {
+      probs_ou <- tryCatch(
+        devig_power(c(ov, un)),
+        error = function(e) c(NA_real_, NA_real_)
+      )
+      fair_over25[i] <- probs_ou[1]
+      fair_under25[i] <- probs_ou[2]
+    }
+  }
+
+  tibble::tibble(
+    match_id = odds_df$match_id,
+    fair_h = fair_h,
+    fair_d = fair_d,
+    fair_a = fair_a,
+    fair_over25 = fair_over25,
+    fair_under25 = fair_under25
+  )
+}
