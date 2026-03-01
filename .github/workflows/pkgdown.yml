@@ -43,7 +43,7 @@ jobs:
           name: rstats-on-nix
           extraPullNames: johngavin
 
-      - name: Build development environment
+      - name: Build project Nix environment
         run: nix-build default.nix -A shell --no-out-link
 
       - name: Build pkgdown site
