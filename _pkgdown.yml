@@ -11,3 +11,15 @@ navbar:
     github:
       icon: fa-github
       href: https://github.com/JohnGavin/footbet
+
+articles:
+  - title: Data Pipeline
+    navbar: Data Pipeline
+    contents:
+      - data-sources
+      - data-cleaning
+  - title: Analysis
+    navbar: Analysis
+    contents:
+      - eda
+      - model-fitting

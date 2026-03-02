@@ -1,0 +1,96 @@
+---
+title: "Data Cleaning & Quality Control"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Data Cleaning & Quality Control}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE,
+  fig.width = 8, fig.height = 6
+)
+library(targets)
+
+if (file.exists(here::here("_targets"))) {
+  tar_config_set(store = here::here("_targets"))
+}
+
+safe_tar_read <- function(name) {
+  tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+}
+```
+
+The footbet pipeline includes automated quality control checks that run after
+data parsing. This vignette summarises the QC outputs.
+
+## Match Completeness
+
+The heatmap below shows the percentage of matches per league-season with a
+valid full-time result (FTR). A value below 100% indicates matches where the
+result is missing — typically from ongoing or postponed fixtures in the current
+season.
+
+```{r vig-completeness-plot, fig.cap = "Match result completeness heatmap. Fill = percentage of matches with non-missing FTR. Key: Most historical league-seasons achieve 100%; current season shows partial data. Source: football-data.co.uk, parsed by footbet::parse_fd_csv()."}
+safe_tar_read("vig_completeness_plot")
+```
+
+## Pinnacle Odds Coverage
+
+Pinnacle odds are the primary benchmark for model evaluation. The heatmap
+shows the percentage of matches with all three Pinnacle 1X2 closing odds
+present.
+
+Coverage gaps arise from:
+
+- **Division 2 leagues**: Pinnacle may not offer odds for lower divisions in
+  some countries.
+- **Feed breaks**: The football-data.co.uk Pinnacle feed experienced a break
+  from mid-2025, causing 0% coverage for affected seasons.
+- **Early seasons**: Pinnacle data availability improves in more recent
+  seasons.
+
+```{r vig-pinnacle-coverage-plot, fig.cap = "Pinnacle 1X2 odds coverage heatmap. Fill = percentage of matches with complete PSH/PSD/PSA. Key: Top divisions have near-100% coverage from ~2016 onward; Division 2 coverage is variable. Source: football-data.co.uk Pinnacle columns."}
+safe_tar_read("vig_pinnacle_coverage_plot")
+```
+
+## Anomaly Detection
+
+The pipeline flags matches with:
+
+- **Extreme scorelines**: Total goals > 10 (very rare, may indicate data
+  entry errors)
+- **Missing dates**: Matches without a parseable date
+- **Future matches**: Dates more than 7 days beyond the pipeline run date
+- **Missing team names**: Rows with NA home or away team
+
+```{r vig-anomalies-table}
+safe_tar_read("vig_anomalies_table")
+```
+
+## Missing Data Profile
+
+The table below shows the count and percentage of missing values for each
+column across all parsed matches. Match statistics (shots, corners, cards) are
+more frequently missing than core fields (teams, dates, scores), especially
+for older seasons or lower divisions.
+
+```{r vig-missing-data-by-column}
+safe_tar_read("vig_missing_data_by_column")
+```
+
+## Data Quality Summary
+
+The `qc_summary` target combines all QC checks into a single report with a
+timestamp. The pipeline computes:
+
+- **Total matches parsed**: Row count across all leagues/seasons
+- **Total odds rows**: Pinnacle odds records parsed
+- **Completeness**: Percentage of matches with valid results
+- **Pinnacle coverage**: Percentage with 1X2 odds
+- **Anomaly count**: Flagged rows for manual review
+
+The QC targets serve as data contracts — downstream model targets depend on
+`qc_summary` to ensure data quality issues are surfaced before model fitting.
