@@ -53,4 +53,5 @@ Suggests:
     vetiver,
     withr,
     worldfootballR
+VignetteBuilder: knitr
 Config/testthat/edition: 3

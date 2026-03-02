@@ -1,0 +1,157 @@
+---
+title: "Model Fitting & Evaluation"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Model Fitting & Evaluation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE,
+  fig.width = 8, fig.height = 6
+)
+library(targets)
+
+if (file.exists(here::here("_targets"))) {
+  tar_config_set(store = here::here("_targets"))
+}
+
+safe_tar_read <- function(name) {
+  tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+}
+```
+
+This vignette covers the modelling pipeline: walk-forward cross-validation,
+two statistical models, and benchmarking against Pinnacle implied probabilities.
+
+## Walk-Forward Cross-Validation
+
+Football data is time-ordered, so standard k-fold CV would leak future
+information. The pipeline uses **walk-forward** (expanding window) splits:
+
+- **Training window**: 24 months of historical matches
+- **Test window**: 1 month of subsequent matches
+- The window slides forward by 1 month for each fold
+
+This mimics a realistic betting scenario where you train on past data and
+predict the next month.
+
+`footbet::walk_forward_splits()` generates the date-based train/test splits,
+and `evaluate_glm_baseline()` / `evaluate_dc()` iterate over them.
+
+## GLM Poisson Baseline
+
+The baseline model is a
+[Poisson regression](https://en.wikipedia.org/wiki/Poisson_regression)
+for goal counts, following Maher (1982):
+
+$$\text{goals}_{ij} \sim \text{Poisson}(\lambda_{ij})$$
+
+$$\log(\lambda_{ij}) = \mu + \alpha_i + \beta_j + \gamma \cdot \mathbb{1}[\text{home}]$$
+
+where $\alpha_i$ is team $i$'s attack strength, $\beta_j$ is team $j$'s
+defence weakness, and $\gamma$ captures home advantage. The model assumes
+independence between home and away goals — an assumption relaxed by
+Dixon-Coles.
+
+`footbet::fit_poisson_glm()` fits this model; `predict_glm()` generates a
+bivariate score probability matrix (up to 10x10 goals) and derives 1X2,
+over/under, and Asian handicap probabilities.
+
+## Dixon-Coles Model
+
+Dixon & Coles (1997) extend the Poisson model with:
+
+1. **Correlation correction**: A parameter $\rho$ adjusts the joint
+   probability of low-scoring outcomes (0-0, 1-0, 0-1, 1-1) where the
+   independence assumption fails most.
+2. **Time-decay weights**: Recent matches receive higher weight via an
+   exponential decay parameter $\xi$, allowing the model to adapt to form
+   changes.
+
+The pipeline uses $\xi = 0.003$ (approximately 1-year half-life) via the
+[goalmodel](https://cran.r-project.org/package=goalmodel) package.
+
+## Per-Fold Metric Comparison
+
+The plot below shows
+[log-loss](https://en.wikipedia.org/wiki/Cross-entropy),
+[Brier score](https://en.wikipedia.org/wiki/Brier_score), and
+[Ranked Probability Score (RPS)](https://en.wikipedia.org/wiki/Ranked_probability_score)
+per CV fold for both models, with Pinnacle as a benchmark (orange dashed line).
+All three are **proper scoring rules** — lower is better.
+
+```{r vig-cv-metrics-plot, fig.cap = "Walk-forward CV metrics per fold: GLM (blue) vs Dixon-Coles (purple) vs Pinnacle (orange dashed). Lower = better. Key: Dixon-Coles slightly outperforms GLM; both trail Pinnacle on most folds. Source: 24-month train / 1-month test walk-forward CV."}
+safe_tar_read("vig_cv_metrics_plot")
+```
+
+## Model vs Pinnacle Benchmark
+
+The table below summarises mean metrics across all folds, with the Pinnacle
+benchmark for comparison. Positive "edge" means the model outperforms
+Pinnacle (lower loss).
+
+```{r vig-model-comparison-table}
+safe_tar_read("vig_model_comparison_table")
+```
+
+## Value Bet Detection
+
+A **value bet** exists when the model's estimated probability exceeds the
+market's implied probability by a minimum edge threshold. The pipeline uses:
+
+- **Minimum edge**: 3% (model_prob - market_prob > 0.03)
+- **Odds filter**: Only bets between 1.50 and 10.00 decimal odds
+- **Devigged odds**: Market probabilities derived via
+  [Shin (1993)](https://doi.org/10.2307/2234526) method, removing the
+  bookmaker margin
+
+```{r vig-value-bets-summary}
+safe_tar_read("vig_value_bets_summary")
+```
+
+```{r vig-edge-distribution, fig.cap = "Distribution of edge values for identified value bets. Red dashed = 3% minimum edge threshold. Key: Most edges cluster at 3-8%; large edges (>15%) are rare and may signal model error. Source: footbet::find_value_bets()."}
+safe_tar_read("vig_edge_distribution")
+```
+
+## Kelly Staking & Guardrails
+
+The pipeline uses **quarter Kelly** staking — the
+[Kelly criterion](https://en.wikipedia.org/wiki/Kelly_criterion) fraction
+divided by 4 to reduce variance:
+
+$$f^* = \frac{1}{4} \cdot \frac{p \cdot (b + 1) - 1}{b}$$
+
+where $p$ is the model probability and $b$ is the decimal odds minus 1.
+
+Guardrails:
+
+- **Max stake**: 3% of current bankroll per bet
+- **Drawdown halt**: When the bankroll drops 20% from its peak, stakes are
+  halved until recovery
+- **`apply_guardrails()`**: Automatically reduces stake size during drawdowns
+
+```{r vig-kelly-stake-distribution, fig.cap = "Distribution of quarter-Kelly stake sizes. Orange dashed = 3% max stake cap. Key: Most stakes are 0.5-2% of bankroll; the cap prevents excessive single-bet exposure. Source: footbet::find_value_bets()."}
+safe_tar_read("vig_kelly_stake_distribution")
+```
+
+## P&L Simulation
+
+The bankroll curve below shows the simulated profit & loss trajectory for all
+GLM value bets, staked with quarter Kelly and drawdown guardrails.
+
+```{r vig-pnl-curve, fig.cap = "Simulated bankroll evolution with GLM value bets, quarter Kelly staking. Orange dashed = starting bankroll (1000). Key: Trajectory depends on model accuracy and market conditions; drawdown guardrails limit losses. Source: footbet::simulate_pnl()."}
+safe_tar_read("vig_pnl_curve")
+```
+
+```{r vig-drawdown-plot, fig.cap = "Drawdown from peak bankroll over time. Orange dashed = -20% guardrail threshold. Key: When drawdown exceeds 20%, stakes are halved via apply_guardrails(). Maximum drawdown is the key risk metric. Source: footbet::simulate_pnl()."}
+safe_tar_read("vig_drawdown_plot")
+```
+
+### P&L Summary
+
+```{r vig-pnl-summary-table}
+safe_tar_read("vig_pnl_summary_table")
+```
