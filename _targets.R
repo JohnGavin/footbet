@@ -25,6 +25,7 @@ c(
   plan_quality_control,
   plan_features,
   plan_models,
+  plan_models_brms,
   plan_evaluation,
   plan_decisions,
   plan_transfers,

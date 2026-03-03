@@ -27,6 +27,7 @@ Imports:
     tidyr
 Suggests:
     arrow,
+    brms,
     covr,
     crew,
     dbplyr,
