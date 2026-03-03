@@ -15,7 +15,13 @@ parse_fd_csv <- function(file_path, league_code, season) {
     cli::cli_abort("File not found: {.file {file_path}}")
   }
 
-  raw <- utils::read.csv(file_path, stringsAsFactors = FALSE, check.names = FALSE)
+  # football-data.co.uk CSVs may contain non-UTF-8 characters (e.g., team names)
+  raw <- utils::read.csv(
+    file_path,
+    stringsAsFactors = FALSE,
+    check.names = FALSE,
+    fileEncoding = "latin1"
+  )
 
   if (nrow(raw) == 0L) {
     cli::cli_warn("Empty CSV: {.file {file_path}}")
@@ -77,7 +83,12 @@ parse_fd_odds <- function(file_path, league_code, season) {
     cli::cli_abort("File not found: {.file {file_path}}")
   }
 
-  raw <- utils::read.csv(file_path, stringsAsFactors = FALSE, check.names = FALSE)
+  raw <- utils::read.csv(
+    file_path,
+    stringsAsFactors = FALSE,
+    check.names = FALSE,
+    fileEncoding = "latin1"
+  )
 
   if (nrow(raw) == 0L) return(tibble::tibble())
 

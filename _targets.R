@@ -1,8 +1,9 @@
 library(targets)
 
 # Set global options
+# Note: footbet functions are sourced directly below, no need to list in packages
 tar_option_set(
-  packages = c("footbet", "dplyr", "tibble", "arrow", "DBI", "duckdb")
+  packages = c("dplyr", "tibble", "arrow", "DBI", "duckdb", "ggplot2", "httr2", "lubridate", "glue", "here", "rlang", "cli", "tidyr")
 )
 
 # Source package functions (exclude dev/ and tar_plans/)
