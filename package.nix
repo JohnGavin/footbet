@@ -22,6 +22,7 @@ let
       dplyr
       duckdb
       glue
+      here
       httr2
       lubridate
       rlang
