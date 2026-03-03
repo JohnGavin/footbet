@@ -130,37 +130,49 @@ main() {
   # STEP 4: Pre-check then push ONLY this package
   log_step "Step 4/4: Pushing ONLY $PKG_NAME to johngavin cachix..."
 
-  log_info "Pre-check: verifying dependencies are already cached..."
-  UNCACHED_DEPS=0
-  UNCACHED_LIST=""
-  for path in $(nix-store -qR "$RESULT" | grep -E "/nix/store/[a-z0-9]+-r-" | grep -v "r-${PKG_NAME}"); do
+  # CRITICAL: Check johngavin specifically (not rstats-on-nix or cache.nixos.org)
+  # because cachix push uploads anything NOT in the TARGET cache, regardless of
+  # whether it exists elsewhere. This prevents accidental dep uploads.
+  log_info "Pre-check: verifying ALL closure paths are in johngavin..."
+
+  # Get the package store path hash for filtering
+  PKG_HASH=$(basename "$RESULT" | cut -c1-32)
+
+  MISSING_IN_JG=0
+  MISSING_LIST=""
+  for path in $(nix-store -qR "$RESULT"); do
     HASH=$(basename "$path" | cut -c1-32)
+    # Skip our own package - it's what we're pushing
+    if [ "$HASH" = "$PKG_HASH" ]; then
+      continue
+    fi
     JG_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
       --max-time 5 "https://johngavin.cachix.org/${HASH}.narinfo" 2>/dev/null || echo "000")
-    RON_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-      --max-time 5 "https://rstats-on-nix.cachix.org/${HASH}.narinfo" 2>/dev/null || echo "000")
-    NIX_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-      --max-time 5 "https://cache.nixos.org/${HASH}.narinfo" 2>/dev/null || echo "000")
-    if [ "$JG_CODE" != "200" ] && [ "$RON_CODE" != "200" ] && [ "$NIX_CODE" != "200" ]; then
-      UNCACHED_DEPS=$((UNCACHED_DEPS + 1))
-      UNCACHED_LIST="${UNCACHED_LIST}  ${path}\n"
+    if [ "$JG_CODE" != "200" ]; then
+      MISSING_IN_JG=$((MISSING_IN_JG + 1))
+      MISSING_LIST="${MISSING_LIST}  ${path}\n"
     fi
   done
 
-  if [ "$UNCACHED_DEPS" -gt 0 ]; then
-    log_error "ABORT: $UNCACHED_DEPS R package dependencies are NOT in any cache."
-    log_error "Pushing would upload these dependencies (forbidden)."
-    echo -e "$UNCACHED_LIST" | head -10
+  TOTAL_CLOSURE=$(nix-store -qR "$RESULT" | wc -l | tr -d ' ')
+
+  if [ "$MISSING_IN_JG" -gt 0 ]; then
+    log_error "ABORT: $MISSING_IN_JG of $TOTAL_CLOSURE closure paths are NOT in johngavin cache."
+    log_error "cachix push would upload these (quota waste, forbidden)."
     echo ""
-    log_error "Fix: seed the cache once with the full closure:"
-    log_info "  echo '$RESULT' | cachix push johngavin"
-    log_info "Then re-run ./push_to_cachix.sh"
+    log_info "Missing paths (first 10):"
+    echo -e "$MISSING_LIST" | head -10
+    echo ""
+    log_info "These deps should come from rstats-on-nix or cache.nixos.org."
+    log_info "To seed johngavin ONE TIME (if absolutely needed):"
+    log_info "  nix-store -qR '$RESULT' | cachix push johngavin"
+    log_info ""
+    log_info "Or update package.nix to use a nixpkgs pin where all deps are pre-built."
     exit 4
   fi
 
-  DEP_COUNT=$(nix-store -qR "$RESULT" | grep -E "/nix/store/[a-z0-9]+-r-" | grep -cv "r-${PKG_NAME}" || echo 0)
-  log_success "All $DEP_COUNT R package deps already cached"
-  log_info "Pushing (only new paths will be uploaded)..."
+  log_success "All $((TOTAL_CLOSURE - 1)) dependency paths already in johngavin"
+  log_info "Pushing package (only $PKG_NAME will be uploaded)..."
 
   PUSH_LOG="/tmp/cachix-push-${PKG_NAME}.log"
 
@@ -173,7 +185,8 @@ main() {
   PUSHED_COUNT=$(grep -c "^Pushing /nix/store/" "$PUSH_LOG" 2>/dev/null || echo 0)
 
   if [ "$PUSHED_COUNT" -gt 1 ]; then
-    log_error "ABORT: Pushed $PUSHED_COUNT paths (strict limit is 1)!"
+    log_error "UNEXPECTED: Pushed $PUSHED_COUNT paths but pre-check passed!"
+    log_error "This indicates a race condition or cache eviction."
     grep "^Pushing /nix/store/" "$PUSH_LOG"
     exit 4
   elif [ "$PUSHED_COUNT" -eq 1 ]; then
