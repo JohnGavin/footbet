@@ -27,6 +27,7 @@ c(
   plan_models,
   plan_evaluation,
   plan_decisions,
+  plan_transfers,
   plan_doc_examples,
   plan_vignette_outputs
 )
