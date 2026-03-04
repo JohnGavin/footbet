@@ -33,6 +33,7 @@ Betting on full and half time outcomes when the market odds deviate materially f
 # Models
 + https://rprogrammingbooks.com/sports-analytics-with-r/
 	+ https://rprogrammingbooks.com/machine-learning-sports-analytics-r/
++ https://rprogrammingbooks.com/hierarchical-bayesian-models-in-r-brms-partial-pooling/
 
 ## Simulation
 + https://rprogrammingbooks.com/predict-sports-in-r-elo-monte-carlo-simulations/
@@ -51,7 +52,6 @@ Betting on full and half time outcomes when the market odds deviate materially f
 + https://rprogrammingbooks.com/quantitative-horse-racing-r-calibration-backtesting-deployment
   + section 13) An “engineering checklist”  
   	+ what is on this list that we might leverage for all projects by adding to or amending skills agents rules commands hooks that we are not already doing 
-    + plan how to incorporate and improve our existing global setup/settings
 https://rprogrammingbooks.com/quantitative-horse-racing-r-calibration-backtesting-deployment
 13) An “engineering checklist” 
 	Canonical schema
