@@ -3,6 +3,7 @@
 # ---- compute_elo ----
 
 test_that("compute_elo produces ratings for all teams", {
+  skip_if_not_installed("elo")
   matches <- tibble::tibble(
     match_date = as.Date(c("2024-01-01", "2024-01-08", "2024-01-15",
                            "2024-01-22", "2024-01-29")),
@@ -18,6 +19,7 @@ test_that("compute_elo produces ratings for all teams", {
 })
 
 test_that("compute_elo: home wins increase home rating", {
+  skip_if_not_installed("elo")
   matches <- tibble::tibble(
     match_date = as.Date(c("2024-01-01", "2024-01-08", "2024-01-15")),
     home_team = c("A", "A", "A"),
@@ -32,6 +34,7 @@ test_that("compute_elo: home wins increase home rating", {
 })
 
 test_that("compute_elo: empty input returns empty", {
+  skip_if_not_installed("elo")
   empty <- tibble::tibble(
     match_date = as.Date(character()),
     home_team = character(),
@@ -43,6 +46,7 @@ test_that("compute_elo: empty input returns empty", {
 })
 
 test_that("compute_elo: all draws give equal ratings", {
+  skip_if_not_installed("elo")
   matches <- tibble::tibble(
     match_date = as.Date(c("2024-01-01", "2024-01-08")),
     home_team = c("A", "B"),
@@ -59,6 +63,7 @@ test_that("compute_elo: all draws give equal ratings", {
 })
 
 test_that("compute_elo: custom k-factor", {
+  skip_if_not_installed("elo")
   matches <- tibble::tibble(
     match_date = as.Date("2024-01-01"),
     home_team = "A",
