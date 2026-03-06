@@ -20,14 +20,22 @@ test_that("parse_fd_csv: NULL file_path", {
 test_that("parse_fd_csv: empty CSV returns empty tibble", {
   tmp <- withr::local_tempfile(fileext = ".csv")
   writeLines("Date,HomeTeam,AwayTeam,FTHG,FTAG,FTR", tmp)
-  result <- parse_fd_csv(tmp, "E0", "2324")
+  # Expect warning about empty CSV
+ expect_warning(
+    result <- parse_fd_csv(tmp, "E0", "2324"),
+    "Empty CSV"
+  )
   expect_equal(nrow(result), 0L)
 })
 
 test_that("parse_fd_csv: CSV with only header", {
   tmp <- withr::local_tempfile(fileext = ".csv")
   writeLines("Date,HomeTeam,AwayTeam,FTHG,FTAG,FTR", tmp)
-  result <- parse_fd_csv(tmp, "E0", "2324")
+  # Expect warning about empty CSV
+  expect_warning(
+    result <- parse_fd_csv(tmp, "E0", "2324"),
+    "Empty CSV"
+  )
   expect_s3_class(result, "tbl_df")
 })
 
@@ -50,7 +58,10 @@ test_that("parse_fd_csv: malformed date", {
     "Date,HomeTeam,AwayTeam,FTHG,FTAG,FTR",
     "not-a-date,Arsenal,Liverpool,2,0,H"
   ), tmp)
-  result <- parse_fd_csv(tmp, "E0", "2324")
+  # Expect lubridate warning about failed date parsing
+  suppressWarnings(
+    result <- parse_fd_csv(tmp, "E0", "2324")
+  )
   expect_true(is.na(result$match_date[1]))
 })
 

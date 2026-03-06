@@ -79,7 +79,10 @@ test_that("predict_glm returns correct structure", {
   )
   model <- fit_poisson_glm(long)
 
-  pred <- predict_glm(model, "A", "B")
+  # Suppress rank-deficient warning from small synthetic test data
+  suppressWarnings(
+    pred <- predict_glm(model, "A", "B")
+  )
   expect_type(pred, "list")
   expect_named(pred, c("lambda_home", "lambda_away", "score_mat",
                         "probs_1x2", "probs_ou25", "probs_ah05"))
@@ -107,7 +110,10 @@ test_that("predict_matches_glm returns predictions for all matches", {
     away_team = c("B", "C")
   )
 
-  preds <- predict_matches_glm(model, matches)
+  # Suppress rank-deficient warning from small synthetic test data
+  suppressWarnings(
+    preds <- predict_matches_glm(model, matches)
+  )
   expect_equal(nrow(preds), 2L)
   expect_true(all(!is.na(preds$pred_h)))
   # Each row's 1X2 probs should sum to ~1

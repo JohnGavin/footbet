@@ -115,7 +115,11 @@ test_that("join_xg_to_matches handles empty FBref data", {
 
   fbref <- tibble::tibble()
 
-  result <- join_xg_to_matches(matches, fbref)
+  # Expect warning about empty FBref data
+  expect_warning(
+    result <- join_xg_to_matches(matches, fbref),
+    "FBref data is empty"
+  )
 
   expect_true("home_xg" %in% names(result))
   expect_true("away_xg" %in% names(result))
