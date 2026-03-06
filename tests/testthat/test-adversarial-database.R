@@ -4,9 +4,10 @@
 # ---- connect_db ----
 
 test_that("connect_db: invalid path errors", {
-  # Suppress system warning about missing directory
-  suppressWarnings(
-    expect_error(connect_db("/nonexistent/dir/db.duckdb"))
+  # Assert that attempting to connect to nonexistent path warns AND errors
+  expect_warning(
+    expect_error(connect_db("/nonexistent/dir/db.duckdb")),
+    "cannot open file"
   )
 })
 

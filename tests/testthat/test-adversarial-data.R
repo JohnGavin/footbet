@@ -58,9 +58,10 @@ test_that("parse_fd_csv: malformed date", {
     "Date,HomeTeam,AwayTeam,FTHG,FTAG,FTR",
     "not-a-date,Arsenal,Liverpool,2,0,H"
   ), tmp)
-  # Expect lubridate warning about failed date parsing
-  suppressWarnings(
-    result <- parse_fd_csv(tmp, "E0", "2324")
+  # Assert that lubridate warns about failed date parsing
+  expect_warning(
+    result <- parse_fd_csv(tmp, "E0", "2324"),
+    "failed to parse"
   )
   expect_true(is.na(result$match_date[1]))
 })

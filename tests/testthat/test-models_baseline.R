@@ -70,19 +70,30 @@ test_that("fit_poisson_glm errors on missing columns", {
 # ---- predict_glm ----
 
 test_that("predict_glm returns correct structure", {
-  long <- tibble::tibble(
-    team = rep(c("A", "B", "C"), each = 6),
-    opponent = rep(c("B", "C", "A"), each = 6),
-    goals = as.integer(c(2, 1, 0, 1, 3, 2, 1, 0, 1, 2, 0, 1,
-                          0, 2, 1, 0, 1, 2)),
-    home = rep(c(1L, 0L), 9)
-  )
+  # Create sufficient data to avoid rank deficiency
+  set.seed(42)
+  teams <- c("A", "B", "C", "D")
+  matches_list <- list()
+  idx <- 1
+  for (i in seq_along(teams)) {
+    for (j in seq_along(teams)) {
+      if (i != j) {
+        for (k in 1:3) {  # 3 matches per pair
+          matches_list[[idx]] <- list(
+            team = teams[i],
+            opponent = teams[j],
+            goals = rpois(1, 1.5),
+            home = sample(0:1, 1)
+          )
+          idx <- idx + 1
+        }
+      }
+    }
+  }
+  long <- dplyr::bind_rows(lapply(matches_list, tibble::as_tibble))
   model <- fit_poisson_glm(long)
 
-  # Suppress rank-deficient warning from small synthetic test data
-  suppressWarnings(
-    pred <- predict_glm(model, "A", "B")
-  )
+  pred <- predict_glm(model, "A", "B")
   expect_type(pred, "list")
   expect_named(pred, c("lambda_home", "lambda_away", "score_mat",
                         "probs_1x2", "probs_ou25", "probs_ah05"))
@@ -95,13 +106,29 @@ test_that("predict_glm returns correct structure", {
 # ---- predict_matches_glm ----
 
 test_that("predict_matches_glm returns predictions for all matches", {
-  long <- tibble::tibble(
-    team = rep(c("A", "B", "C"), each = 6),
-    opponent = rep(c("B", "C", "A"), each = 6),
-    goals = as.integer(c(2, 1, 0, 1, 3, 2, 1, 0, 1, 2, 0, 1,
-                          0, 2, 1, 0, 1, 2)),
-    home = rep(c(1L, 0L), 9)
-  )
+  # Create sufficient data to avoid rank deficiency
+  # 4 teams, 6 rounds = 24 matches = 48 observations
+  set.seed(42)
+  teams <- c("A", "B", "C", "D")
+  rounds <- 6
+  matches_list <- list()
+  idx <- 1
+  for (r in seq_len(rounds)) {
+    for (i in seq_along(teams)) {
+      for (j in seq_along(teams)) {
+        if (i != j && idx <= 48) {
+          matches_list[[idx]] <- list(
+            team = teams[i],
+            opponent = teams[j],
+            goals = rpois(1, 1.5),
+            home = sample(0:1, 1)
+          )
+          idx <- idx + 1
+        }
+      }
+    }
+  }
+  long <- dplyr::bind_rows(lapply(matches_list, tibble::as_tibble))
   model <- fit_poisson_glm(long)
 
   matches <- tibble::tibble(
@@ -110,10 +137,7 @@ test_that("predict_matches_glm returns predictions for all matches", {
     away_team = c("B", "C")
   )
 
-  # Suppress rank-deficient warning from small synthetic test data
-  suppressWarnings(
-    preds <- predict_matches_glm(model, matches)
-  )
+  preds <- predict_matches_glm(model, matches)
   expect_equal(nrow(preds), 2L)
   expect_true(all(!is.na(preds$pred_h)))
   # Each row's 1X2 probs should sum to ~1
