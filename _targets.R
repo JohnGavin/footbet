@@ -24,6 +24,7 @@ c(
   plan_data_acquisition,
   plan_quality_control,
   plan_features,
+  plan_xg_features,
   plan_models,
   plan_models_brms,
   plan_evaluation,
