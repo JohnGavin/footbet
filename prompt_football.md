@@ -34,6 +34,10 @@ Betting on full and half time outcomes when the market odds deviate materially f
 + https://rprogrammingbooks.com/sports-analytics-with-r/
 	+ https://rprogrammingbooks.com/machine-learning-sports-analytics-r/
 + https://rprogrammingbooks.com/hierarchical-bayesian-models-in-r-brms-partial-pooling/
++ https://tonyelhabr.rbind.io/posts/xg-predictor-future-results/
+	+ xG ratio outperforms actual goals for forecasting (R² > 0.5 by matchday 9-13)
+	+ xG+xAG composite stabilizes earlier (days 7-10)
+	+ Gamestate adjustment provides minimal benefit
 
 ## Simulation
 + https://rprogrammingbooks.com/predict-sports-in-r-elo-monte-carlo-simulations/
