@@ -19,7 +19,8 @@ if (file.exists(here::here("_targets"))) {
 }
 
 safe_tar_read <- function(name) {
-  tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+  result <- tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+  if (is.null(result)) invisible(NULL) else result
 }
 ```
 

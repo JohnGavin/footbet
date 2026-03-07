@@ -12,6 +12,44 @@ navbar:
       icon: fa-github
       href: https://github.com/JohnGavin/footbet
 
+reference:
+  - title: Data Acquisition
+    desc: Download and parse match data from various sources
+    contents:
+      - has_concept("data-acquisition")
+  - title: Feature Engineering
+    desc: Create predictive features from raw match data
+    contents:
+      - has_concept("features")
+  - title: Devigging Odds
+    desc: Remove bookmaker margin from odds
+    contents:
+      - has_concept("devig")
+  - title: Prediction Models
+    desc: Fit and predict with Poisson, Dixon-Coles, and Bayesian models
+    contents:
+      - has_concept("models")
+  - title: Model Evaluation
+    desc: Evaluate model performance and calibration
+    contents:
+      - has_concept("evaluation")
+  - title: Betting Strategy
+    desc: Kelly criterion and bankroll management
+    contents:
+      - has_concept("decisions")
+  - title: Simulation
+    desc: Monte Carlo simulation for accumulators and rare events
+    contents:
+      - has_concept("simulation")
+  - title: Database
+    desc: DuckDB storage and retrieval
+    contents:
+      - has_concept("storage")
+  - title: Utilities
+    desc: Helper functions
+    contents:
+      - has_concept("utilities")
+
 articles:
   - title: Data Pipeline
     navbar: Data Pipeline
