@@ -182,7 +182,7 @@ standardise_transfers <- function(raw, country, start_year) {
     fee_eur = if (length(fee_col)) parse_transfer_fee(raw[[fee_col[[1]]]]) else NA_real_,
     fee_type = if (length(fee_col)) classify_fee(raw[[fee_col[[1]]]]) else NA_character_,
     position = if (length(pos_col)) as.character(raw[[pos_col[[1]]]]) else NA_character_,
-    age_at_transfer = if (length(age_col)) suppressWarnings(as.integer(raw[[age_col[[1]]]])) else NA_integer_
+    age_at_transfer = if (length(age_col)) readr::parse_integer(as.character(raw[[age_col[[1]]]])) else NA_integer_
   )
 
   # Detect arrivals vs departures if available
