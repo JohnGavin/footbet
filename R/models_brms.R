@@ -57,7 +57,7 @@ fit_brms_poisson <- function(long_df,
   fit <- brms::brm(
     formula = formula,
     data = long_df,
-    family = brms::poisson(),
+    family = "poisson",
     prior = prior,
     iter = iter,
     warmup = warmup,

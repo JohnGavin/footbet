@@ -42,13 +42,13 @@ rlang::check_installed("worldfootballR",
     "F2" = "FRA"
   )
 
-  fbref_country <- country_map[[country]]
-  if (is.null(fbref_country) || is.na(fbref_country)) {
+  if (!country %in% names(country_map)) {
     cli::cli_abort(c(
       "x" = "Unknown country code: {.val {country}}",
-      "i" = "Supported: {.val {names(country_map)}}"
+      "i" = "Supported: {.val {unique(names(country_map))}}"
     ))
   }
+  fbref_country <- country_map[[country]]
 
   cli::cli_alert("Fetching FBref data for {.val {fbref_country}} {.val {season_end}}")
 

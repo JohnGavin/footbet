@@ -45,7 +45,12 @@ test_that("predict_brms requires brmsfit object", {
 test_that("predict_brms requires team arguments", {
   skip_if_not_installed("brms")
   # Can't create a real brmsfit without fitting, so just check the error path
-  expect_error(predict_brms(model = NULL, home_team = "A"), "model")
+  # away_team is checked before model, so test that first
+
+  expect_error(predict_brms(model = NULL, home_team = "A"), "away_team")
+  # With both teams, model validation triggers
+
+  expect_error(predict_brms(model = NULL, home_team = "A", away_team = "B"), "brmsfit")
 })
 
 # ---- predict_matches_brms input validation ----
