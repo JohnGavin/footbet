@@ -70,6 +70,65 @@ plan_quality_control <- list(
     }
   ),
 
+  # NA rates per column - validates coercion didn't silently corrupt data
+
+  targets::tar_target(
+    qc_na_rates,
+    {
+      if (nrow(parsed_matches) == 0L) {
+        return(tibble::tibble(column = character(), n_na = integer(),
+                               pct_na = double(), critical = logical()))
+      }
+
+      # Core columns that should rarely have NAs
+      core_cols <- c("match_date", "home_team", "away_team", "fthg", "ftag", "ftr")
+      # Stats columns that may legitimately be missing
+
+      stats_cols <- c("hs", "as_", "hst", "ast", "hc", "ac", "hf", "af",
+                       "hy", "ay", "hr", "ar")
+
+      check_na <- function(df, cols, critical) {
+        tibble::tibble(
+          column = cols,
+          n_na = vapply(cols, function(col) sum(is.na(df[[col]])), integer(1)),
+          n_total = nrow(df),
+          pct_na = round(100 * n_na / n_total, 2),
+          critical = critical
+        )
+      }
+
+      dplyr::bind_rows(
+        check_na(parsed_matches, core_cols, critical = TRUE),
+        check_na(parsed_matches, stats_cols, critical = FALSE)
+      )
+    }
+  ),
+
+  # Abort if critical columns have >1% NA rate
+  targets::tar_target(
+    qc_na_validation,
+    {
+      critical_issues <- qc_na_rates |>
+        dplyr::filter(critical, pct_na > 1)
+
+      if (nrow(critical_issues) > 0L) {
+        cli::cli_warn(c(
+          "!" = "Critical columns have >1% NA rate:",
+          "x" = paste(sprintf("%s: %.1f%%", critical_issues$column,
+                               critical_issues$pct_na), collapse = ", "),
+          "i" = "This may indicate coercion failures or source data issues."
+        ))
+      }
+
+      # Return validation result for downstream use
+      list(
+        passed = nrow(critical_issues) == 0L,
+        issues = critical_issues,
+        timestamp = Sys.time()
+      )
+    }
+  ),
+
   # Summary report combining all QC targets
   targets::tar_target(
     qc_summary,
@@ -77,6 +136,8 @@ plan_quality_control <- list(
       list(
         match_completeness = qc_match_completeness,
         pinnacle_coverage  = qc_pinnacle_coverage,
+        na_rates           = qc_na_rates,
+        na_validation      = qc_na_validation,
         anomalies          = qc_anomalies,
         total_matches      = nrow(parsed_matches),
         total_odds         = nrow(parsed_odds),

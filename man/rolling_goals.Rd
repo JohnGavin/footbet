@@ -23,7 +23,11 @@ of recent matches, using only information available before each match.
 \seealso{
 Other features: 
 \code{\link{compute_elo}()},
+\code{\link{compute_xg_features}()},
+\code{\link{cumulative_xg_ratio}()},
 \code{\link{devig_odds}()},
-\code{\link{matches_to_long}()}
+\code{\link{matches_to_long}()},
+\code{\link{rolling_xg}()},
+\code{\link{xg_overperformance}()}
 }
 \concept{features}

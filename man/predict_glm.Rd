@@ -25,10 +25,14 @@ then builds a score matrix and derives 1X2, O/U, and AH probabilities.
 }
 \seealso{
 Other models: 
+\code{\link{evaluate_brms}()},
 \code{\link{evaluate_dc}()},
+\code{\link{fit_brms_poisson}()},
 \code{\link{fit_dixon_coles}()},
 \code{\link{fit_poisson_glm}()},
+\code{\link{predict_brms}()},
 \code{\link{predict_dc}()},
+\code{\link{predict_matches_brms}()},
 \code{\link{predict_matches_dc}()},
 \code{\link{predict_matches_glm}()},
 \code{\link{score_matrix}()},

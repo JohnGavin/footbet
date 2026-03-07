@@ -22,6 +22,8 @@ Imports:
     here,
     httr2,
     lubridate,
+    Matrix,
+    readr,
     rlang,
     tibble,
     tidyr

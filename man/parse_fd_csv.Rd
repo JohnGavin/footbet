@@ -24,8 +24,11 @@ names, parsed dates, and a unique match ID.
 Other data-acquisition: 
 \code{\link{download_all_fd}()},
 \code{\link{download_fd_csv}()},
+\code{\link{fetch_fbref_all}()},
+\code{\link{fetch_fbref_matches}()},
 \code{\link{fetch_league_transfers}()},
 \code{\link{fetch_squad_values}()},
+\code{\link{join_xg_to_matches}()},
 \code{\link{parse_fd_odds}()}
 }
 \concept{data-acquisition}

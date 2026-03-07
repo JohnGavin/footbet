@@ -44,7 +44,7 @@ rix(
   project_path = ".",
   overwrite = TRUE,
   print = TRUE,
-  date = "2026-01-05"
+  date = "2025-12-15"
 )
 
 # Post-process: engsoccerdata is marked broken in nixpkgs but is in

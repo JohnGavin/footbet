@@ -22,6 +22,7 @@ for (plan_file in plan_files) source(plan_file)
 # Combine all plans
 c(
   plan_data_acquisition,
+  plan_data_validation,
   plan_quality_control,
   plan_features,
   plan_xg_features,

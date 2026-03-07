@@ -314,8 +314,19 @@ evaluate_brms <- function(long_df,
 
     if (nrow(eval_df) == 0L) next
 
+    # Extract probability of actual outcome for log loss
+    prob_actual <- dplyr::case_when(
+      eval_df$ftr == "H" ~ eval_df$prob_h,
+      eval_df$ftr == "D" ~ eval_df$prob_d,
+      eval_df$ftr == "A" ~ eval_df$prob_a,
+      TRUE ~ NA_real_
+    )
+    prob_actual <- prob_actual[!is.na(prob_actual)]
+
+    if (length(prob_actual) == 0L) next
+
     # Compute metrics
-    ll <- log_loss(eval_df$prob_h, eval_df$prob_d, eval_df$prob_a, eval_df$ftr)
+    ll <- log_loss(prob_actual)
     br <- brier_1x2(eval_df$prob_h, eval_df$prob_d, eval_df$prob_a, eval_df$ftr)
     rp <- rps_1x2(eval_df$prob_h, eval_df$prob_d, eval_df$prob_a, eval_df$ftr)
 

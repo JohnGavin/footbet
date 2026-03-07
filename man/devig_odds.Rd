@@ -20,7 +20,11 @@ for each match in the odds tibble.
 \seealso{
 Other features: 
 \code{\link{compute_elo}()},
+\code{\link{compute_xg_features}()},
+\code{\link{cumulative_xg_ratio}()},
 \code{\link{matches_to_long}()},
-\code{\link{rolling_goals}()}
+\code{\link{rolling_goals}()},
+\code{\link{rolling_xg}()},
+\code{\link{xg_overperformance}()}
 }
 \concept{features}
