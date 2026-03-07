@@ -26,44 +26,36 @@ dev_extras <- c(
 # Combine all packages
 r_pkgs <- unique(c(desc_deps, dev_extras)) |> sort()
 
-# GitHub packages not in rstats-on-nix nixpkgs
-git_pkgs <- list(
-  list(
-    package_name = "goalmodel",
-    repo_url = "https://github.com/opisthokonta/goalmodel",
-    commit = "84ecd6c2bbad3ccb967abf88ef49e5bcd074e545"
-  )
-)
-
-# Generate default.nix
+# Generate default.nix WITHOUT git_pkgs to avoid curl segfault
+# goalmodel will be added via post-processing with pre-computed hash
 rix(
   r_pkgs = r_pkgs,
   system_pkgs = c("qpdf"),
-  git_pkgs = git_pkgs,
+  git_pkgs = NULL,
   ide = "none",
+
   project_path = ".",
   overwrite = TRUE,
   print = TRUE,
-  date = "2025-12-15"
+  date = "2026-03-02"
 )
 
-# Post-process: engsoccerdata is marked broken in nixpkgs but is in
-# goalmodel's Imports. Override the broken mark and use list concatenation
-# for goalmodel's propagatedBuildInputs.
+# Post-process: add goalmodel with pre-computed hash and fix engsoccerdata
 nix_text <- paste(readLines("default.nix"), collapse = "\n")
-nix_text <- sub(
-  "    goalmodel = \\(pkgs\\.rPackages\\.buildRPackage \\{\n      name = \"goalmodel\";\n      src = pkgs\\.fetchgit \\{\n        url = \"https://github\\.com/opisthokonta/goalmodel\";\n        rev = \"[^\"]+\";\n        sha256 = \"[^\"]+\";\n      \\};\n      propagatedBuildInputs = builtins\\.attrValues \\{\n        inherit \\(pkgs\\.rPackages\\) \n          MASS\n          engsoccerdata\n          dplyr\n          Rcpp;\n      \\};",
-  "    # engsoccerdata is marked broken in nixpkgs but goalmodel Imports it
+
+# Add goalmodel and engsoccerdata override before rpkgs
+goalmodel_block <- '
+    # engsoccerdata is marked broken in nixpkgs but goalmodel Imports it
     engsoccerdata = pkgs.rPackages.engsoccerdata.overrideAttrs (_: {
       meta = { broken = false; };
     });
 
     goalmodel = (pkgs.rPackages.buildRPackage {
-      name = \"goalmodel\";
+      name = "goalmodel";
       src = pkgs.fetchgit {
-        url = \"https://github.com/opisthokonta/goalmodel\";
-        rev = \"84ecd6c2bbad3ccb967abf88ef49e5bcd074e545\";
-        sha256 = \"sha256-InAgUuPsVME4hdyGS2pQsMXFkzlPKlILNP7N6ESnjy8=\";
+        url = "https://github.com/opisthokonta/goalmodel";
+        rev = "84ecd6c2bbad3ccb967abf88ef49e5bcd074e545";
+        sha256 = "sha256-InAgUuPsVME4hdyGS2pQsMXFkzlPKlILNP7N6ESnjy8=";
       };
       propagatedBuildInputs = [
         engsoccerdata
@@ -72,8 +64,23 @@ nix_text <- sub(
           MASS
           dplyr
           Rcpp;
-      };",
+      };
+    });
+'
+
+# Insert goalmodel block after "rpkgs = builtins.attrValues {"
+nix_text <- sub(
+  "(rpkgs = builtins\\.attrValues \\{)",
+  paste0(goalmodel_block, "\n    \\1"),
   nix_text
 )
+
+# Add goalmodel to buildInputs
+nix_text <- sub(
+  "(buildInputs = \\[ rpkgs )",
+  "\\1goalmodel ",
+  nix_text
+)
+
 writeLines(nix_text, "default.nix")
-message("Post-processed: engsoccerdata broken override applied")
+message("Post-processed: goalmodel and engsoccerdata override applied")
