@@ -234,3 +234,132 @@ predict_matches_glm <- function(model, matches_df) {
     pred_under25 = pred_under25
   )
 }
+
+# ============================================================================
+# CORRECT SCORE PREDICTIONS
+# ============================================================================
+
+#' Get probability for a specific scoreline
+#'
+#' Extracts the probability of a specific home-away scoreline from
+#' a score probability matrix.
+#'
+#' @param mat A score probability matrix from [score_matrix()].
+#' @param home_goals Integer. Home team goals.
+#' @param away_goals Integer. Away team goals.
+#' @return Numeric probability, or NA if scoreline is out of range.
+#' @family models
+#' @export
+score_probability <- function(mat, home_goals, away_goals) {
+  rlang::check_required(mat)
+  rlang::check_required(home_goals)
+  rlang::check_required(away_goals)
+
+  max_goals <- nrow(mat) - 1L
+
+  if (home_goals < 0 || home_goals > max_goals ||
+      away_goals < 0 || away_goals > max_goals) {
+    return(NA_real_)
+  }
+
+  mat[home_goals + 1L, away_goals + 1L]
+}
+
+#' Get top N most likely scorelines
+#'
+#' Returns the most probable scorelines from a score matrix,
+#' sorted by probability.
+#'
+#' @param mat A score probability matrix from [score_matrix()].
+#' @param n Integer. Number of top scorelines to return (default 10).
+#' @return A tibble with `home_goals`, `away_goals`, `probability`,
+#'   sorted by probability descending.
+#' @family models
+#' @export
+top_scorelines <- function(mat, n = 10L) {
+  rlang::check_required(mat)
+
+  max_goals <- nrow(mat) - 1L
+
+  # Build all scorelines
+  scorelines <- expand.grid(
+    home_goals = 0:max_goals,
+    away_goals = 0:max_goals
+  )
+
+  scorelines$probability <- mapply(
+    function(h, a) mat[h + 1L, a + 1L],
+    scorelines$home_goals,
+    scorelines$away_goals
+  )
+
+  # Sort and take top n
+  scorelines <- scorelines[order(-scorelines$probability), ]
+  scorelines <- utils::head(scorelines, n)
+
+  tibble::tibble(
+    home_goals = scorelines$home_goals,
+    away_goals = scorelines$away_goals,
+    probability = scorelines$probability,
+    scoreline = paste0(scorelines$home_goals, "-", scorelines$away_goals)
+  )
+}
+
+#' Predict correct score probabilities for a match
+#'
+#' Computes probabilities for all scorelines and returns top predictions.
+#'
+#' @param model A fitted Poisson model (glm or similar).
+#' @param home_team Character. Home team name.
+#' @param away_team Character. Away team name.
+#' @param max_goals Integer. Maximum goals to consider (default 7).
+#' @param top_n Integer. Number of top scorelines to return (default 10).
+#' @return A tibble with top scoreline predictions.
+#' @family models
+#' @export
+predict_correct_score <- function(model, home_team, away_team,
+                                   max_goals = 7L, top_n = 10L) {
+  rlang::check_required(model)
+  rlang::check_required(home_team)
+  rlang::check_required(away_team)
+
+  # Get score matrix
+  pred <- predict_glm(model, home_team, away_team, max_goals = max_goals)
+
+  result <- top_scorelines(pred$score_mat, n = top_n)
+  result$home_team <- home_team
+  result$away_team <- away_team
+  result$lambda_home <- pred$lambda_home
+  result$lambda_away <- pred$lambda_away
+
+  result |>
+    dplyr::select("home_team", "away_team", "lambda_home", "lambda_away",
+                  "scoreline", "home_goals", "away_goals", "probability")
+}
+
+#' Correct score odds value check
+#'
+#' Compares model correct score probability to bookmaker odds
+#' to identify value bets.
+#'
+#' @param model_prob Numeric. Model probability for the scoreline.
+#' @param odds Numeric. Bookmaker decimal odds.
+#' @return A list with `implied_prob`, `edge`, `is_value`.
+#' @family models
+#' @export
+correct_score_value <- function(model_prob, odds) {
+  rlang::check_required(model_prob)
+  rlang::check_required(odds)
+
+  implied_prob <- 1 / odds
+  edge <- model_prob - implied_prob
+  is_value <- edge > 0
+
+  list(
+    model_prob = model_prob,
+    implied_prob = implied_prob,
+    edge = edge,
+    is_value = is_value,
+    expected_value = model_prob * (odds - 1) - (1 - model_prob)
+  )
+}
