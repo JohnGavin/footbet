@@ -285,3 +285,244 @@ summarise_cv <- function(cv_results) {
     )
   }))
 }
+
+#' Compute closing line value (CLV)
+#'
+#' Measures the difference between model-implied odds at prediction time
+#' and Pinnacle closing odds. Positive CLV indicates the model found value
+#' that the market later confirmed.
+#'
+#' @param pred_prob Numeric vector. Model's predicted probability.
+#' @param closing_odds Numeric vector. Pinnacle closing decimal odds.
+#' @return Numeric vector. CLV as percentage points (model_prob - closing_prob).
+#' @family evaluation
+#' @export
+closing_line_value <- function(pred_prob, closing_odds) {
+  rlang
+::check_required(pred_prob)
+  rlang::check_required(closing_odds)
+
+  if (length(pred_prob) != length(closing_odds)) {
+    cli::cli_abort("{.arg pred_prob} and {.arg closing_odds} must have same length.")
+
+  }
+
+  # Convert closing odds to implied probability
+  closing_prob <- 1 / closing_odds
+
+  # CLV = model probability - closing implied probability
+  # Positive = model found value, negative = model overestimated
+  clv <- pred_prob - closing_prob
+
+  clv
+}
+
+#' Compute CLV for 1X2 predictions
+#'
+#' Calculates closing line value for each outcome, returning CLV
+#' for the outcome the model had highest edge on.
+#'
+#' @param pred_h Numeric vector. Model's P(Home win).
+#' @param pred_d Numeric vector. Model's P(Draw).
+#' @param pred_a Numeric vector. Model's P(Away win).
+#' @param closing_h Numeric vector. Pinnacle closing odds (Home).
+#' @param closing_d Numeric vector. Pinnacle closing odds (Draw).
+#' @param closing_a Numeric vector. Pinnacle closing odds (Away).
+#' @return A tibble with CLV for each outcome and summary statistics.
+#' @family evaluation
+#' @export
+clv_1x2 <- function(pred_h, pred_d, pred_a, closing_h, closing_d, closing_a) {
+  n <- length(pred_h)
+
+  # Implied closing probabilities (normalised)
+  close_prob_h <- 1 / closing_h
+  close_prob_d <- 1 / closing_d
+  close_prob_a <- 1 / closing_a
+  total <- close_prob_h + close_prob_d + close_prob_a
+  close_prob_h <- close_prob_h / total
+  close_prob_d <- close_prob_d / total
+  close_prob_a <- close_prob_a / total
+
+  # CLV per outcome
+  clv_h <- pred_h - close_prob_h
+  clv_d <- pred_d - close_prob_d
+  clv_a <- pred_a - close_prob_a
+
+  # Best CLV (where model had most edge)
+  best_clv <- pmax(clv_h, clv_d, clv_a, na.rm = TRUE)
+  best_market <- dplyr::case_when(
+    clv_h == best_clv ~ "H",
+    clv_d == best_clv ~ "D",
+    clv_a == best_clv ~ "A",
+    TRUE ~ NA_character_
+  )
+
+  tibble::tibble(
+    clv_h = clv_h,
+    clv_d = clv_d,
+    clv_a = clv_a,
+    best_clv = best_clv,
+    best_market = best_market
+  )
+}
+
+#' Summarise CLV statistics
+#'
+#' @param clv_df A tibble from [clv_1x2()].
+#' @return A tibble with mean, median, and % positive CLV.
+#' @family evaluation
+#' @export
+summarise_clv <- function(clv_df) {
+  rlang::check_required(clv_df)
+
+  tibble::tibble(
+    mean_clv_h = mean(clv_df$clv_h, na.rm = TRUE),
+    mean_clv_d = mean(clv_df$clv_d, na.rm = TRUE),
+    mean_clv_a = mean(clv_df$clv_a, na.rm = TRUE),
+    mean_best_clv = mean(clv_df$best_clv, na.rm = TRUE),
+    median_best_clv = stats::median(clv_df$best_clv, na.rm = TRUE),
+    pct_positive_clv = mean(clv_df$best_clv > 0, na.rm = TRUE) * 100,
+    n_bets = sum(!is.na(clv_df$best_clv))
+  )
+}
+
+#' Ensemble model predictions
+#'
+#' Combines predictions from multiple models using weighted averaging.
+#' Weights can be equal, inverse log-loss weighted, or custom.
+#'
+#' @param predictions A list of tibbles, each with columns `match_id`,
+#'   `prob_h`, `prob_d`, `prob_a`. Names are used as model identifiers.
+#' @param weights Named numeric vector of model weights, or NULL for equal weights.
+#'   Names must match names in `predictions`. Weights are normalised to sum to 1.
+#' @return A tibble with ensemble predictions.
+#' @family models
+#' @export
+ensemble_predict <- function(predictions, weights = NULL) {
+  rlang::check_required(predictions)
+
+  if (!is.list(predictions) || length(predictions) < 2L) {
+    cli::cli_abort("{.arg predictions} must be a list with at least 2 model predictions.")
+  }
+
+  model_names <- names(predictions)
+  if (is.null(model_names) || any(model_names == "")) {
+    cli::cli_abort("{.arg predictions} must be a named list.")
+  }
+
+  # Default to equal weights
+
+  if (is.null(weights)) {
+    weights <- rep(1 / length(predictions), length(predictions))
+    names(weights) <- model_names
+  }
+
+  # Validate weights
+  if (!all(model_names %in% names(weights))) {
+    missing <- setdiff(model_names, names(weights))
+    cli::cli_abort("Missing weights for models: {.val {missing}}")
+  }
+
+  # Normalise weights
+  weights <- weights[model_names]
+  weights <- weights / sum(weights)
+
+  # Get common match_ids across all models
+  all_ids <- Reduce(intersect, lapply(predictions, function(x) x$match_id))
+
+  if (length(all_ids) == 0L) {
+    cli::cli_warn("No common match_ids across models.")
+    return(tibble::tibble(
+      match_id = character(),
+      prob_h = numeric(),
+      prob_d = numeric(),
+      prob_a = numeric()
+    ))
+  }
+
+  # Initialize result
+  result <- tibble::tibble(
+    match_id = all_ids,
+    prob_h = 0,
+    prob_d = 0,
+    prob_a = 0
+  )
+
+  # Weighted sum
+  for (model_name in model_names) {
+    df <- predictions[[model_name]] |>
+      dplyr::filter(.data$match_id %in% all_ids) |>
+      dplyr::arrange(match(.data$match_id, all_ids))
+
+    w <- weights[[model_name]]
+    result$prob_h <- result$prob_h + w * df$prob_h
+    result$prob_d <- result$prob_d + w * df$prob_d
+    result$prob_a <- result$prob_a + w * df$prob_a
+  }
+
+  # Normalise to ensure probabilities sum to 1
+  total <- result$prob_h + result$prob_d + result$prob_a
+  result$prob_h <- result$prob_h / total
+  result$prob_d <- result$prob_d / total
+  result$prob_a <- result$prob_a / total
+
+  # Add model disagreement as uncertainty measure
+  # Compute variance across models for each match
+  var_h <- numeric(length(all_ids))
+  var_d <- numeric(length(all_ids))
+  var_a <- numeric(length(all_ids))
+
+  for (i in seq_along(all_ids)) {
+    match_id <- all_ids[[i]]
+    probs_h <- sapply(predictions, function(x) {
+      x$prob_h[x$match_id == match_id]
+    })
+    probs_d <- sapply(predictions, function(x) {
+      x$prob_d[x$match_id == match_id]
+    })
+    probs_a <- sapply(predictions, function(x) {
+      x$prob_a[x$match_id == match_id]
+    })
+
+    var_h[[i]] <- stats::var(probs_h)
+    var_d[[i]] <- stats::var(probs_d)
+    var_a[[i]] <- stats::var(probs_a)
+  }
+
+  result$uncertainty <- sqrt(var_h + var_d + var_a)
+
+  result
+}
+
+#' Compute optimal ensemble weights from historical performance
+#'
+#' Uses inverse log-loss weighting: models with lower log-loss get higher weights.
+#'
+#' @param cv_results A named list of CV result tibbles (from [evaluate_glm_baseline()]),
+#'   one per model.
+#' @return Named numeric vector of weights summing to 1.
+#' @family evaluation
+#' @export
+compute_ensemble_weights <- function(cv_results) {
+  rlang::check_required(cv_results)
+
+  if (!is.list(cv_results) || length(cv_results) < 2L) {
+    cli::cli_abort("{.arg cv_results} must be a list with at least 2 model results.")
+  }
+
+  model_names <- names(cv_results)
+  if (is.null(model_names)) {
+    cli::cli_abort("{.arg cv_results} must be a named list.")
+  }
+
+  # Compute mean log-loss per model
+  log_losses <- sapply(cv_results, function(x) mean(x$log_loss, na.rm = TRUE))
+
+  # Inverse log-loss weighting (lower is better)
+  # Use softmax-style transformation for stability
+  inv_ll <- 1 / log_losses
+  weights <- inv_ll / sum(inv_ll)
+  names(weights) <- model_names
+
+  weights
+}

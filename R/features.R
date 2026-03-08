@@ -518,3 +518,120 @@ compute_xg_features <- function(matches_df,
 
   result
 }
+
+#' Compute head-to-head record between two teams
+#'
+#' Returns historical record of matches between home and away teams,
+#' using only information available before the specified date.
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`, `ftr`.
+#' @param home_team Character. Name of home team.
+#' @param away_team Character. Name of away team.
+#' @param as_of_date Date. Only consider matches before this date.
+#' @param n Integer. Maximum number of past meetings to include (default 10).
+#' @return A tibble with one row containing H2H statistics:
+#'   `n_matches`, `home_wins`, `draws`, `away_wins`, `home_goals`, `away_goals`,
+#'   `home_win_pct`, `draw_pct`, `away_win_pct`.
+#' @family features
+#' @export
+h2h_record <- function(matches_df, home_team, away_team, as_of_date = Sys.Date(), n = 10L) {
+  rlang::check_required(matches_df)
+  rlang::check_required(home_team)
+  rlang::check_required(away_team)
+
+  # Find all past meetings between these teams (in either direction)
+  h2h <- matches_df |>
+    dplyr::filter(
+      .data$match_date < as_of_date,
+      (.data$home_team == home_team & .data$away_team == away_team) |
+        (.data$home_team == away_team & .data$away_team == home_team)
+    ) |>
+    dplyr::arrange(dplyr::desc(.data$match_date)) |>
+    utils::head(n)
+
+  if (nrow(h2h) == 0L) {
+    return(tibble::tibble(
+      home_team = home_team,
+      away_team = away_team,
+      n_matches = 0L,
+      home_wins = NA_integer_,
+      draws = NA_integer_,
+      away_wins = NA_integer_,
+      home_goals = NA_integer_,
+      away_goals = NA_integer_,
+      home_win_pct = NA_real_,
+      draw_pct = NA_real_,
+      away_win_pct = NA_real_
+    ))
+  }
+
+  # Standardise perspective: count from `home_team`'s viewpoint
+  # When home_team was actually at home
+  home_at_home <- h2h |>
+    dplyr::filter(.data$home_team == !!home_team)
+  # When home_team was away (flip the result)
+  home_away <- h2h |>
+    dplyr::filter(.data$away_team == !!home_team)
+
+  # Count results from home_team's perspective
+  home_wins <- sum(home_at_home$ftr == "H", na.rm = TRUE) +
+    sum(home_away$ftr == "A", na.rm = TRUE)
+  draws <- sum(h2h$ftr == "D", na.rm = TRUE)
+  away_wins <- sum(home_at_home$ftr == "A", na.rm = TRUE) +
+    sum(home_away$ftr == "H", na.rm = TRUE)
+
+  # Goals from home_team's perspective
+  home_goals <- sum(home_at_home$fthg, na.rm = TRUE) +
+    sum(home_away$ftag, na.rm = TRUE)
+  away_goals <- sum(home_at_home$ftag, na.rm = TRUE) +
+    sum(home_away$fthg, na.rm = TRUE)
+
+  n_matches <- nrow(h2h)
+
+  tibble::tibble(
+    home_team = home_team,
+    away_team = away_team,
+    n_matches = n_matches,
+    home_wins = home_wins,
+    draws = draws,
+    away_wins = away_wins,
+    home_goals = home_goals,
+    away_goals = away_goals,
+    home_win_pct = home_wins / n_matches,
+    draw_pct = draws / n_matches,
+    away_win_pct = away_wins / n_matches
+  )
+}
+
+#' Add H2H features to match data
+#'
+#' Computes head-to-head record for each match in the dataset,
+#' using only historical data available before each match.
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`, `ftr`.
+#' @param n Integer. Number of past meetings to consider (default 10).
+#' @return The input tibble with additional H2H columns.
+#' @family features
+#' @export
+add_h2h_features <- function(matches_df, n = 10L) {
+  rlang::check_required(matches_df)
+
+  # Pre-compute for each match
+  h2h_list <- vector("list", nrow(matches_df))
+
+  for (i in seq_len(nrow(matches_df))) {
+    h2h_list[[i]] <- h2h_record(
+      matches_df,
+      home_team = matches_df$home_team[[i]],
+      away_team = matches_df$away_team[[i]],
+      as_of_date = matches_df$match_date[[i]],
+      n = n
+    )
+  }
+
+  h2h_df <- dplyr::bind_rows(h2h_list) |>
+    dplyr::select(-"home_team", -"away_team") |>
+    dplyr::rename_with(~ paste0("h2h_", .x))
+
+  dplyr::bind_cols(matches_df, h2h_df)
+}
