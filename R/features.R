@@ -656,3 +656,160 @@ add_h2h_features <- function(matches_df, n = 10L) {
 
   dplyr::bind_cols(matches_df, h2h_df)
 }
+
+# ============================================================================
+# FORM STREAK FEATURES
+# ============================================================================
+
+#' Compute form streaks for a team
+#'
+#' Calculates current win streak, loss streak, unbeaten streak, and winless
+#' streak as of each match date.
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`, `ftr`.
+#' @param team Character. Team name.
+#' @param as_of_date Date. Calculate streaks as of this date.
+#' @return A tibble with streak statistics.
+#' @family features
+#' @export
+form_streak <- function(matches_df, team, as_of_date = Sys.Date()) {
+  rlang::check_required(matches_df)
+  rlang::check_required(team)
+
+  # Get all matches for this team before the date
+  team_matches <- matches_df |>
+    dplyr::filter(
+      .data$match_date < as_of_date,
+      .data$home_team == team | .data$away_team == team
+    ) |>
+    dplyr::arrange(dplyr::desc(.data$match_date)) |>
+    dplyr::mutate(
+      # Result from team's perspective
+      result = dplyr::case_when(
+        .data$home_team == team & .data$ftr == "H" ~ "W",
+        .data$away_team == team & .data$ftr == "A" ~ "W",
+        .data$ftr == "D" ~ "D",
+        TRUE ~ "L"
+      )
+    )
+
+  if (nrow(team_matches) == 0L) {
+    return(tibble::tibble(
+      team = team,
+      win_streak = 0L,
+      loss_streak = 0L,
+      unbeaten_streak = 0L,
+      winless_streak = 0L,
+      n_matches = 0L
+    ))
+  }
+
+  # Count current streaks (from most recent backwards)
+  results <- team_matches$result
+
+  # Win streak: consecutive wins from most recent
+
+  win_streak <- 0L
+  for (r in results) {
+    if (r == "W") win_streak <- win_streak + 1L else break
+  }
+
+  # Loss streak: consecutive losses from most recent
+  loss_streak <- 0L
+  for (r in results) {
+    if (r == "L") loss_streak <- loss_streak + 1L else break
+  }
+
+  # Unbeaten streak: consecutive non-losses (W or D)
+  unbeaten_streak <- 0L
+  for (r in results) {
+    if (r %in% c("W", "D")) unbeaten_streak <- unbeaten_streak + 1L else break
+  }
+
+  # Winless streak: consecutive non-wins (L or D)
+  winless_streak <- 0L
+  for (r in results) {
+    if (r %in% c("L", "D")) winless_streak <- winless_streak + 1L else break
+  }
+
+  tibble::tibble(
+    team = team,
+    win_streak = win_streak,
+    loss_streak = loss_streak,
+    unbeaten_streak = unbeaten_streak,
+    winless_streak = winless_streak,
+    n_matches = nrow(team_matches)
+  )
+}
+
+#' Add form streak features to match data
+#'
+#' Computes current form streaks for home and away teams at each match,
+#' using only historical data available before each match.
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`, `ftr`.
+#' @return The input tibble with additional form streak columns.
+#' @family features
+#' @export
+add_form_streaks <- function(matches_df) {
+  rlang::check_required(matches_df)
+
+  if (nrow(matches_df) == 0L) {
+    return(dplyr::mutate(
+      matches_df,
+      home_win_streak = integer(),
+      home_loss_streak = integer(),
+      home_unbeaten_streak = integer(),
+      home_winless_streak = integer(),
+      away_win_streak = integer(),
+      away_loss_streak = integer(),
+      away_unbeaten_streak = integer(),
+      away_winless_streak = integer()
+    ))
+  }
+
+  # Pre-compute for each match
+  n <- nrow(matches_df)
+  home_win <- integer(n)
+  home_loss <- integer(n)
+  home_unbeaten <- integer(n)
+  home_winless <- integer(n)
+  away_win <- integer(n)
+  away_loss <- integer(n)
+  away_unbeaten <- integer(n)
+  away_winless <- integer(n)
+
+  for (i in seq_len(n)) {
+    home_streak <- form_streak(
+      matches_df,
+      team = matches_df$home_team[[i]],
+      as_of_date = matches_df$match_date[[i]]
+    )
+    away_streak <- form_streak(
+      matches_df,
+      team = matches_df$away_team[[i]],
+      as_of_date = matches_df$match_date[[i]]
+    )
+
+    home_win[[i]] <- home_streak$win_streak
+    home_loss[[i]] <- home_streak$loss_streak
+    home_unbeaten[[i]] <- home_streak$unbeaten_streak
+    home_winless[[i]] <- home_streak$winless_streak
+    away_win[[i]] <- away_streak$win_streak
+    away_loss[[i]] <- away_streak$loss_streak
+    away_unbeaten[[i]] <- away_streak$unbeaten_streak
+    away_winless[[i]] <- away_streak$winless_streak
+  }
+
+  matches_df |>
+    dplyr::mutate(
+      home_win_streak = home_win,
+      home_loss_streak = home_loss,
+      home_unbeaten_streak = home_unbeaten,
+      home_winless_streak = home_winless,
+      away_win_streak = away_win,
+      away_loss_streak = away_loss,
+      away_unbeaten_streak = away_unbeaten,
+      away_winless_streak = away_winless
+    )
+}

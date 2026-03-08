@@ -524,3 +524,307 @@ compute_ensemble_weights <- function(cv_results) {
 
   weights
 }
+
+# ============================================================================
+# BETTING PERFORMANCE METRICS
+# ============================================================================
+
+#' Compute Sharpe ratio for betting returns
+#'
+#' Calculates the Sharpe ratio, a risk-adjusted performance metric.
+#' Higher values indicate better risk-adjusted returns.
+#'
+#' @param returns Numeric vector of bet returns (profit/loss as decimal,
+#'   e.g., 0.95 for 95% profit, -1 for total loss).
+#' @param risk_free_rate Numeric. Annualized risk-free rate (default 0.02 = 2%).
+#' @param periods_per_year Integer. Number of betting periods per year
+#'   (default 365 for daily betting).
+#' @return Numeric. Annualized Sharpe ratio.
+#' @family evaluation
+#' @export
+betting_sharpe_ratio <- function(returns,
+                                  risk_free_rate = 0.02,
+                                  periods_per_year = 365L) {
+  rlang::check_required(returns)
+
+  if (!is.numeric(returns)) {
+    cli::cli_abort("{.arg returns} must be numeric.")
+  }
+  if (length(returns) == 0L) {
+    return(NA_real_)
+  }
+  if (length(returns) < 2L) {
+    cli::cli_warn("Need at least 2 returns to compute Sharpe ratio.")
+    return(NA_real_)
+  }
+
+  # Convert annual risk-free to per-period
+  rf_per_period <- (1 + risk_free_rate)^(1 / periods_per_year) - 1
+
+  # Excess returns
+  excess <- returns - rf_per_period
+
+  # Mean and SD of excess returns
+  mean_excess <- mean(excess, na.rm = TRUE)
+  sd_excess <- stats::sd(excess, na.rm = TRUE)
+
+
+  if (is.na(sd_excess) || sd_excess == 0) {
+    return(NA_real_)
+  }
+
+  # Annualize
+  sharpe <- (mean_excess / sd_excess) * sqrt(periods_per_year)
+
+  sharpe
+}
+
+#' Compute returns from bet results
+#'
+#' Converts win/loss outcomes and odds to decimal returns.
+#'
+#' @param won Logical vector. TRUE if bet won.
+#' @param odds Numeric vector. Decimal odds for each bet.
+#' @param stake Numeric vector or scalar. Stake per bet (default 1).
+#' @return Numeric vector of returns (profit/loss relative to stake).
+#' @family evaluation
+#' @export
+bet_returns <- function(won, odds, stake = 1) {
+  rlang::check_required(won)
+  rlang::check_required(odds)
+
+  if (length(won) != length(odds)) {
+    cli::cli_abort("{.arg won} and {.arg odds} must have same length.")
+  }
+
+  # Expand stake if scalar
+  if (length(stake) == 1L) {
+    stake <- rep(stake, length(won))
+  }
+
+  # Return = (odds - 1) * stake if won, -stake if lost
+  dplyr::if_else(won, (odds - 1), -1)
+}
+
+#' Summarise betting performance
+#'
+#' Computes comprehensive betting statistics including ROI, Sharpe,
+#' win rate, and drawdown.
+#'
+#' @param returns Numeric vector of bet returns.
+#' @param risk_free_rate Numeric. Risk-free rate for Sharpe (default 0.02).
+#' @return A tibble with performance statistics.
+#' @family evaluation
+#' @export
+summarise_betting_performance <- function(returns, risk_free_rate = 0.02) {
+  rlang::check_required(returns)
+
+  if (length(returns) == 0L) {
+    return(tibble::tibble(
+      n_bets = 0L,
+      total_return = NA_real_,
+      roi_pct = NA_real_,
+      win_rate = NA_real_,
+      sharpe = NA_real_,
+      max_drawdown = NA_real_
+    ))
+  }
+
+  # Basic stats
+  n_bets <- length(returns)
+  total_return <- sum(returns, na.rm = TRUE)
+  roi_pct <- 100 * total_return / n_bets
+  win_rate <- 100 * mean(returns > 0, na.rm = TRUE)
+
+  # Sharpe ratio
+  sharpe <- betting_sharpe_ratio(returns, risk_free_rate = risk_free_rate)
+
+  # Max drawdown (cumulative)
+  cum_returns <- cumsum(returns)
+  running_max <- cummax(cum_returns)
+  drawdown <- running_max - cum_returns
+  max_drawdown <- max(drawdown, na.rm = TRUE)
+
+  tibble::tibble(
+    n_bets = n_bets,
+    total_return = total_return,
+    roi_pct = roi_pct,
+    win_rate = win_rate,
+    sharpe = sharpe,
+    max_drawdown = max_drawdown
+  )
+}
+
+# ============================================================================
+# ODDS CONVERSION UTILITIES
+# ============================================================================
+
+#' Convert decimal odds to fractional
+#'
+#' @param decimal_odds Numeric vector. Decimal odds (e.g., 2.50).
+#' @return Character vector. Fractional odds (e.g., "3/2").
+#' @family odds
+#' @export
+decimal_to_fractional <- function(decimal_odds) {
+  rlang::check_required(decimal_odds)
+
+  if (!is.numeric(decimal_odds)) {
+    cli::cli_abort("{.arg decimal_odds} must be numeric.")
+  }
+
+  sapply(decimal_odds, function(d) {
+    if (is.na(d) || d <= 1) return(NA_character_)
+
+    # Convert to fraction
+    frac <- d - 1
+
+    # Find best fractional representation
+    # Common denominators in UK betting
+    denoms <- c(1, 2, 4, 5, 8, 10, 20, 100)
+
+    best_num <- NA_integer_
+    best_denom <- NA_integer_
+    best_error <- Inf
+
+    for (denom in denoms) {
+      num <- round(frac * denom)
+      error <- abs(num / denom - frac)
+      if (error < best_error && error < 0.001) {
+        best_num <- num
+        best_denom <- denom
+        best_error <- error
+      }
+    }
+
+    if (is.na(best_num)) {
+      # Fallback: use 100ths
+      best_num <- round(frac * 100)
+      best_denom <- 100L
+    }
+
+    # Simplify fraction
+    gcd_val <- function(a, b) if (b == 0) a else gcd_val(b, a %% b)
+    g <- gcd_val(abs(best_num), abs(best_denom))
+    paste0(best_num / g, "/", best_denom / g)
+  })
+}
+
+#' Convert decimal odds to American
+#'
+#' @param decimal_odds Numeric vector. Decimal odds.
+#' @return Numeric vector. American odds (positive = underdog, negative = favourite).
+#' @family odds
+#' @export
+decimal_to_american <- function(decimal_odds) {
+  rlang::check_required(decimal_odds)
+
+  if (!is.numeric(decimal_odds)) {
+    cli::cli_abort("{.arg decimal_odds} must be numeric.")
+  }
+
+  dplyr::case_when(
+    is.na(decimal_odds) ~ NA_real_,
+    decimal_odds < 1 ~ NA_real_,
+    decimal_odds >= 2 ~ (decimal_odds - 1) * 100,  # Positive (underdog)
+    TRUE ~ -100 / (decimal_odds - 1)               # Negative (favourite)
+  )
+}
+
+#' Convert American odds to decimal
+#'
+#' @param american_odds Numeric vector. American odds.
+#' @return Numeric vector. Decimal odds.
+#' @family odds
+#' @export
+american_to_decimal <- function(american_odds) {
+  rlang::check_required(american_odds)
+
+  if (!is.numeric(american_odds)) {
+    cli::cli_abort("{.arg american_odds} must be numeric.")
+  }
+
+  dplyr::case_when(
+    is.na(american_odds) ~ NA_real_,
+    american_odds == 0 ~ NA_real_,
+    american_odds > 0 ~ (american_odds / 100) + 1,  # Positive (underdog)
+    TRUE ~ (100 / abs(american_odds)) + 1           # Negative (favourite)
+  )
+}
+
+#' Convert fractional odds to decimal
+#'
+#' @param fractional_odds Character vector. Fractional odds (e.g., "3/2", "evens").
+#' @return Numeric vector. Decimal odds.
+#' @family odds
+#' @export
+fractional_to_decimal <- function(fractional_odds) {
+  rlang::check_required(fractional_odds)
+
+  if (!is.character(fractional_odds)) {
+    cli::cli_abort("{.arg fractional_odds} must be character.")
+  }
+
+  sapply(fractional_odds, function(f) {
+    if (is.na(f)) return(NA_real_)
+
+    f <- tolower(trimws(f))
+
+    # Handle special cases
+    if (f %in% c("evens", "evs", "1/1")) return(2.0)
+
+    # Parse "num/denom" format
+    parts <- strsplit(f, "/")[[1]]
+    if (length(parts) != 2L) return(NA_real_)
+
+    num <- suppressWarnings(as.numeric(parts[[1]]))
+    denom <- suppressWarnings(as.numeric(parts[[2]]))
+
+    if (is.na(num) || is.na(denom) || denom == 0) return(NA_real_)
+
+    (num / denom) + 1
+  }, USE.NAMES = FALSE)
+}
+
+#' Convert odds between any formats
+#'
+#' Convenience function to convert odds between decimal, fractional,
+#' and American formats.
+#'
+#' @param odds Numeric or character. Input odds.
+#' @param from Character. Input format: "decimal", "fractional", or "american".
+#' @param to Character. Output format: "decimal", "fractional", or "american".
+#' @return Odds in the target format.
+#' @family odds
+#' @export
+convert_odds <- function(odds, from, to) {
+  rlang::check_required(odds)
+  rlang::check_required(from)
+  rlang::check_required(to)
+
+  from <- tolower(from)
+  to <- tolower(to)
+
+  valid_formats <- c("decimal", "fractional", "american")
+  if (!from %in% valid_formats) {
+    cli::cli_abort("{.arg from} must be one of: {.val {valid_formats}}")
+  }
+  if (!to %in% valid_formats) {
+    cli::cli_abort("{.arg to} must be one of: {.val {valid_formats}}")
+  }
+
+  # Convert to decimal first
+  decimal <- switch(
+    from,
+    decimal = as.numeric(odds),
+    fractional = fractional_to_decimal(odds),
+    american = american_to_decimal(odds)
+  )
+
+  # Convert from decimal to target
+  switch(
+    to,
+    decimal = decimal,
+    fractional = decimal_to_fractional(decimal),
+    american = decimal_to_american(decimal)
+  )
+}
