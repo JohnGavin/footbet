@@ -813,3 +813,281 @@ add_form_streaks <- function(matches_df) {
       away_winless_streak = away_winless
     )
 }
+
+# ============================================================================
+# REST DAYS FEATURES
+# ============================================================================
+
+#' Compute days since last match for a team
+#'
+#' Returns the number of days since the team's previous match,
+#' using only information available before the specified date.
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`.
+#' @param team Character. Team name.
+#' @param as_of_date Date. Calculate rest days as of this date.
+#' @return Integer. Days since last match, or NA if no previous match.
+#' @family features
+#' @export
+rest_days <- function(matches_df, team, as_of_date) {
+  rlang::check_required(matches_df)
+  rlang::check_required(team)
+  rlang::check_required(as_of_date)
+
+  # Find most recent match before as_of_date
+
+  last_match <- matches_df |>
+    dplyr::filter(
+      .data$match_date < as_of_date,
+      .data$home_team == team | .data$away_team == team
+    ) |>
+    dplyr::arrange(dplyr::desc(.data$match_date)) |>
+    utils::head(1L)
+
+  if (nrow(last_match) == 0L) {
+    return(NA_integer_)
+  }
+
+  as.integer(as.Date(as_of_date) - as.Date(last_match$match_date[[1]]))
+}
+
+#' Add rest days features to match data
+#'
+#' Computes days since last match for both home and away teams,
+#' plus the rest advantage (home rest - away rest).
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`.
+#' @return The input tibble with `home_rest_days`, `away_rest_days`,
+#'   `rest_advantage` columns.
+#' @family features
+#' @export
+add_rest_days <- function(matches_df) {
+  rlang::check_required(matches_df)
+
+  if (nrow(matches_df) == 0L) {
+    return(dplyr::mutate(
+      matches_df,
+      home_rest_days = integer(),
+      away_rest_days = integer(),
+      rest_advantage = integer()
+    ))
+  }
+
+  n <- nrow(matches_df)
+  home_rest <- integer(n)
+  away_rest <- integer(n)
+
+  for (i in seq_len(n)) {
+    home_rest[[i]] <- rest_days(
+      matches_df,
+      team = matches_df$home_team[[i]],
+      as_of_date = matches_df$match_date[[i]]
+    )
+    away_rest[[i]] <- rest_days(
+      matches_df,
+      team = matches_df$away_team[[i]],
+      as_of_date = matches_df$match_date[[i]]
+    )
+  }
+
+  matches_df |>
+    dplyr::mutate(
+      home_rest_days = home_rest,
+      away_rest_days = away_rest,
+      rest_advantage = home_rest - away_rest
+    )
+}
+
+# ============================================================================
+# LEAGUE POSITION FEATURES
+# ============================================================================
+
+#' Compute league table at a specific date
+#'
+#' Calculates league standings using only matches played before the
+#' specified date. Standard points system: 3 for win, 1 for draw, 0 for loss.
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`,
+#'   `ftr`, `fthg`, `ftag`.
+#' @param as_of_date Date. Calculate table as of this date.
+#' @param league_code Character. Optional league filter (default NULL = all).
+#' @param season Character. Optional season filter (default NULL = all).
+#' @return A tibble with league table: `position`, `team`, `played`, `won`,
+#'   `drawn`, `lost`, `gf`, `ga`, `gd`, `points`.
+#' @family features
+#' @export
+league_table <- function(matches_df, as_of_date, league_code = NULL, season = NULL) {
+  rlang::check_required(matches_df)
+  rlang::check_required(as_of_date)
+
+  # Filter to relevant matches
+  df <- matches_df |>
+    dplyr::filter(.data$match_date < as_of_date)
+
+  if (!is.null(league_code) && "league_code" %in% names(df)) {
+    df <- df |> dplyr::filter(.data$league_code == !!league_code)
+  }
+  if (!is.null(season) && "season" %in% names(df)) {
+    df <- df |> dplyr::filter(.data$season == !!season)
+  }
+
+  if (nrow(df) == 0L) {
+    return(tibble::tibble(
+      position = integer(),
+      team = character(),
+      played = integer(),
+      won = integer(),
+      drawn = integer(),
+      lost = integer(),
+      gf = integer(),
+      ga = integer(),
+      gd = integer(),
+      points = integer()
+    ))
+  }
+
+  # Home stats
+  home_stats <- df |>
+    dplyr::group_by(team = .data$home_team) |>
+    dplyr::summarise(
+      played = dplyr::n(),
+      won = sum(.data$ftr == "H", na.rm = TRUE),
+      drawn = sum(.data$ftr == "D", na.rm = TRUE),
+      lost = sum(.data$ftr == "A", na.rm = TRUE),
+      gf = sum(.data$fthg, na.rm = TRUE),
+      ga = sum(.data$ftag, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  # Away stats
+  away_stats <- df |>
+    dplyr::group_by(team = .data$away_team) |>
+    dplyr::summarise(
+      played = dplyr::n(),
+      won = sum(.data$ftr == "A", na.rm = TRUE),
+      drawn = sum(.data$ftr == "D", na.rm = TRUE),
+      lost = sum(.data$ftr == "H", na.rm = TRUE),
+      gf = sum(.data$ftag, na.rm = TRUE),
+      ga = sum(.data$fthg, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  # Combine and compute table
+  table <- dplyr::bind_rows(home_stats, away_stats) |>
+    dplyr::group_by(.data$team) |>
+    dplyr::summarise(
+      played = sum(.data$played),
+      won = sum(.data$won),
+      drawn = sum(.data$drawn),
+      lost = sum(.data$lost),
+      gf = sum(.data$gf),
+      ga = sum(.data$ga),
+      .groups = "drop"
+    ) |>
+    dplyr::mutate(
+      gd = .data$gf - .data$ga,
+      points = 3L * .data$won + .data$drawn
+    ) |>
+    dplyr::arrange(
+      dplyr::desc(.data$points),
+      dplyr::desc(.data$gd),
+      dplyr::desc(.data$gf)
+    ) |>
+    dplyr::mutate(position = dplyr::row_number()) |>
+    dplyr::select("position", "team", "played", "won", "drawn", "lost",
+                  "gf", "ga", "gd", "points")
+
+  table
+}
+
+#' Get team position at a specific date
+#'
+#' Returns the league position of a team based on matches played
+#' before the specified date.
+#'
+#' @param matches_df A tibble with match data.
+#' @param team Character. Team name.
+#' @param as_of_date Date. Calculate position as of this date.
+#' @param league_code Character. Optional league filter.
+#' @param season Character. Optional season filter.
+#' @return Integer. League position (1 = top), or NA if team not found.
+#' @family features
+#' @export
+team_position <- function(matches_df, team, as_of_date,
+                          league_code = NULL, season = NULL) {
+  rlang::check_required(matches_df)
+  rlang::check_required(team)
+  rlang::check_required(as_of_date)
+
+  table <- league_table(matches_df, as_of_date,
+                        league_code = league_code, season = season)
+
+  if (nrow(table) == 0L) {
+    return(NA_integer_)
+  }
+
+  pos <- table$position[table$team == team]
+  if (length(pos) == 0L) {
+    return(NA_integer_)
+  }
+
+  pos[[1]]
+}
+
+#' Add league position features to match data
+#'
+#' Computes league position for both home and away teams at match time,
+#' plus position difference (away_pos - home_pos, positive = home higher).
+#'
+#' @param matches_df A tibble with match data including `league_code`, `season`.
+#' @return The input tibble with `home_position`, `away_position`,
+#'   `position_diff` columns.
+#' @family features
+#' @export
+add_league_positions <- function(matches_df) {
+  rlang::check_required(matches_df)
+
+  if (nrow(matches_df) == 0L) {
+    return(dplyr::mutate(
+      matches_df,
+      home_position = integer(),
+      away_position = integer(),
+      position_diff = integer()
+    ))
+  }
+
+  # Check if we have league/season columns
+  has_league <- "league_code" %in% names(matches_df)
+  has_season <- "season" %in% names(matches_df)
+
+  n <- nrow(matches_df)
+  home_pos <- integer(n)
+  away_pos <- integer(n)
+
+  for (i in seq_len(n)) {
+    league <- if (has_league) matches_df$league_code[[i]] else NULL
+    season <- if (has_season) matches_df$season[[i]] else NULL
+
+    home_pos[[i]] <- team_position(
+      matches_df,
+      team = matches_df$home_team[[i]],
+      as_of_date = matches_df$match_date[[i]],
+      league_code = league,
+      season = season
+    )
+    away_pos[[i]] <- team_position(
+      matches_df,
+      team = matches_df$away_team[[i]],
+      as_of_date = matches_df$match_date[[i]],
+      league_code = league,
+      season = season
+    )
+  }
+
+  matches_df |>
+    dplyr::mutate(
+      home_position = home_pos,
+      away_position = away_pos,
+      position_diff = away_pos - home_pos  # Positive = home is higher
+    )
+}
