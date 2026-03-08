@@ -18,11 +18,16 @@ Creates or opens a DuckDB database for storing match and odds data.
 }
 \seealso{
 Other storage: 
+\code{\link{create_predictions_schema}()},
 \code{\link{create_schema}()},
 \code{\link{disconnect_db}()},
 \code{\link{insert_match_odds}()},
 \code{\link{insert_matches}()},
 \code{\link{insert_transfers}()},
+\code{\link{log_prediction}()},
+\code{\link{log_predictions_batch}()},
+\code{\link{query_predictions}()},
+\code{\link{update_prediction_outcome}()},
 \code{\link{write_matches_parquet}()},
 \code{\link{write_odds_parquet}()}
 }

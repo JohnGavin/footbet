@@ -8,6 +8,15 @@
 \description{
 Download, process, and model European football match data and sharp bookmaker odds (Pinnacle). Implements Poisson/Dixon-Coles models, Elo ratings, and Kelly-criterion staking for value betting on full-time and half-time outcomes.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://johngavin.github.io/footbet/}
+  \item \url{https://github.com/JohnGavin/footbet}
+  \item Report bugs at \url{https://github.com/JohnGavin/footbet/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: John Gavin \email{john.b.gavin@gmail.com}
 

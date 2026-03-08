@@ -22,10 +22,15 @@ snapshot_type = 'closing'.
 \seealso{
 Other storage: 
 \code{\link{connect_db}()},
+\code{\link{create_predictions_schema}()},
 \code{\link{create_schema}()},
 \code{\link{disconnect_db}()},
 \code{\link{insert_matches}()},
 \code{\link{insert_transfers}()},
+\code{\link{log_prediction}()},
+\code{\link{log_predictions_batch}()},
+\code{\link{query_predictions}()},
+\code{\link{update_prediction_outcome}()},
 \code{\link{write_matches_parquet}()},
 \code{\link{write_odds_parquet}()}
 }

@@ -27,6 +27,8 @@ Other data-acquisition:
 \code{\link{download_all_fd}()},
 \code{\link{download_fd_csv}()},
 \code{\link{fetch_fbref_all}()},
+\code{\link{fetch_league_injuries}()},
+\code{\link{fetch_league_suspensions}()},
 \code{\link{fetch_league_transfers}()},
 \code{\link{fetch_squad_values}()},
 \code{\link{join_xg_to_matches}()},

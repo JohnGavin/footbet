@@ -19,15 +19,22 @@ using only historical data available before each match.
 \seealso{
 Other features: 
 \code{\link{add_h2h_features}()},
+\code{\link{add_league_positions}()},
+\code{\link{add_player_availability}()},
+\code{\link{add_rest_days}()},
 \code{\link{compute_elo}()},
 \code{\link{compute_xg_features}()},
 \code{\link{cumulative_xg_ratio}()},
 \code{\link{devig_odds}()},
 \code{\link{form_streak}()},
 \code{\link{h2h_record}()},
+\code{\link{key_players_unavailable}()},
+\code{\link{league_table}()},
 \code{\link{matches_to_long}()},
+\code{\link{rest_days}()},
 \code{\link{rolling_goals}()},
 \code{\link{rolling_xg}()},
+\code{\link{team_position}()},
 \code{\link{xg_overperformance}()}
 }
 \concept{features}

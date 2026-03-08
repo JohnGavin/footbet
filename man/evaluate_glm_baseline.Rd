@@ -30,10 +30,18 @@ predicts on the test set, and computes scoring metrics.
 }
 \seealso{
 Other evaluation: 
+\code{\link{bet_returns}()},
+\code{\link{betting_sharpe_ratio}()},
 \code{\link{brier_1x2}()},
+\code{\link{closing_line_value}()},
+\code{\link{clv_1x2}()},
+\code{\link{compute_ensemble_weights}()},
+\code{\link{evaluate_xgboost}()},
 \code{\link{log_loss}()},
 \code{\link{pinnacle_implied}()},
 \code{\link{rps_1x2}()},
+\code{\link{summarise_betting_performance}()},
+\code{\link{summarise_clv}()},
 \code{\link{summarise_cv}()},
 \code{\link{walk_forward_splits}()}
 }

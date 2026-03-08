@@ -23,12 +23,15 @@ a score probability matrix.
 \seealso{
 Other models: 
 \code{\link{correct_score_value}()},
+\code{\link{cv_xgboost}()},
 \code{\link{ensemble_predict}()},
 \code{\link{evaluate_brms}()},
 \code{\link{evaluate_dc}()},
 \code{\link{fit_brms_poisson}()},
 \code{\link{fit_dixon_coles}()},
 \code{\link{fit_poisson_glm}()},
+\code{\link{fit_xgboost}()},
+\code{\link{plot_xgb_importance}()},
 \code{\link{predict_brms}()},
 \code{\link{predict_correct_score}()},
 \code{\link{predict_dc}()},
@@ -36,10 +39,14 @@ Other models:
 \code{\link{predict_matches_brms}()},
 \code{\link{predict_matches_dc}()},
 \code{\link{predict_matches_glm}()},
+\code{\link{predict_matches_xgb}()},
+\code{\link{predict_xgboost}()},
+\code{\link{prepare_xgb_features}()},
 \code{\link{score_matrix}()},
 \code{\link{score_matrix_to_1x2}()},
 \code{\link{score_matrix_to_ah}()},
 \code{\link{score_matrix_to_ou}()},
-\code{\link{top_scorelines}()}
+\code{\link{top_scorelines}()},
+\code{\link{tune_xgboost}()}
 }
 \concept{models}
