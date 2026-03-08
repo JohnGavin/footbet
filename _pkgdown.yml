@@ -17,10 +17,18 @@ reference:
     desc: Download and parse match data from various sources
     contents:
       - has_concept("data-acquisition")
+  - title: Data Integration
+    desc: Join and transform data from multiple sources
+    contents:
+      - has_concept("data")
   - title: Feature Engineering
     desc: Create predictive features from raw match data
     contents:
       - has_concept("features")
+  - title: Odds Conversion
+    desc: Convert between decimal, fractional, and American odds formats
+    contents:
+      - has_concept("odds")
   - title: Devigging Odds
     desc: Remove bookmaker margin from odds
     contents:
@@ -37,6 +45,10 @@ reference:
     desc: Kelly criterion and bankroll management
     contents:
       - has_concept("decisions")
+  - title: Accumulators & Bankroll
+    desc: Accumulator bets and bankroll simulation
+    contents:
+      - has_concept("betting")
   - title: Simulation
     desc: Monte Carlo simulation for accumulators and rare events
     contents:
@@ -61,3 +73,7 @@ articles:
     contents:
       - eda
       - model-fitting
+  - title: Reference
+    navbar: Reference
+    contents:
+      - betting-glossary

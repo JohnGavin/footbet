@@ -9,6 +9,8 @@ Description: Download, process, and model European football match data and
     Elo ratings, and Kelly-criterion staking for value betting on full-time
     and half-time outcomes.
 License: MIT + file LICENSE
+URL: https://johngavin.github.io/footbet/, https://github.com/JohnGavin/footbet
+BugReports: https://github.com/JohnGavin/footbet/issues
 Depends: R (>= 4.1.0)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
