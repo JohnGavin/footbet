@@ -298,13 +298,11 @@ summarise_cv <- function(cv_results) {
 #' @family evaluation
 #' @export
 closing_line_value <- function(pred_prob, closing_odds) {
-  rlang
-::check_required(pred_prob)
+  rlang::check_required(pred_prob)
   rlang::check_required(closing_odds)
 
   if (length(pred_prob) != length(closing_odds)) {
     cli::cli_abort("{.arg pred_prob} and {.arg closing_odds} must have same length.")
-
   }
 
   # Convert closing odds to implied probability
