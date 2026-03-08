@@ -294,8 +294,8 @@ test_that("compute_ensemble_weights handles equal performance", {
   weights <- compute_ensemble_weights(cv_results)
   
   # Equal performance = equal weights
-  expect_equal(weights["model_a"], weights["model_b"], tolerance = 1e-10)
-  expect_equal(weights["model_a"], 0.5, tolerance = 1e-10)
+  expect_equal(unname(weights["model_a"]), unname(weights["model_b"]), tolerance = 1e-10)
+  expect_equal(unname(weights["model_a"]), 0.5, tolerance = 1e-10)
 })
 
 test_that("compute_ensemble_weights requires at least 2 models", {

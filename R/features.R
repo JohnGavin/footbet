@@ -539,12 +539,17 @@ h2h_record <- function(matches_df, home_team, away_team, as_of_date = Sys.Date()
   rlang::check_required(home_team)
   rlang::check_required(away_team)
 
+  # Rename parameters to avoid column name clash
+
+  team_h <- home_team
+  team_a <- away_team
+
   # Find all past meetings between these teams (in either direction)
   h2h <- matches_df |>
     dplyr::filter(
       .data$match_date < as_of_date,
-      (.data$home_team == home_team & .data$away_team == away_team) |
-        (.data$home_team == away_team & .data$away_team == home_team)
+      (.data$home_team == team_h & .data$away_team == team_a) |
+        (.data$home_team == team_a & .data$away_team == team_h)
     ) |>
     dplyr::arrange(dplyr::desc(.data$match_date)) |>
     utils::head(n)
@@ -568,10 +573,10 @@ h2h_record <- function(matches_df, home_team, away_team, as_of_date = Sys.Date()
   # Standardise perspective: count from `home_team`'s viewpoint
   # When home_team was actually at home
   home_at_home <- h2h |>
-    dplyr::filter(.data$home_team == !!home_team)
+    dplyr::filter(.data$home_team == team_h)
   # When home_team was away (flip the result)
   home_away <- h2h |>
-    dplyr::filter(.data$away_team == !!home_team)
+    dplyr::filter(.data$away_team == team_h)
 
   # Count results from home_team's perspective
   home_wins <- sum(home_at_home$ftr == "H", na.rm = TRUE) +
@@ -615,6 +620,22 @@ h2h_record <- function(matches_df, home_team, away_team, as_of_date = Sys.Date()
 #' @export
 add_h2h_features <- function(matches_df, n = 10L) {
   rlang::check_required(matches_df)
+
+  # Handle empty input
+  if (nrow(matches_df) == 0L) {
+    return(dplyr::mutate(
+      matches_df,
+      h2h_n_matches = integer(),
+      h2h_home_wins = integer(),
+      h2h_draws = integer(),
+      h2h_away_wins = integer(),
+      h2h_home_goals = integer(),
+      h2h_away_goals = integer(),
+      h2h_home_win_pct = numeric(),
+      h2h_draw_pct = numeric(),
+      h2h_away_win_pct = numeric()
+    ))
+  }
 
   # Pre-compute for each match
   h2h_list <- vector("list", nrow(matches_df))
