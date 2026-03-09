@@ -20,3 +20,4 @@
 ^docs$
 ^pkgdown$
 ^vignettes/.*_files$
+^result$

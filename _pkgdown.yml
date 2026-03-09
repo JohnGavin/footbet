@@ -73,17 +73,7 @@ reference:
       - has_concept("utilities")
 
 articles:
-  - title: Data Pipeline
-    navbar: Data Pipeline
+  - title: Guide
+    navbar: Guide
     contents:
-      - data-sources
-      - data-cleaning
-  - title: Analysis
-    navbar: Analysis
-    contents:
-      - eda
-      - model-fitting
-  - title: Reference
-    navbar: Reference
-    contents:
-      - betting-glossary
+      - football-analytics

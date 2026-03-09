@@ -120,6 +120,7 @@ add_time_slider <- function(p) {
 #' @return A styled plotly bar chart.
 #' @export
 #' @concept plotting
+#' @importFrom stats as.formula
 plot_dark_bar <- function(data, x, y, fill = "#3498db", title = NULL,
                           xlab = NULL, ylab = NULL) {
   p <- plotly::plot_ly(

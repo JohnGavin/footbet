@@ -1,6 +1,6 @@
 Package: footbet
 Title: European Football Betting Analytics with Sharp Odds
-Version: 0.0.0.9000
+Version: 0.1.0
 Authors@R:
     person("John", "Gavin", email = "john.b.gavin@gmail.com",
            role = c("aut", "cre"))
@@ -22,11 +22,11 @@ Imports:
     duckdb,
     glue,
     here,
-    htmlwidgets,
     httr2,
     lubridate,
     Matrix,
     plotly,
+    purrr,
     readr,
     rlang,
     tibble,
@@ -42,9 +42,11 @@ Suggests:
     gert,
     ggplot2,
     goalmodel,
+    htmltools,
     knitr,
     lme4,
     mirai,
+    mockery,
     pins,
     probably,
     quarto,
@@ -56,6 +58,7 @@ Suggests:
     tarchetypes,
     targets,
     testthat (>= 3.0.0),
+    understatr,
     vetiver,
     withr,
     worldfootballR,
