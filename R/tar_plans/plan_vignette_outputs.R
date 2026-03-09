@@ -933,8 +933,8 @@ plan_vignette_outputs <- list(
 
       tibble::tibble(
         test = "Chi-square GoF",
-        statistic = round(test$statistic, 2),
-        df = test$parameter,
+        statistic = round(unname(test$statistic), 2),
+        df = unname(test$parameter),
         p_value = format.pval(test$p.value, digits = 3),
         mean_goals = round(lambda, 3),
         conclusion = ifelse(
