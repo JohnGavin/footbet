@@ -16,6 +16,7 @@ navbar:
     github:
       icon: fa-github
       href: https://github.com/JohnGavin/footbet
+      aria-label: GitHub repository
 
 reference:
   - title: Data Acquisition
@@ -62,6 +63,10 @@ reference:
     desc: DuckDB storage and retrieval
     contents:
       - has_concept("storage")
+  - title: Visualization
+    desc: Interactive plotly visualizations with dark theme
+    contents:
+      - has_concept("plotting")
   - title: Utilities
     desc: Helper functions
     contents:
