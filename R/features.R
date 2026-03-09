@@ -519,6 +519,420 @@ compute_xg_features <- function(matches_df,
   result
 }
 
+# ============================================================================
+# GAMESTATE-AWARE xG FEATURES
+# ============================================================================
+
+#' Compute gamestate-aware xG features
+#'
+#' Filters xG by match situation: tied (0-0 equivalent pressure), close
+#' (1 goal difference), or lopsided (2+ goals). xG from lopsided
+#' situations has near-zero predictive value as teams change tactics.
+#'
+#' This implements the key insight from Tony ElHabr's analysis: gamestate
+#' strongly affects xG quality and predictive power.
+#'
+#' @param matches_df A tibble with xG and goal columns.
+#' @param window Integer. Rolling window for averaging (default 5).
+#' @return A tibble with gamestate-filtered xG features.
+#' @family features
+#' @export
+compute_gamestate_xg <- function(matches_df, window = 5L)
+{
+  rlang::check_required(matches_df)
+
+
+  required_cols <- c("match_date", "home_team", "away_team",
+                     "home_xg", "away_xg", "fthg", "ftag")
+  missing <- setdiff(required_cols, names(matches_df))
+  if (length(missing) > 0) {
+    cli::cli_abort(c(
+      "x" = "Missing required columns: {.val {missing}}",
+      "i" = "Need both goals and xG to compute gamestate-aware features."
+    ))
+  }
+
+  # Without shot-level data, we approximate gamestate impact
+
+  # by weighting xG based on final score margin
+  # Close games (0-1 goal diff) get full weight
+  # Lopsided games (3+ goal diff) get reduced weight
+
+  home <- matches_df |>
+    dplyr::transmute(
+      match_id = if ("match_id" %in% names(matches_df)) .data$match_id else NA_character_,
+      team = .data$home_team,
+      opponent = .data$away_team,
+      match_date = .data$match_date,
+      xg_for = .data$home_xg,
+      xg_against = .data$away_xg,
+      goal_diff = abs(.data$fthg - .data$ftag),
+      # Gamestate classification based on final margin
+      gamestate = dplyr::case_when(
+        .data$goal_diff == 0 ~ "tied",
+        .data$goal_diff == 1 ~ "close",
+        .data$goal_diff == 2 ~ "comfortable",
+        TRUE ~ "lopsided"
+      ),
+      # Weight: full for competitive games, reduced for blowouts
+      gamestate_weight = dplyr::case_when(
+        .data$goal_diff <= 1 ~ 1.0,
+        .data$goal_diff == 2 ~ 0.8,
+        .data$goal_diff == 3 ~ 0.5,
+        TRUE ~ 0.25  # 4+ goal difference: mostly garbage time
+      ),
+      is_competitive = .data$goal_diff <= 1
+    )
+
+  away <- matches_df |>
+    dplyr::transmute(
+      match_id = if ("match_id" %in% names(matches_df)) .data$match_id else NA_character_,
+      team = .data$away_team,
+      opponent = .data$home_team,
+      match_date = .data$match_date,
+      xg_for = .data$away_xg,
+      xg_against = .data$home_xg,
+      goal_diff = abs(.data$fthg - .data$ftag),
+      gamestate = dplyr::case_when(
+        .data$goal_diff == 0 ~ "tied",
+        .data$goal_diff == 1 ~ "close",
+        .data$goal_diff == 2 ~ "comfortable",
+        TRUE ~ "lopsided"
+      ),
+      gamestate_weight = dplyr::case_when(
+        .data$goal_diff <= 1 ~ 1.0,
+        .data$goal_diff == 2 ~ 0.8,
+        .data$goal_diff == 3 ~ 0.5,
+        TRUE ~ 0.25
+      ),
+      is_competitive = .data$goal_diff <= 1
+    )
+
+  long <- dplyr::bind_rows(home, away) |>
+    dplyr::arrange(.data$team, .data$match_date) |>
+    dplyr::mutate(
+      # Weighted xG: downweight lopsided games
+      xg_for_weighted = .data$xg_for * .data$gamestate_weight,
+      xg_against_weighted = .data$xg_against * .data$gamestate_weight
+    )
+
+  long |>
+    dplyr::group_by(.data$team) |>
+    dplyr::mutate(
+      # Standard rolling xG (lagged)
+      rolling_xg_for = dplyr::lag(
+        slider_mean(.data$xg_for, window),
+        default = NA_real_
+      ),
+      rolling_xg_against = dplyr::lag(
+        slider_mean(.data$xg_against, window),
+        default = NA_real_
+      ),
+      # Gamestate-weighted rolling xG (more predictive)
+      rolling_xg_for_gs = dplyr::lag(
+        slider_mean(.data$xg_for_weighted, window) /
+          slider_mean(.data$gamestate_weight, window),
+        default = NA_real_
+      ),
+      rolling_xg_against_gs = dplyr::lag(
+        slider_mean(.data$xg_against_weighted, window) /
+          slider_mean(.data$gamestate_weight, window),
+        default = NA_real_
+      ),
+      # Competitive-only xG (strictest filter)
+      rolling_xg_competitive = dplyr::lag(
+        slider_mean(
+          ifelse(.data$is_competitive, .data$xg_for, NA_real_),
+          window
+        ),
+        default = NA_real_
+      )
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::select(
+      "team", "match_date", "match_id", "gamestate",
+      "rolling_xg_for_gs", "rolling_xg_against_gs", "rolling_xg_competitive"
+    )
+}
+
+# ============================================================================
+# RATIO NORMALIZATION
+# ============================================================================
+
+#' Normalize features to ratio form
+#'
+#' Converts team/opponent features to ratio form: team / (team + opponent).
+#' This captures relative strength in a bounded 0-1 metric that is
+#' more predictive than raw differences.
+#'
+#' Based on Tony ElHabr's analysis showing ratio metrics outperform
+#' difference metrics for xG-based prediction.
+#'
+#' @param team_value Numeric. Team's metric value.
+#' @param opponent_value Numeric. Opponent's metric value.
+#' @param na_value Numeric. Value to return when denominator is 0 (default 0.5).
+#' @return Numeric in range 0-1. Team's share of total.
+#' @family features
+#' @export
+ratio_normalize <- function(team_value, opponent_value, na_value = 0.5) {
+  total <- team_value + opponent_value
+  dplyr::case_when(
+    is.na(team_value) | is.na(opponent_value) ~ NA_real_,
+    total == 0 ~ na_value,
+    TRUE ~ team_value / total
+  )
+}
+
+#' Add ratio-normalized features to match data
+#'
+#' Computes ratio-normalized versions of rolling features for
+#' both home and away teams. Requires rolling features to be
+#' already computed (via [rolling_goals()] or [rolling_xg()]).
+#'
+#' @param matches_df A tibble with rolling feature columns.
+#' @return The input tibble with additional ratio columns.
+#' @family features
+#' @export
+add_ratio_features <- function(matches_df) {
+  rlang::check_required(matches_df)
+
+  result <- matches_df
+
+  # Check for rolling goal features
+  if (all(c("home_rolling_gf", "away_rolling_gf") %in% names(matches_df))) {
+    result <- result |>
+      dplyr::mutate(
+        home_goals_ratio = ratio_normalize(.data$home_rolling_gf, .data$away_rolling_gf),
+        away_goals_ratio = ratio_normalize(.data$away_rolling_gf, .data$home_rolling_gf)
+      )
+  }
+
+  # Check for rolling xG features
+  if (all(c("home_rolling_xg_for", "away_rolling_xg_for") %in% names(matches_df))) {
+    result <- result |>
+      dplyr::mutate(
+        home_xg_ratio = ratio_normalize(.data$home_rolling_xg_for, .data$away_rolling_xg_for),
+        away_xg_ratio = ratio_normalize(.data$away_rolling_xg_for, .data$home_rolling_xg_for)
+      )
+  }
+
+  # Check for Elo ratings
+  if (all(c("home_elo", "away_elo") %in% names(matches_df))) {
+    result <- result |>
+      dplyr::mutate(
+        # For Elo, use sigmoid normalization instead of ratio
+        # since Elo difference has a specific interpretation
+        home_elo_prob = 1 / (1 + 10^((.data$away_elo - .data$home_elo) / 400))
+      )
+  }
+
+  result
+}
+
+# ============================================================================
+# RELIABILITY THRESHOLD ANALYSIS
+# ============================================================================
+
+#' Compute reliability threshold for a metric
+#'
+#' Calculates how many matches are needed for a metric to become
+#' reliable (R² > threshold when predicting future outcomes).
+#'
+#' Based on Tony ElHabr's analysis showing xG ratio becomes reliable
+#' around matchday 9-13 (R² > 0.5).
+#'
+#' @param matches_df A tibble with cumulative metrics.
+#' @param metric_col Character. Name of the metric column.
+#' @param outcome_col Character. Name of the outcome column.
+#' @param r2_threshold Numeric. R² threshold for "reliable" (default 0.5).
+#' @param min_matches Integer. Minimum matches per team to test (default 5).
+#' @param max_matches Integer. Maximum matches to test (default 25).
+#' @return A tibble with `match_num`, `r_squared`, and `is_reliable`.
+#' @family features
+#' @export
+reliability_threshold <- function(matches_df,
+                                   metric_col,
+                                   outcome_col,
+                                   r2_threshold = 0.5,
+                                   min_matches = 5L,
+                                   max_matches = 25L) {
+  rlang::check_required(matches_df)
+  rlang::check_required(metric_col)
+  rlang::check_required(outcome_col)
+
+  if (!metric_col %in% names(matches_df)) {
+    cli::cli_abort("Column {.val {metric_col}} not found in data.")
+  }
+  if (!outcome_col %in% names(matches_df)) {
+    cli::cli_abort("Column {.val {outcome_col}} not found in data.")
+  }
+  if (!"match_num" %in% names(matches_df)) {
+    cli::cli_abort("Column {.val match_num} required. Use {.fun cumulative_xg_ratio} first.")
+  }
+
+  results <- vector("list", max_matches - min_matches + 1L)
+
+  for (n in seq(min_matches, max_matches)) {
+    # Filter to teams with at least n matches
+    subset <- matches_df |>
+      dplyr::filter(.data$match_num == n)
+
+    if (nrow(subset) < 10) {
+      results[[n - min_matches + 1L]] <- tibble::tibble(
+        match_num = n,
+        r_squared = NA_real_,
+        n_teams = nrow(subset),
+        is_reliable = NA
+      )
+      next
+    }
+
+    # Compute correlation
+    metric <- subset[[metric_col]]
+    outcome <- subset[[outcome_col]]
+
+    valid <- !is.na(metric) & !is.na(outcome)
+    if (sum(valid) < 10) {
+      results[[n - min_matches + 1L]] <- tibble::tibble(
+        match_num = n,
+        r_squared = NA_real_,
+        n_teams = sum(valid),
+        is_reliable = NA
+      )
+      next
+    }
+
+    cor_val <- stats::cor(metric[valid], outcome[valid])
+    r2 <- cor_val^2
+
+    results[[n - min_matches + 1L]] <- tibble::tibble(
+      match_num = n,
+      r_squared = r2,
+      n_teams = sum(valid),
+      is_reliable = r2 >= r2_threshold
+    )
+  }
+
+  dplyr::bind_rows(results)
+}
+
+#' Find first reliable matchday for a metric
+#'
+#' Returns the earliest match number where the metric achieves
+#' the reliability threshold.
+#'
+#' @param reliability_df A tibble from [reliability_threshold()].
+#' @return Integer. First reliable matchday, or NA if never reliable.
+#' @family features
+#' @export
+first_reliable_matchday <- function(reliability_df) {
+  reliable <- reliability_df |>
+    dplyr::filter(.data$is_reliable == TRUE) |>
+    dplyr::arrange(.data$match_num)
+
+  if (nrow(reliable) == 0) {
+    return(NA_integer_)
+  }
+
+  reliable$match_num[[1]]
+}
+
+# ============================================================================
+# xG + xAG COMPOSITE
+# ============================================================================
+
+#' Compute xG + xAG composite metric
+#'
+#' Combines expected goals and expected assists (xAG) into a composite
+#' metric. xG+xAG is more predictive than xG alone as it captures
+#' build-up play quality.
+#'
+#' @param matches_df A tibble with xG and xAG columns.
+#' @param window Integer. Rolling window (default 5).
+#' @return A tibble with xG+xAG composite features.
+#' @family features
+#' @export
+compute_xg_xag_composite <- function(matches_df, window = 5L) {
+  rlang::check_required(matches_df)
+
+  # Check for required columns
+  has_xag <- all(c("home_xag", "away_xag") %in% names(matches_df))
+  has_xg <- all(c("home_xg", "away_xg") %in% names(matches_df))
+
+  if (!has_xg) {
+    cli::cli_abort("Requires {.val home_xg} and {.val away_xg} columns.")
+  }
+
+  if (!has_xag) {
+    cli::cli_warn(c(
+      "!" = "No xAG columns found ({.val home_xag}, {.val away_xag}).",
+      "i" = "Returning xG-only features. Add xAG data from FBref for full composite."
+    ))
+    return(rolling_xg(matches_df, window = window))
+  }
+
+  home <- matches_df |>
+    dplyr::transmute(
+      match_id = if ("match_id" %in% names(matches_df)) .data$match_id else NA_character_,
+      team = .data$home_team,
+      match_date = .data$match_date,
+      xg = .data$home_xg,
+      xag = .data$home_xag,
+      xg_xag = .data$home_xg + .data$home_xag,
+      xg_against = .data$away_xg,
+      xag_against = .data$away_xag,
+      xg_xag_against = .data$away_xg + .data$away_xag
+    )
+
+  away <- matches_df |>
+    dplyr::transmute(
+      match_id = if ("match_id" %in% names(matches_df)) .data$match_id else NA_character_,
+      team = .data$away_team,
+      match_date = .data$match_date,
+      xg = .data$away_xg,
+      xag = .data$away_xag,
+      xg_xag = .data$away_xg + .data$away_xag,
+      xg_against = .data$home_xg,
+      xag_against = .data$home_xag,
+      xg_xag_against = .data$home_xg + .data$home_xag
+    )
+
+  long <- dplyr::bind_rows(home, away) |>
+    dplyr::arrange(.data$team, .data$match_date)
+
+  long |>
+    dplyr::group_by(.data$team) |>
+    dplyr::mutate(
+      # Rolling xG
+      rolling_xg = dplyr::lag(
+        slider_mean(.data$xg, window), default = NA_real_
+      ),
+      # Rolling xAG
+      rolling_xag = dplyr::lag(
+        slider_mean(.data$xag, window), default = NA_real_
+      ),
+      # Rolling xG+xAG composite
+      rolling_xg_xag = dplyr::lag(
+        slider_mean(.data$xg_xag, window), default = NA_real_
+      ),
+      # Against versions
+      rolling_xg_against = dplyr::lag(
+        slider_mean(.data$xg_against, window), default = NA_real_
+      ),
+      rolling_xg_xag_against = dplyr::lag(
+        slider_mean(.data$xg_xag_against, window), default = NA_real_
+      ),
+      # Ratio form (most predictive)
+      xg_xag_ratio = ratio_normalize(.data$rolling_xg_xag, .data$rolling_xg_xag_against)
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::select(
+      "team", "match_date", "match_id",
+      "rolling_xg", "rolling_xag", "rolling_xg_xag",
+      "rolling_xg_against", "rolling_xg_xag_against", "xg_xag_ratio"
+    )
+}
+
 #' Compute head-to-head record between two teams
 #'
 #' Returns historical record of matches between home and away teams,
