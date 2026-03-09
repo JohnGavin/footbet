@@ -1,17 +1,17 @@
 ---
 title: "Betting Terminology Glossary"
-output: rmarkdown::html_vignette
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    toc: true
+    page-layout: full
 vignette: >
   %\VignetteIndexEntry{Betting Terminology Glossary}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
-
-```{r setup, include = FALSE}
-knitr::opts_chunk$set(
-  echo = FALSE, message = FALSE, warning = FALSE
-)
-```
 
 This glossary defines betting and statistical terms used throughout the
 [footbet](https://johngavin.github.io/footbet/) package.
@@ -39,6 +39,7 @@ Expresses profit relative to stake as a fraction. Traditional UK format.
 
 Positive numbers show profit on a 100 unit stake; negative numbers show
 stake needed to win 100 units. Standard in the United States.
+
 - +150 means bet 100 to win 150 profit
 - -200 means bet 200 to win 100 profit
 
@@ -52,6 +53,7 @@ stake needed to win 100 units. Standard in the United States.
 ### 1X2 (Match Result)
 
 The most common football betting market:
+
 - **1 (H)**: Home win
 - **X (D)**: Draw
 - **2 (A)**: Away win
@@ -78,6 +80,7 @@ Whether both teams score at least one goal. Binary yes/no market.
 The probability implied by decimal odds: `1 / odds`. For odds of 2.50,
 the implied probability is 40%. Markets include overround, so implied
 probabilities sum to >100%.
+
 ### Overround (Vig/Juice)
 
 The bookmaker's margin built into odds. Calculated as the sum of implied
@@ -220,6 +223,7 @@ Half Time Home Goals / Half Time Away Goals / Half Time Result.
 ### Match Statistics
 
 Common abbreviations in football-data.co.uk files:
+
 - **HS/AS**: Home/Away Shots
 - **HST/AST**: Home/Away Shots on Target
 - **HC/AC**: Home/Away Corners

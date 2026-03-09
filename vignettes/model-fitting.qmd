@@ -1,16 +1,22 @@
 ---
 title: "Model Fitting & Evaluation"
-output: rmarkdown::html_vignette
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    toc: false
+    page-layout: full
+    code-fold: true
 vignette: >
   %\VignetteIndexEntry{Model Fitting & Evaluation}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
-  echo = FALSE, message = FALSE, warning = FALSE,
-  fig.width = 8, fig.height = 6
+  echo = FALSE, message = FALSE, warning = FALSE
 )
 library(targets)
 
@@ -27,7 +33,9 @@ safe_tar_read <- function(name) {
 This vignette covers the modelling pipeline: walk-forward cross-validation,
 two statistical models, and benchmarking against Pinnacle implied probabilities.
 
-## Walk-Forward Cross-Validation
+::: {.panel-tabset}
+
+## Cross-Validation
 
 Football data is time-ordered, so standard k-fold CV would leak future
 information. The pipeline uses **walk-forward** (expanding window) splits:
@@ -42,7 +50,7 @@ predict the next month.
 `footbet::walk_forward_splits()` generates the date-based train/test splits,
 and `evaluate_glm_baseline()` / `evaluate_dc()` iterate over them.
 
-## GLM Poisson Baseline
+## GLM Poisson
 
 The baseline model is a
 [Poisson regression](https://en.wikipedia.org/wiki/Poisson_regression)
@@ -54,87 +62,90 @@ $$\log(\lambda_{ij}) = \mu + \alpha_i + \beta_j + \gamma \cdot \mathbb{1}[\text{
 
 where $\alpha_i$ is team $i$'s attack strength, $\beta_j$ is team $j$'s
 defence weakness, and $\gamma$ captures home advantage. The model assumes
-independence between home and away goals — an assumption relaxed by
-Dixon-Coles.
+independence between home and away goals.
 
 `footbet::fit_poisson_glm()` fits this model; `predict_glm()` generates a
 bivariate score probability matrix (up to 10x10 goals) and derives 1X2,
 over/under, and Asian handicap probabilities.
 
-## Dixon-Coles Model
+## Dixon-Coles
 
 Dixon & Coles (1997) extend the Poisson model with:
 
 1. **Correlation correction**: A parameter $\rho$ adjusts the joint
    probability of low-scoring outcomes (0-0, 1-0, 0-1, 1-1) where the
-   independence assumption fails most.
+   independence assumption fails most
 2. **Time-decay weights**: Recent matches receive higher weight via an
-   exponential decay parameter $\xi$, allowing the model to adapt to form
-   changes.
+   exponential decay parameter $\xi$
 
 The pipeline uses $\xi = 0.003$ (approximately 1-year half-life) via the
 [goalmodel](https://cran.r-project.org/package=goalmodel) package.
 
-## Per-Fold Metric Comparison
+## CV Metrics
 
 The plot below shows
 [log-loss](https://en.wikipedia.org/wiki/Cross-entropy),
 [Brier score](https://en.wikipedia.org/wiki/Brier_score), and
-[Ranked Probability Score (RPS)](https://en.wikipedia.org/wiki/Ranked_probability_score)
-per CV fold for both models, with Pinnacle as a benchmark (orange dashed line).
+[RPS](https://en.wikipedia.org/wiki/Ranked_probability_score)
+per CV fold for both models, with Pinnacle as a benchmark.
 All three are **proper scoring rules** — lower is better.
 
-```{r vig-cv-metrics-plot, fig.cap = "Walk-forward CV metrics per fold: GLM (blue) vs Dixon-Coles (purple) vs Pinnacle (orange dashed). Lower = better. Key: Dixon-Coles slightly outperforms GLM; both trail Pinnacle on most folds. Source: 24-month train / 1-month test walk-forward CV."}
+```{r vig-cv-metrics-plot}
 safe_tar_read("vig_cv_metrics_plot")
 ```
 
-## Model vs Pinnacle Benchmark
+**Key findings:**
+
+- Dixon-Coles slightly outperforms GLM
+- Both models trail Pinnacle on most folds
+- Pinnacle's edge is consistent across metrics
+
+## Model Comparison
 
 The table below summarises mean metrics across all folds, with the Pinnacle
-benchmark for comparison. Positive "edge" means the model outperforms
-Pinnacle (lower loss).
+benchmark for comparison. Positive "edge" means the model outperforms Pinnacle.
 
 ```{r vig-model-comparison-table}
 safe_tar_read("vig_model_comparison_table")
 ```
 
-## Value Bet Detection
+## Value Bets
 
 A **value bet** exists when the model's estimated probability exceeds the
 market's implied probability by a minimum edge threshold. The pipeline uses:
 
 - **Minimum edge**: 3% (model_prob - market_prob > 0.03)
 - **Odds filter**: Only bets between 1.50 and 10.00 decimal odds
-- **Devigged odds**: Market probabilities derived via
-  [Shin (1993)](https://doi.org/10.2307/2234526) method, removing the
-  bookmaker margin
+- **Devigged odds**: Market probabilities via [Shin (1993)](https://doi.org/10.2307/2234526) method
 
 ```{r vig-value-bets-summary}
 safe_tar_read("vig_value_bets_summary")
 ```
 
-```{r vig-edge-distribution, fig.cap = "Distribution of edge values for identified value bets. Red dashed = 3% minimum edge threshold. Key: Most edges cluster at 3-8%; large edges (>15%) are rare and may signal model error. Source: footbet::find_value_bets()."}
+```{r vig-edge-distribution}
 safe_tar_read("vig_edge_distribution")
 ```
 
-## Kelly Staking & Guardrails
+**Key findings:**
 
-The pipeline uses **quarter Kelly** staking — the
-[Kelly criterion](https://en.wikipedia.org/wiki/Kelly_criterion) fraction
-divided by 4 to reduce variance:
+- Most edges cluster at 3-8%
+- Large edges (>15%) are rare and may signal model error
+
+## Kelly Staking
+
+The pipeline uses **quarter Kelly** staking:
 
 $$f^* = \frac{1}{4} \cdot \frac{p \cdot (b + 1) - 1}{b}$$
 
 where $p$ is the model probability and $b$ is the decimal odds minus 1.
 
-Guardrails:
+**Guardrails:**
 
 - **Max stake**: 3% of current bankroll per bet
-- **Drawdown halt**: When the bankroll drops 20% from its peak, stakes are
-  halved until recovery
+- **Drawdown halt**: Stakes halved when bankroll drops 20% from peak
 - **`apply_guardrails()`**: Automatically reduces stake size during drawdowns
 
-```{r vig-kelly-stake-distribution, fig.cap = "Distribution of quarter-Kelly stake sizes. Orange dashed = 3% max stake cap. Key: Most stakes are 0.5-2% of bankroll; the cap prevents excessive single-bet exposure. Source: footbet::find_value_bets()."}
+```{r vig-kelly-stake-distribution}
 safe_tar_read("vig_kelly_stake_distribution")
 ```
 
@@ -142,17 +153,26 @@ safe_tar_read("vig_kelly_stake_distribution")
 
 The bankroll curve below shows the simulated profit & loss trajectory for all
 GLM value bets, staked with quarter Kelly and drawdown guardrails.
+Use the range slider to zoom into specific periods.
 
-```{r vig-pnl-curve, fig.cap = "Simulated bankroll evolution with GLM value bets, quarter Kelly staking. Orange dashed = starting bankroll (1000). Key: Trajectory depends on model accuracy and market conditions; drawdown guardrails limit losses. Source: footbet::simulate_pnl()."}
+```{r vig-pnl-curve}
 safe_tar_read("vig_pnl_curve")
 ```
 
-```{r vig-drawdown-plot, fig.cap = "Drawdown from peak bankroll over time. Orange dashed = -20% guardrail threshold. Key: When drawdown exceeds 20%, stakes are halved via apply_guardrails(). Maximum drawdown is the key risk metric. Source: footbet::simulate_pnl()."}
+```{r vig-drawdown-plot}
 safe_tar_read("vig_drawdown_plot")
 ```
 
-### P&L Summary
+**Key findings:**
+
+- Trajectory depends on model accuracy and market conditions
+- Drawdown guardrails limit losses during poor runs
+- Maximum drawdown is the key risk metric
+
+### Summary
 
 ```{r vig-pnl-summary-table}
 safe_tar_read("vig_pnl_summary_table")
 ```
+
+:::

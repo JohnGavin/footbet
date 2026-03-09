@@ -1,6 +1,7 @@
 # plan_vignette_outputs.R
 # Pre-compute all tables and plots for vignettes.
 # Vignettes perform ZERO computation — they only tar_read() these targets.
+# All plots use interactive plotly with dark theme styling.
 
 plan_vignette_outputs <- list(
 
@@ -69,22 +70,25 @@ plan_vignette_outputs <- list(
       plot_data <- parsed_matches |>
         dplyr::count(league_code, season, name = "n_matches")
 
-      ggplot2::ggplot(plot_data, ggplot2::aes(x = season, y = n_matches)) +
-        ggplot2::geom_col(fill = "#2c3e50") +
-        ggplot2::facet_wrap(~league_code, scales = "free_y", ncol = 2) +
-        ggplot2::labs(
-          title = "Match Count by League and Season",
-          subtitle = "Top-2 divisions across 5 countries; most leagues have ~380 matches/season (Div 1) or ~500+ (Div 2)",
-          caption = paste(
-            "Source: football-data.co.uk.",
-            "Bars show total parsed matches per league/season.",
-            "Key: E0 (EPL) and D1 (Bundesliga) have fewer matches than Div 2 leagues.",
-            "Missing bars indicate seasons not yet available."
-          ),
-          x = "Season", y = "Matches"
-        ) +
-        ggplot2::theme_minimal(base_size = 11) +
-        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+      plotly::plot_ly(
+        plot_data,
+        x = ~season,
+        y = ~n_matches,
+        color = ~league_code,
+        type = "bar",
+        hovertemplate = paste(
+          "<b>%{x}</b><br>",
+          "League: %{fullData.name}<br>",
+          "Matches: %{y}<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Match Count by League and Season") |>
+        plotly::layout(
+          barmode = "group",
+          xaxis = list(title = "Season", tickangle = 45),
+          yaxis = list(title = "Matches"),
+          legend = list(title = list(text = "League"))
+        )
     }
   ),
 
@@ -95,61 +99,56 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_completeness_plot,
     {
-      ggplot2::ggplot(
+      plotly::plot_ly(
         qc_match_completeness,
-        ggplot2::aes(x = season, y = league_code, fill = pct_complete)
-      ) +
-        ggplot2::geom_tile(color = "white", linewidth = 0.5) +
-        ggplot2::geom_text(
-          ggplot2::aes(label = sprintf("%.0f", pct_complete)),
-          size = 2.5
-        ) +
-        ggplot2::scale_fill_viridis_c(
-          option = "D", limits = c(80, 100), na.value = "grey80"
-        ) +
-        ggplot2::labs(
-          title = "Match Result Completeness by League and Season",
-          subtitle = "Percentage of matches with non-missing full-time result (FTR); 100% = all results present",
-          caption = paste(
-            "Source: football-data.co.uk, parsed by footbet::parse_fd_csv().",
-            "Fill = % of matches with valid FTR. Greyed cells = <80% or missing.",
-            "Key: Most leagues achieve 100%; partial seasons show lower values."
-          ),
-          x = "Season", y = "League", fill = "% Complete"
-        ) +
-        ggplot2::theme_minimal(base_size = 11) +
-        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+        x = ~season,
+        y = ~league_code,
+        z = ~pct_complete,
+        type = "heatmap",
+        colorscale = "Viridis",
+        zmin = 80,
+        zmax = 100,
+        hovertemplate = paste(
+          "Season: %{x}<br>",
+          "League: %{y}<br>",
+          "Complete: %{z:.1f}%<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Match Result Completeness by League and Season") |>
+        plotly::layout(
+          xaxis = list(title = "Season", tickangle = 45),
+          yaxis = list(title = "League")
+        )
     }
   ),
 
   targets::tar_target(
     vig_pinnacle_coverage_plot,
     {
-      ggplot2::ggplot(
+      plotly::plot_ly(
         qc_pinnacle_coverage,
-        ggplot2::aes(x = season, y = league_code, fill = pct_pinnacle)
-      ) +
-        ggplot2::geom_tile(color = "white", linewidth = 0.5) +
-        ggplot2::geom_text(
-          ggplot2::aes(label = sprintf("%.0f", pct_pinnacle)),
-          size = 2.5
-        ) +
-        ggplot2::scale_fill_viridis_c(
-          option = "C", limits = c(0, 100), na.value = "grey80"
-        ) +
-        ggplot2::labs(
-          title = "Pinnacle 1X2 Odds Coverage by League and Season",
-          subtitle = "Percentage of matches with all three Pinnacle closing odds (PSH, PSD, PSA) present",
-          caption = paste(
-            "Source: football-data.co.uk Pinnacle columns.",
-            "Fill = % of matches with complete 1X2 odds.",
-            "Key: Pinnacle coverage dropped to 0% for some leagues from Jul 2025 due to feed break.",
-            "Div 2 leagues often have lower Pinnacle coverage than top divisions."
-          ),
-          x = "Season", y = "League", fill = "% Pinnacle"
-        ) +
-        ggplot2::theme_minimal(base_size = 11) +
-        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+        x = ~season,
+        y = ~league_code,
+        z = ~pct_pinnacle,
+        type = "heatmap",
+        colorscale = list(
+          c(0, "#1c1c1c"),
+          c(0.5, "#9b59b6"),
+          c(1, "#1abc9c")
+        ),
+        zmin = 0,
+        zmax = 100,
+        hovertemplate = paste(
+          "Season: %{x}<br>",
+          "League: %{y}<br>",
+          "Pinnacle: %{z:.1f}%<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Pinnacle 1X2 Odds Coverage by League and Season") |>
+        plotly::layout(
+          xaxis = list(title = "Season", tickangle = 45),
+          yaxis = list(title = "League")
+        )
     }
   ),
 
@@ -200,6 +199,48 @@ plan_vignette_outputs <- list(
     }
   ),
 
+  targets::tar_target(
+    vig_missing_data_heatmap,
+    {
+      cols_to_check <- c(
+        "match_date", "home_team", "away_team", "fthg", "ftag", "ftr",
+        "hthg", "htag", "htr", "hs", "as_", "hst", "ast",
+        "hf", "af", "hc", "ac", "hy", "ay", "hr", "ar"
+      )
+      available <- intersect(cols_to_check, names(parsed_matches))
+
+      missing_pct <- tibble::tibble(
+        column = available,
+        pct_missing = vapply(available, function(col) {
+          100 * mean(is.na(parsed_matches[[col]]))
+        }, numeric(1))
+      ) |>
+        dplyr::filter(pct_missing > 0) |>
+        dplyr::arrange(dplyr::desc(pct_missing))
+
+      if (nrow(missing_pct) == 0) {
+        missing_pct <- tibble::tibble(column = "None", pct_missing = 0)
+      }
+
+      plotly::plot_ly(
+        missing_pct,
+        x = ~column,
+        y = ~pct_missing,
+        type = "bar",
+        marker = list(color = "#e74c3c"),
+        hovertemplate = paste(
+          "<b>%{x}</b><br>",
+          "Missing: %{y:.1f}%<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Missing Data by Column") |>
+        plotly::layout(
+          xaxis = list(title = "", tickangle = 45),
+          yaxis = list(title = "% Missing", tickformat = ".1f")
+        )
+    }
+  ),
+
 # ============================================================================
 # Vignette 3: EDA
 # ============================================================================
@@ -213,42 +254,53 @@ plan_vignette_outputs <- list(
       ) |> dplyr::filter(!is.na(goals))
 
       mean_goals <- mean(goals_data$goals, na.rm = TRUE)
-      poisson_df <- tibble::tibble(
-        goals = 0:8,
-        density = stats::dpois(0:8, lambda = mean_goals)
-      )
 
-      ggplot2::ggplot(goals_data, ggplot2::aes(x = goals)) +
-        ggplot2::geom_histogram(
-          ggplot2::aes(y = ggplot2::after_stat(density)),
-          binwidth = 1, fill = "#2c3e50", alpha = 0.7, color = "white"
-        ) +
-        ggplot2::geom_line(
-          data = poisson_df,
-          ggplot2::aes(x = goals, y = density),
-          color = "#e67e22", linewidth = 1.2
-        ) +
-        ggplot2::geom_point(
-          data = poisson_df,
-          ggplot2::aes(x = goals, y = density),
-          color = "#e67e22", size = 2.5
-        ) +
-        ggplot2::facet_wrap(~side) +
-        ggplot2::labs(
-          title = "Goal Distribution: Observed vs Poisson",
-          subtitle = paste0(
-            "Orange line = Poisson(lambda=", round(mean_goals, 2),
-            "); home teams score slightly more than away teams"
-          ),
-          caption = paste(
-            "Source: football-data.co.uk, all leagues/seasons combined.",
-            "Histogram = observed goal frequency; line = Poisson fit.",
-            "Key: The Poisson is a reasonable first approximation but underpredicts 0-0 and high-scoring draws.",
-            "See Dixon & Coles (1997) for the correction term."
-          ),
-          x = "Goals scored", y = "Density"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+      # Calculate observed frequencies
+      obs_freq <- goals_data |>
+        dplyr::count(side, goals) |>
+        dplyr::group_by(side) |>
+        dplyr::mutate(density = n / sum(n)) |>
+        dplyr::ungroup()
+
+      # Calculate Poisson expected
+      poisson_df <- tidyr::expand_grid(
+        side = c("Home", "Away"),
+        goals = 0:8
+      ) |>
+        dplyr::mutate(poisson_density = stats::dpois(goals, lambda = mean_goals))
+
+      # Combine for plotting
+      plot_data <- dplyr::left_join(obs_freq, poisson_df, by = c("side", "goals"))
+
+      plotly::plot_ly() |>
+        plotly::add_bars(
+          data = dplyr::filter(plot_data, side == "Home"),
+          x = ~goals, y = ~density,
+          name = "Home (Observed)",
+          marker = list(color = "#3498db"),
+          hovertemplate = "Goals: %{x}<br>Density: %{y:.3f}<extra></extra>"
+        ) |>
+        plotly::add_bars(
+          data = dplyr::filter(plot_data, side == "Away"),
+          x = ~goals, y = ~density,
+          name = "Away (Observed)",
+          marker = list(color = "#9b59b6"),
+          hovertemplate = "Goals: %{x}<br>Density: %{y:.3f}<extra></extra>"
+        ) |>
+        plotly::add_lines(
+          data = dplyr::filter(plot_data, side == "Home") |> dplyr::distinct(goals, .keep_all = TRUE),
+          x = ~goals, y = ~poisson_density,
+          name = paste0("Poisson (lambda=", round(mean_goals, 2), ")"),
+          line = list(color = "#e67e22", width = 3, dash = "dash"),
+          hovertemplate = "Goals: %{x}<br>Poisson: %{y:.3f}<extra></extra>"
+        ) |>
+        theme_dark_plotly(title = "Goal Distribution: Observed vs Poisson") |>
+        plotly::layout(
+          barmode = "group",
+          xaxis = list(title = "Goals scored", dtick = 1),
+          yaxis = list(title = "Density"),
+          legend = list(orientation = "h", y = -0.15)
+        )
     }
   ),
 
@@ -260,30 +312,44 @@ plan_vignette_outputs <- list(
         dplyr::count(league_code, ftr) |>
         dplyr::group_by(league_code) |>
         dplyr::mutate(pct = 100 * n / sum(n)) |>
-        dplyr::ungroup()
+        dplyr::ungroup() |>
+        dplyr::mutate(
+          ftr = factor(ftr, levels = c("H", "D", "A")),
+          ftr_label = dplyr::case_when(
+            ftr == "H" ~ "Home",
+            ftr == "D" ~ "Draw",
+            ftr == "A" ~ "Away"
+          )
+        )
 
-      result_data$ftr <- factor(result_data$ftr, levels = c("H", "D", "A"))
+      colors <- c(Home = "#3498db", Draw = "#95a5a6", Away = "#e67e22")
 
-      ggplot2::ggplot(result_data, ggplot2::aes(x = league_code, y = pct, fill = ftr)) +
-        ggplot2::geom_col(position = "stack") +
-        ggplot2::scale_fill_manual(
-          values = c(H = "#2c3e50", D = "#95a5a6", A = "#e67e22"),
-          labels = c(H = "Home win", D = "Draw", A = "Away win")
-        ) +
-        ggplot2::geom_hline(yintercept = c(33.3, 66.7), linetype = "dashed", alpha = 0.3) +
-        ggplot2::labs(
-          title = "Result Proportions by League",
-          subtitle = "Compared to a uniform 33/33/33 baseline (dashed lines); home advantage is universal",
-          caption = paste(
-            "Source: football-data.co.uk, all seasons combined.",
-            "Stacked bars show % of Home/Draw/Away results per league.",
-            "Key: Home win rate ranges from ~43-47%; draws ~25-28%; away wins ~27-30%.",
-            "Dashed lines = uniform 33.3% baseline for comparison."
-          ),
-          x = "League", y = "Percentage (%)", fill = "Result"
-        ) +
-        ggplot2::coord_flip() +
-        ggplot2::theme_minimal(base_size = 11)
+      plotly::plot_ly(
+        result_data,
+        x = ~pct,
+        y = ~league_code,
+        color = ~ftr_label,
+        colors = colors,
+        type = "bar",
+        orientation = "h",
+        hovertemplate = paste(
+          "League: %{y}<br>",
+          "%{fullData.name}: %{x:.1f}%<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Result Proportions by League") |>
+        plotly::layout(
+          barmode = "stack",
+          xaxis = list(title = "Percentage (%)", range = c(0, 100)),
+          yaxis = list(title = ""),
+          legend = list(title = list(text = "Result")),
+          shapes = list(
+            list(type = "line", x0 = 33.3, x1 = 33.3, y0 = -0.5, y1 = 9.5,
+                 line = list(color = "white", dash = "dash", width = 1)),
+            list(type = "line", x0 = 66.7, x1 = 66.7, y0 = -0.5, y1 = 9.5,
+                 line = list(color = "white", dash = "dash", width = 1))
+          )
+        )
     }
   ),
 
@@ -301,29 +367,35 @@ plan_vignette_outputs <- list(
 
       overall_mean <- mean(ha_data$home_win_pct)
 
-      ggplot2::ggplot(ha_data, ggplot2::aes(x = season, y = home_win_pct, group = 1)) +
-        ggplot2::geom_line(color = "#2c3e50") +
-        ggplot2::geom_point(color = "#2c3e50", size = 1.5) +
-        ggplot2::geom_hline(
-          yintercept = overall_mean, linetype = "dashed", color = "#e67e22"
-        ) +
-        ggplot2::facet_wrap(~league_code, ncol = 2) +
-        ggplot2::labs(
-          title = "Home Win Percentage by League Over Seasons",
-          subtitle = paste0(
-            "Orange dashed line = overall mean (", round(overall_mean, 1),
-            "%); COVID seasons (2020-21) show reduced home advantage"
+      plotly::plot_ly(
+        ha_data,
+        x = ~season,
+        y = ~home_win_pct,
+        color = ~league_code,
+        type = "scatter",
+        mode = "lines+markers",
+        hovertemplate = paste(
+          "Season: %{x}<br>",
+          "Home Win: %{y:.1f}%<br>",
+          "Matches: %{customdata}<extra></extra>"
+        ),
+        customdata = ~n_matches
+      ) |>
+        theme_dark_plotly(title = "Home Win Percentage by League Over Seasons") |>
+        add_time_slider() |>
+        plotly::layout(
+          yaxis = list(title = "Home Win %"),
+          shapes = list(
+            list(type = "line", x0 = 0, x1 = 1, y0 = overall_mean, y1 = overall_mean,
+                 xref = "paper",
+                 line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
-          caption = paste(
-            "Source: football-data.co.uk.",
-            "Each point = home win % for one league-season.",
-            "Key: Home advantage declined during COVID (empty stadiums, 2020-21).",
-            "Most leagues show 43-48% home win rate."
-          ),
-          x = "Season", y = "Home Win %"
-        ) +
-        ggplot2::theme_minimal(base_size = 11) +
-        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+          annotations = list(
+            list(x = 1, y = overall_mean, xref = "paper", yref = "y",
+                 text = paste0("Mean: ", round(overall_mean, 1), "%"),
+                 showarrow = FALSE, xanchor = "left", font = list(color = "#e67e22"))
+          )
+        )
     }
   ),
 
@@ -333,27 +405,28 @@ plan_vignette_outputs <- list(
       scorelines <- parsed_matches |>
         dplyr::filter(!is.na(fthg), !is.na(ftag)) |>
         dplyr::count(fthg, ftag, name = "n") |>
-        dplyr::mutate(pct = 100 * n / sum(n))
+        dplyr::mutate(pct = 100 * n / sum(n)) |>
+        dplyr::filter(fthg <= 5, ftag <= 5)
 
-      ggplot2::ggplot(
-        dplyr::filter(scorelines, fthg <= 5, ftag <= 5),
-        ggplot2::aes(x = factor(ftag), y = factor(fthg), fill = pct)
-      ) +
-        ggplot2::geom_tile(color = "white") +
-        ggplot2::geom_text(ggplot2::aes(label = sprintf("%.1f%%", pct)), size = 3) +
-        ggplot2::scale_fill_viridis_c(option = "D") +
-        ggplot2::labs(
-          title = "Scoreline Frequency Heatmap (0-5 goals)",
-          subtitle = "1-1 and 1-0 are the most common results; scorelines above 4-4 are extremely rare",
-          caption = paste(
-            "Source: football-data.co.uk, all leagues/seasons.",
-            "Fill = percentage of all matches with that exact scoreline.",
-            "Key: 1-0 (~12%), 1-1 (~11%), 2-1 (~10%) dominate.",
-            "Scorelines 5+ omitted (<0.5% combined)."
-          ),
-          x = "Away Goals", y = "Home Goals", fill = "% of Matches"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+      plotly::plot_ly(
+        scorelines,
+        x = ~ftag,
+        y = ~fthg,
+        z = ~pct,
+        type = "heatmap",
+        colorscale = "Viridis",
+        text = ~paste0(round(pct, 1), "%"),
+        texttemplate = "%{text}",
+        hovertemplate = paste(
+          "Home: %{y}, Away: %{x}<br>",
+          "Frequency: %{z:.1f}%<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Scoreline Frequency Heatmap (0-5 goals)") |>
+        plotly::layout(
+          xaxis = list(title = "Away Goals", dtick = 1),
+          yaxis = list(title = "Home Goals", dtick = 1)
+        )
     }
   ),
 
@@ -372,30 +445,35 @@ plan_vignette_outputs <- list(
 
       overall_mean <- mean(trend_data$mean_goals)
 
-      ggplot2::ggplot(trend_data, ggplot2::aes(x = season, y = mean_goals, group = 1)) +
-        ggplot2::geom_line(color = "#2c3e50") +
-        ggplot2::geom_point(color = "#2c3e50", size = 1.5) +
-        ggplot2::geom_hline(
-          yintercept = overall_mean, linetype = "dashed", color = "#e67e22"
-        ) +
-        ggplot2::facet_wrap(~league_code, ncol = 2) +
-        ggplot2::labs(
-          title = "Mean Goals Per Match by League Over Seasons",
-          subtitle = paste0(
-            "Orange dashed line = overall mean (",
-            round(overall_mean, 2),
-            " goals/match); slight upward trend in most leagues"
+      plotly::plot_ly(
+        trend_data,
+        x = ~season,
+        y = ~mean_goals,
+        color = ~league_code,
+        type = "scatter",
+        mode = "lines+markers",
+        hovertemplate = paste(
+          "Season: %{x}<br>",
+          "Goals/match: %{y:.2f}<br>",
+          "Matches: %{customdata}<extra></extra>"
+        ),
+        customdata = ~n_matches
+      ) |>
+        theme_dark_plotly(title = "Mean Goals Per Match by League Over Seasons") |>
+        add_time_slider() |>
+        plotly::layout(
+          yaxis = list(title = "Mean Goals Per Match"),
+          shapes = list(
+            list(type = "line", x0 = 0, x1 = 1, y0 = overall_mean, y1 = overall_mean,
+                 xref = "paper",
+                 line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
-          caption = paste(
-            "Source: football-data.co.uk.",
-            "Line = mean total goals (home + away) per match per season.",
-            "Key: Scoring has increased slightly since 2015, especially in Serie A.",
-            "Bundesliga consistently among highest-scoring leagues (~3.0 goals/match)."
-          ),
-          x = "Season", y = "Mean Goals Per Match"
-        ) +
-        ggplot2::theme_minimal(base_size = 11) +
-        ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+          annotations = list(
+            list(x = 1, y = overall_mean, xref = "paper", yref = "y",
+                 text = paste0("Mean: ", round(overall_mean, 2)),
+                 showarrow = FALSE, xanchor = "left", font = list(color = "#e67e22"))
+          )
+        )
     }
   ),
 
@@ -422,7 +500,6 @@ plan_vignette_outputs <- list(
       ) |>
         dplyr::filter(!is.na(fair_h), !is.na(ftr))
 
-      # Bin implied probabilities and compute actual frequency
       calibration_data <- dplyr::bind_rows(
         bench |>
           dplyr::mutate(
@@ -456,49 +533,67 @@ plan_vignette_outputs <- list(
         ) |>
         dplyr::filter(n >= 30L)
 
-      ggplot2::ggplot(calibration_data,
-        ggplot2::aes(x = mean_implied, y = actual_freq, color = outcome)
-      ) +
-        ggplot2::geom_point(ggplot2::aes(size = n), alpha = 0.7) +
-        ggplot2::geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.5) +
-        ggplot2::scale_color_manual(
-          values = c(Home = "#2c3e50", Draw = "#95a5a6", Away = "#e67e22")
-        ) +
-        ggplot2::scale_size_continuous(range = c(1, 5)) +
-        ggplot2::labs(
-          title = "Pinnacle Odds Calibration: Implied Probability vs Actual Frequency",
-          subtitle = "Points on the diagonal = perfectly calibrated; Pinnacle is well-calibrated across all outcomes",
-          caption = paste(
-            "Source: football-data.co.uk Pinnacle odds, devigged via Shin method.",
-            "X = mean devigged implied probability per 5% bin; Y = actual outcome frequency.",
-            "Key: Pinnacle is near-perfectly calibrated; slight favourites-longshots bias at extremes.",
-            "Bins with <30 matches excluded for reliability. Size = number of matches."
-          ),
-          x = "Mean Implied Probability", y = "Actual Outcome Frequency",
-          color = "Outcome", size = "N matches"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+      colors <- c(Home = "#3498db", Draw = "#95a5a6", Away = "#e67e22")
+
+      plotly::plot_ly(
+        calibration_data,
+        x = ~mean_implied,
+        y = ~actual_freq,
+        color = ~outcome,
+        colors = colors,
+        size = ~n,
+        type = "scatter",
+        mode = "markers",
+        hovertemplate = paste(
+          "%{fullData.name}<br>",
+          "Implied: %{x:.1%}<br>",
+          "Actual: %{y:.1%}<br>",
+          "N: %{marker.size}<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Pinnacle Odds Calibration: Implied vs Actual") |>
+        plotly::layout(
+          xaxis = list(title = "Mean Implied Probability", tickformat = ".0%"),
+          yaxis = list(title = "Actual Outcome Frequency", tickformat = ".0%"),
+          shapes = list(
+            list(type = "line", x0 = 0, x1 = 1, y0 = 0, y1 = 1,
+                 line = list(color = "white", dash = "dash", width = 1))
+          )
+        )
     }
   ),
 
   targets::tar_target(
     vig_elo_spread_plot,
     {
-      ggplot2::ggplot(elo_ratings, ggplot2::aes(x = elo, y = league_code)) +
-        ggplot2::geom_boxplot(fill = "#2c3e50", alpha = 0.6, outlier.alpha = 0.3) +
-        ggplot2::geom_vline(xintercept = 1500, linetype = "dashed", color = "#e67e22") +
-        ggplot2::labs(
-          title = "Elo Rating Distribution by League",
-          subtitle = "Orange dashed line = starting Elo (1500); wider spreads indicate more competitive imbalance",
-          caption = paste(
-            "Source: Elo ratings computed by footbet::compute_elo() from match results.",
-            "Box = IQR, whiskers = 1.5*IQR, dots = outliers.",
-            "Key: Top divisions (E0, D1, I1, SP1, F1) have wider Elo spreads than Div 2.",
-            "Higher Elo = stronger teams. Initial rating = 1500 for all teams."
+      plotly::plot_ly(
+        elo_ratings,
+        x = ~elo,
+        y = ~league_code,
+        type = "box",
+        marker = list(color = "#3498db"),
+        fillcolor = "rgba(52, 152, 219, 0.5)",
+        line = list(color = "white"),
+        hovertemplate = paste(
+          "League: %{y}<br>",
+          "Elo: %{x:.0f}<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Elo Rating Distribution by League") |>
+        plotly::layout(
+          xaxis = list(title = "Elo Rating"),
+          yaxis = list(title = ""),
+          shapes = list(
+            list(type = "line", x0 = 1500, x1 = 1500, y0 = -0.5, y1 = 9.5,
+                 line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
-          x = "Elo Rating", y = "League"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+          annotations = list(
+            list(x = 1500, y = 1, xref = "x", yref = "paper",
+                 text = "Starting Elo (1500)",
+                 showarrow = TRUE, arrowhead = 0, ax = 40, ay = 0,
+                 font = list(color = "#e67e22"))
+          )
+        )
     }
   ),
 
@@ -516,24 +611,28 @@ plan_vignette_outputs <- list(
         ) |>
         dplyr::filter(!is.na(league_code))
 
-      ggplot2::ggplot(overround_data, ggplot2::aes(x = overround, y = league_code)) +
-        ggplot2::geom_boxplot(fill = "#2c3e50", alpha = 0.6, outlier.alpha = 0.3) +
-        ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = "#e67e22") +
-        ggplot2::labs(
-          title = "Pinnacle 1X2 Overround by League",
-          subtitle = paste(
-            "Overround (%) = bookmaker margin;",
-            "Pinnacle's ~2-4% is the sharpest in the industry"
-          ),
-          caption = paste(
-            "Source: football-data.co.uk Pinnacle closing odds.",
-            "Overround = (1/PSH + 1/PSD + 1/PSA - 1) * 100.",
-            "Key: Pinnacle margin is ~2-4% (vs 5-15% for soft bookmakers).",
-            "Lower margin = fairer odds = better benchmark for model evaluation."
-          ),
-          x = "Overround (%)", y = "League"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+      plotly::plot_ly(
+        overround_data,
+        x = ~overround,
+        y = ~league_code,
+        type = "box",
+        marker = list(color = "#3498db"),
+        fillcolor = "rgba(52, 152, 219, 0.5)",
+        line = list(color = "white"),
+        hovertemplate = paste(
+          "League: %{y}<br>",
+          "Overround: %{x:.2f}%<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Pinnacle 1X2 Overround by League") |>
+        plotly::layout(
+          xaxis = list(title = "Overround (%)"),
+          yaxis = list(title = ""),
+          shapes = list(
+            list(type = "line", x0 = 0, x1 = 0, y0 = -0.5, y1 = 9.5,
+                 line = list(color = "#e67e22", dash = "dash", width = 2))
+          )
+        )
     }
   ),
 
@@ -572,7 +671,6 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_cv_metrics_plot,
     {
-      # Combine GLM and DC fold-level metrics
       glm_folds <- glm_baseline_cv |>
         dplyr::select(fold, log_loss, brier, rps) |>
         tidyr::pivot_longer(
@@ -591,34 +689,49 @@ plan_vignette_outputs <- list(
 
       combined <- dplyr::bind_rows(glm_folds, dc_folds)
 
-      # Add Pinnacle reference lines
       pinnacle_ref <- pinnacle_eval |>
-        dplyr::rename(metric = metric, pinnacle_value = value)
+        dplyr::rename(metric_name = metric, pinnacle_value = value)
 
-      ggplot2::ggplot(combined, ggplot2::aes(x = fold, y = value, color = model)) +
-        ggplot2::geom_line() +
-        ggplot2::geom_point(size = 2) +
-        ggplot2::geom_hline(
-          data = pinnacle_ref,
-          ggplot2::aes(yintercept = pinnacle_value),
-          linetype = "dashed", color = "#e67e22", linewidth = 0.8
-        ) +
-        ggplot2::facet_wrap(~metric, scales = "free_y") +
-        ggplot2::scale_color_manual(
-          values = c("GLM Poisson" = "#2c3e50", "Dixon-Coles" = "#8e44ad")
-        ) +
-        ggplot2::labs(
-          title = "Walk-Forward CV Metrics: GLM vs Dixon-Coles vs Pinnacle",
-          subtitle = "Orange dashed = Pinnacle benchmark; lower is better for all three scoring rules",
-          caption = paste(
-            "Source: Walk-forward CV with 24-month train / 1-month test windows.",
-            "Metrics: log-loss, Brier score, RPS (all proper scoring rules, lower = better).",
-            "Key: Dixon-Coles slightly outperforms GLM; both trail Pinnacle on most folds.",
-            "Orange dashed line = Pinnacle implied probability benchmark."
-          ),
-          x = "Fold", y = "Score", color = "Model"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+      colors <- c("GLM Poisson" = "#3498db", "Dixon-Coles" = "#9b59b6")
+
+      plotly::plot_ly(
+        combined,
+        x = ~fold,
+        y = ~value,
+        color = ~model,
+        colors = colors,
+        type = "scatter",
+        mode = "lines+markers",
+        hovertemplate = paste(
+          "Fold: %{x}<br>",
+          "Score: %{y:.4f}<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Walk-Forward CV Metrics: GLM vs Dixon-Coles") |>
+        plotly::layout(
+          xaxis = list(title = "Fold", dtick = 1),
+          yaxis = list(title = "Score (lower is better)"),
+          updatemenus = list(
+            list(
+              type = "dropdown",
+              active = 0,
+              buttons = list(
+                list(method = "restyle",
+                     args = list("visible", c(TRUE, TRUE, TRUE, TRUE, TRUE, TRUE)),
+                     label = "All"),
+                list(method = "restyle",
+                     args = list("transforms[0].value", "log_loss"),
+                     label = "Log Loss"),
+                list(method = "restyle",
+                     args = list("transforms[0].value", "brier"),
+                     label = "Brier"),
+                list(method = "restyle",
+                     args = list("transforms[0].value", "rps"),
+                     label = "RPS")
+              )
+            )
+          )
+        )
     }
   ),
 
@@ -630,21 +743,37 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_pnl_curve,
     {
-      ggplot2::ggplot(pnl_glm, ggplot2::aes(x = seq_len(nrow(pnl_glm)), y = bankroll)) +
-        ggplot2::geom_line(color = "#2c3e50") +
-        ggplot2::geom_hline(yintercept = 1000, linetype = "dashed", color = "#e67e22") +
-        ggplot2::labs(
-          title = "Simulated Bankroll Evolution (GLM Value Bets, Quarter Kelly)",
-          subtitle = "Orange dashed line = starting bankroll (1000); drawdown guardrails halve stakes at -20%",
-          caption = paste(
-            "Source: footbet::simulate_pnl() with min_edge=3%, quarter Kelly, max_stake=3%.",
-            "X = bet number (chronological); Y = bankroll in units.",
-            "Key: Bankroll trajectory depends heavily on sample period and model accuracy.",
-            "Drawdown guardrails activate when bankroll drops 20% from peak."
+      pnl_data <- pnl_glm |>
+        dplyr::mutate(bet_num = dplyr::row_number())
+
+      plotly::plot_ly(
+        pnl_data,
+        x = ~bet_num,
+        y = ~bankroll,
+        type = "scatter",
+        mode = "lines",
+        line = list(color = "#3498db", width = 2),
+        hovertemplate = paste(
+          "Bet #: %{x}<br>",
+          "Bankroll: %{y:.0f}<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Simulated Bankroll Evolution (GLM Value Bets, Quarter Kelly)") |>
+        add_time_slider() |>
+        plotly::layout(
+          xaxis = list(title = "Bet Number"),
+          yaxis = list(title = "Bankroll"),
+          shapes = list(
+            list(type = "line", x0 = 0, x1 = 1, y0 = 1000, y1 = 1000,
+                 xref = "paper",
+                 line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
-          x = "Bet Number", y = "Bankroll"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+          annotations = list(
+            list(x = 0.02, y = 1000, xref = "paper", yref = "y",
+                 text = "Starting: 1000",
+                 showarrow = FALSE, yanchor = "bottom", font = list(color = "#e67e22"))
+          )
+        )
     }
   ),
 
@@ -657,22 +786,35 @@ plan_vignette_outputs <- list(
           drawdown_pct = 100 * drawdown
         )
 
-      ggplot2::ggplot(dd_data, ggplot2::aes(x = bet_num, y = drawdown_pct)) +
-        ggplot2::geom_area(fill = "#e74c3c", alpha = 0.4) +
-        ggplot2::geom_line(color = "#e74c3c") +
-        ggplot2::geom_hline(yintercept = -20, linetype = "dashed", color = "#e67e22") +
-        ggplot2::labs(
-          title = "Drawdown Over Time (GLM Value Bets)",
-          subtitle = "Orange dashed line = -20% guardrail threshold; stakes halved when breached",
-          caption = paste(
-            "Source: footbet::simulate_pnl() drawdown column.",
-            "X = bet number; Y = drawdown from peak bankroll (%).",
-            "Key: Drawdown exceeding -20% triggers stake reduction (apply_guardrails).",
-            "Maximum drawdown is the key risk metric for bankroll survival."
+      plotly::plot_ly(
+        dd_data,
+        x = ~bet_num,
+        y = ~drawdown_pct,
+        type = "scatter",
+        mode = "lines",
+        fill = "tozeroy",
+        fillcolor = "rgba(231, 76, 60, 0.4)",
+        line = list(color = "#e74c3c", width = 2),
+        hovertemplate = paste(
+          "Bet #: %{x}<br>",
+          "Drawdown: %{y:.1f}%<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Drawdown Over Time (GLM Value Bets)") |>
+        plotly::layout(
+          xaxis = list(title = "Bet Number"),
+          yaxis = list(title = "Drawdown (%)"),
+          shapes = list(
+            list(type = "line", x0 = 0, x1 = 1, y0 = -20, y1 = -20,
+                 xref = "paper",
+                 line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
-          x = "Bet Number", y = "Drawdown (%)"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+          annotations = list(
+            list(x = 0.02, y = -20, xref = "paper", yref = "y",
+                 text = "-20% Guardrail",
+                 showarrow = FALSE, yanchor = "top", font = list(color = "#e67e22"))
+          )
+        )
     }
   ),
 
@@ -699,45 +841,71 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_edge_distribution,
     {
-      ggplot2::ggplot(value_bets_glm, ggplot2::aes(x = edge, fill = outcome)) +
-        ggplot2::geom_histogram(binwidth = 0.01, alpha = 0.7, position = "identity") +
-        ggplot2::scale_fill_manual(
-          values = c(H = "#2c3e50", D = "#95a5a6", A = "#e67e22")
-        ) +
-        ggplot2::geom_vline(xintercept = 0.03, linetype = "dashed", color = "red") +
-        ggplot2::labs(
-          title = "Distribution of Edge Values for Identified Value Bets",
-          subtitle = "Red dashed line = minimum edge threshold (3%); most edges cluster near 3-10%",
-          caption = paste(
-            "Source: footbet::find_value_bets() with min_edge=0.03.",
-            "Edge = model_prob - market_prob. Bins = 1 percentage point.",
-            "Key: Most value bets have modest edges (3-8%);",
-            "large edges (>15%) are rare and may indicate model error."
+      colors <- c(H = "#3498db", D = "#95a5a6", A = "#e67e22")
+
+      plotly::plot_ly(
+        value_bets_glm,
+        x = ~edge,
+        color = ~outcome,
+        colors = colors,
+        type = "histogram",
+        opacity = 0.7,
+        nbinsx = 30,
+        hovertemplate = paste(
+          "Edge: %{x:.1%}<br>",
+          "Count: %{y}<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Distribution of Edge Values for Identified Value Bets") |>
+        plotly::layout(
+          barmode = "overlay",
+          xaxis = list(title = "Edge (model prob - market prob)", tickformat = ".0%"),
+          yaxis = list(title = "Count"),
+          shapes = list(
+            list(type = "line", x0 = 0.03, x1 = 0.03, y0 = 0, y1 = 1,
+                 yref = "paper",
+                 line = list(color = "#e74c3c", dash = "dash", width = 2))
           ),
-          x = "Edge (model prob - market prob)", y = "Count", fill = "Outcome"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+          annotations = list(
+            list(x = 0.03, y = 1, xref = "x", yref = "paper",
+                 text = "3% min edge",
+                 showarrow = TRUE, arrowhead = 0, ax = 40, ay = 20,
+                 font = list(color = "#e74c3c"))
+          )
+        )
     }
   ),
 
   targets::tar_target(
     vig_kelly_stake_distribution,
     {
-      ggplot2::ggplot(value_bets_glm, ggplot2::aes(x = kelly_stake)) +
-        ggplot2::geom_histogram(binwidth = 0.005, fill = "#2c3e50", alpha = 0.7) +
-        ggplot2::geom_vline(xintercept = 0.03, linetype = "dashed", color = "#e67e22") +
-        ggplot2::labs(
-          title = "Distribution of Quarter-Kelly Stake Sizes",
-          subtitle = "Orange dashed line = max stake cap (3% of bankroll); most stakes are well below cap",
-          caption = paste(
-            "Source: footbet::find_value_bets() with quarter Kelly.",
-            "Kelly stake = edge / (odds - 1), then divided by 4 (quarter Kelly).",
-            "Key: Quarter Kelly keeps individual stakes small (~0.5-2% of bankroll).",
-            "Max stake guardrail caps at 3% to prevent ruin from single-bet losses."
+      plotly::plot_ly(
+        value_bets_glm,
+        x = ~kelly_stake,
+        type = "histogram",
+        marker = list(color = "#3498db"),
+        nbinsx = 30,
+        hovertemplate = paste(
+          "Stake: %{x:.1%}<br>",
+          "Count: %{y}<extra></extra>"
+        )
+      ) |>
+        theme_dark_plotly(title = "Distribution of Quarter-Kelly Stake Sizes") |>
+        plotly::layout(
+          xaxis = list(title = "Stake (fraction of bankroll)", tickformat = ".1%"),
+          yaxis = list(title = "Count"),
+          shapes = list(
+            list(type = "line", x0 = 0.03, x1 = 0.03, y0 = 0, y1 = 1,
+                 yref = "paper",
+                 line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
-          x = "Stake (fraction of bankroll)", y = "Count"
-        ) +
-        ggplot2::theme_minimal(base_size = 11)
+          annotations = list(
+            list(x = 0.03, y = 1, xref = "x", yref = "paper",
+                 text = "3% max stake",
+                 showarrow = TRUE, arrowhead = 0, ax = 40, ay = 20,
+                 font = list(color = "#e67e22"))
+          )
+        )
     }
   ),
 

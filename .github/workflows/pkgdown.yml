@@ -46,6 +46,10 @@ jobs:
       - name: Build project Nix environment
         run: nix-build default.nix -A shell --no-out-link
 
+      - name: Render README
+        run: |
+          nix-shell default.nix -A shell --run "quarto render README.qmd --to gfm"
+
       - name: Build pkgdown site
         run: |
           nix-shell default.nix -A shell --run "Rscript -e '

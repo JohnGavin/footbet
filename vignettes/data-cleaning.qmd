@@ -1,16 +1,22 @@
 ---
 title: "Data Cleaning & Quality Control"
-output: rmarkdown::html_vignette
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    toc: false
+    page-layout: full
+    code-fold: true
 vignette: >
   %\VignetteIndexEntry{Data Cleaning & Quality Control}
-  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEngine{quarto::html}
   %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include = FALSE}
 knitr::opts_chunk$set(
-  echo = FALSE, message = FALSE, warning = FALSE,
-  fig.width = 8, fig.height = 6
+  echo = FALSE, message = FALSE, warning = FALSE
 )
 library(targets)
 
@@ -27,6 +33,8 @@ safe_tar_read <- function(name) {
 The footbet pipeline includes automated quality control checks that run after
 data parsing. This vignette summarises the QC outputs.
 
+::: {.panel-tabset}
+
 ## Match Completeness
 
 The heatmap below shows the percentage of matches per league-season with a
@@ -34,11 +42,17 @@ valid full-time result (FTR). A value below 100% indicates matches where the
 result is missing — typically from ongoing or postponed fixtures in the current
 season.
 
-```{r vig-completeness-plot, fig.cap = "Match result completeness heatmap. Fill = percentage of matches with non-missing FTR. Key: Most historical league-seasons achieve 100%; current season shows partial data. Source: football-data.co.uk, parsed by footbet::parse_fd_csv()."}
+```{r vig-completeness-plot}
 safe_tar_read("vig_completeness_plot")
 ```
 
-## Pinnacle Odds Coverage
+**Key findings:**
+
+- Most historical league-seasons achieve 100% completeness
+- Current season shows partial data (matches not yet played)
+- Greyed cells indicate <80% completeness or missing data
+
+## Pinnacle Coverage
 
 Pinnacle odds are the primary benchmark for model evaluation. The heatmap
 shows the percentage of matches with all three Pinnacle 1X2 closing odds
@@ -46,15 +60,35 @@ present.
 
 Coverage gaps arise from:
 
-- **Division 2 leagues**: Pinnacle may not offer odds for lower divisions in
-  some countries.
+- **Division 2 leagues**: Pinnacle may not offer odds for lower divisions
 - **Feed breaks**: The football-data.co.uk Pinnacle feed experienced a break
-  from mid-2025, causing 0% coverage for affected seasons.
-- **Early seasons**: Pinnacle data availability improves in more recent
-  seasons.
+  from mid-2025
+- **Early seasons**: Pinnacle data availability improves in more recent seasons
 
-```{r vig-pinnacle-coverage-plot, fig.cap = "Pinnacle 1X2 odds coverage heatmap. Fill = percentage of matches with complete PSH/PSD/PSA. Key: Top divisions have near-100% coverage from ~2016 onward; Division 2 coverage is variable. Source: football-data.co.uk Pinnacle columns."}
+```{r vig-pinnacle-coverage-plot}
 safe_tar_read("vig_pinnacle_coverage_plot")
+```
+
+**Key findings:**
+
+- Top divisions have near-100% coverage from ~2016 onward
+- Division 2 coverage is variable
+- 0% coverage indicates feed breaks or no Pinnacle market
+
+## Missing Data
+
+The chart below shows the percentage of missing values for each
+column across all parsed matches. Match statistics (shots, corners, cards) are
+more frequently missing than core fields.
+
+```{r vig-missing-data-by-column}
+safe_tar_read("vig_missing_data_heatmap")
+```
+
+The table below provides detailed missing counts:
+
+```{r vig-missing-data-table}
+safe_tar_read("vig_missing_data_by_column")
 ```
 
 ## Anomaly Detection
@@ -71,18 +105,7 @@ The pipeline flags matches with:
 safe_tar_read("vig_anomalies_table")
 ```
 
-## Missing Data Profile
-
-The table below shows the count and percentage of missing values for each
-column across all parsed matches. Match statistics (shots, corners, cards) are
-more frequently missing than core fields (teams, dates, scores), especially
-for older seasons or lower divisions.
-
-```{r vig-missing-data-by-column}
-safe_tar_read("vig_missing_data_by_column")
-```
-
-## Data Quality Summary
+## QC Summary
 
 The `qc_summary` target combines all QC checks into a single report with a
 timestamp. The pipeline computes:
@@ -95,3 +118,5 @@ timestamp. The pipeline computes:
 
 The QC targets serve as data contracts — downstream model targets depend on
 `qc_summary` to ensure data quality issues are surfaced before model fitting.
+
+:::

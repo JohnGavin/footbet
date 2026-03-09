@@ -22,9 +22,11 @@ Imports:
     duckdb,
     glue,
     here,
+    htmlwidgets,
     httr2,
     lubridate,
     Matrix,
+    plotly,
     readr,
     rlang,
     tibble,
@@ -44,7 +46,6 @@ Suggests:
     lme4,
     mirai,
     pins,
-    plotly,
     probably,
     quarto,
     ranger,
@@ -59,5 +60,5 @@ Suggests:
     withr,
     worldfootballR,
     xgboost
-VignetteBuilder: knitr
+VignetteBuilder: quarto
 Config/testthat/edition: 3
