@@ -785,6 +785,553 @@ fractional_to_decimal <- function(fractional_odds) {
   }, USE.NAMES = FALSE)
 }
 
+# ============================================================================
+# BRIER SCORE DECOMPOSITION
+# ============================================================================
+
+#' Decompose Brier score into reliability, resolution, and uncertainty
+#'
+#' The Murphy decomposition breaks Brier score into three components:
+#' - **Reliability (calibration)**: How well predicted probabilities match
+#'   observed frequencies. Lower is better.
+#' - **Resolution**: How much predictions vary from the base rate. Higher is
+#'   better (more informative forecasts).
+#' - **Uncertainty**: Inherent difficulty of the prediction task based on
+#'   outcome distribution. Cannot be improved by the model.
+#'
+#' Formula: BS = Reliability - Resolution + Uncertainty
+#'
+#' @param predicted Numeric vector. Predicted probabilities for the positive class.
+#' @param actual Logical or 0/1 numeric. Actual outcomes.
+#' @param n_bins Integer. Number of bins for calibration (default 10).
+#' @return A tibble with `brier_score`, `reliability`, `resolution`,
+#'   `uncertainty`, and `brier_skill_score` (1 - BS/Uncertainty).
+#' @family evaluation
+#' @references
+#' Murphy, A.H. (1973). A New Vector Partition of the Probability Score.
+#' Journal of Applied Meteorology, 12(4), 595-600.
+#' @export
+brier_decomposition <- function(predicted, actual, n_bins = 10L) {
+  rlang::check_required(predicted)
+  rlang::check_required(actual)
+
+  if (length(predicted) != length(actual)) {
+    cli::cli_abort("{.arg predicted} and {.arg actual} must have same length.")
+  }
+
+  # Convert to numeric
+  actual <- as.numeric(actual)
+  n <- length(actual)
+
+  # Overall Brier score
+  brier_score <- mean((predicted - actual)^2)
+
+  # Base rate (climatological probability)
+  base_rate <- mean(actual)
+
+  # Uncertainty: variance of outcomes = p_bar * (1 - p_bar)
+  uncertainty <- base_rate * (1 - base_rate)
+
+  # Bin predictions for calibration
+  bins <- cut(predicted,
+              breaks = seq(0, 1, length.out = n_bins + 1),
+              include.lowest = TRUE,
+              labels = FALSE)
+
+  # Compute reliability and resolution
+  reliability <- 0
+  resolution <- 0
+
+  for (k in seq_len(n_bins)) {
+    in_bin <- which(bins == k)
+    n_k <- length(in_bin)
+
+    if (n_k == 0) next
+
+    # Mean predicted probability in bin
+    f_k <- mean(predicted[in_bin])
+    # Observed frequency in bin
+    o_k <- mean(actual[in_bin])
+
+    # Reliability: weighted squared difference between prediction and observation
+    reliability <- reliability + (n_k / n) * (f_k - o_k)^2
+
+    # Resolution: weighted squared difference between bin frequency and base rate
+    resolution <- resolution + (n_k / n) * (o_k - base_rate)^2
+  }
+
+  # Brier Skill Score: improvement over climatology
+  brier_skill_score <- 1 - brier_score / uncertainty
+
+  tibble::tibble(
+    brier_score = brier_score,
+    reliability = reliability,
+    resolution = resolution,
+    uncertainty = uncertainty,
+    brier_skill_score = brier_skill_score,
+    n_bins = n_bins,
+    n_obs = n
+
+  )
+}
+
+#' Decompose Brier score for 1X2 predictions
+#'
+#' Applies [brier_decomposition()] separately for each outcome class
+#' (Home, Draw, Away) and combines results.
+#'
+#' @param prob_h Numeric vector. Predicted P(Home win).
+#' @param prob_d Numeric vector. Predicted P(Draw).
+#' @param prob_a Numeric vector. Predicted P(Away win).
+#' @param actual Character vector. Actual result ("H", "D", or "A").
+#' @param n_bins Integer. Number of bins (default 10).
+#' @return A tibble with decomposition for each outcome and overall.
+#' @family evaluation
+#' @export
+brier_decomposition_1x2 <- function(prob_h, prob_d, prob_a, actual, n_bins = 10L) {
+  n <- length(actual)
+
+  # Convert outcomes to binary indicators
+  actual_h <- as.numeric(actual == "H")
+  actual_d <- as.numeric(actual == "D")
+  actual_a <- as.numeric(actual == "A")
+
+  # Decompose each outcome
+  dec_h <- brier_decomposition(prob_h, actual_h, n_bins) |>
+    dplyr::mutate(outcome = "H")
+  dec_d <- brier_decomposition(prob_d, actual_d, n_bins) |>
+    dplyr::mutate(outcome = "D")
+  dec_a <- brier_decomposition(prob_a, actual_a, n_bins) |>
+    dplyr::mutate(outcome = "A")
+
+  # Combine
+  by_outcome <- dplyr::bind_rows(dec_h, dec_d, dec_a)
+
+  # Overall (mean across outcomes)
+  overall <- tibble::tibble(
+    outcome = "Overall",
+    brier_score = mean(c(dec_h$brier_score, dec_d$brier_score, dec_a$brier_score)),
+    reliability = mean(c(dec_h$reliability, dec_d$reliability, dec_a$reliability)),
+    resolution = mean(c(dec_h$resolution, dec_d$resolution, dec_a$resolution)),
+    uncertainty = mean(c(dec_h$uncertainty, dec_d$uncertainty, dec_a$uncertainty)),
+    brier_skill_score = mean(c(dec_h$brier_skill_score, dec_d$brier_skill_score,
+                                dec_a$brier_skill_score)),
+    n_bins = n_bins,
+    n_obs = n
+  )
+
+  dplyr::bind_rows(by_outcome, overall)
+}
+
+# ============================================================================
+# PROBABILITY CALIBRATION
+# ============================================================================
+
+#' Calibrate probabilities using Platt scaling
+#'
+#' Fits a logistic regression on predicted probabilities to improve calibration.
+#' Best for sigmoid-shaped calibration curves and small calibration sets.
+#'
+#' @param predicted Numeric vector. Predicted probabilities (training set).
+#' @param actual Logical or 0/1 numeric. Actual outcomes (training set).
+#' @return A fitted glm object that can be used with [predict()].
+#' @family calibration
+#' @references
+#' Platt, J. (1999). Probabilistic outputs for support vector machines.
+#' @export
+fit_platt_scaling <- function(predicted, actual) {
+  rlang::check_required(predicted)
+  rlang::check_required(actual)
+
+  df <- data.frame(pred = predicted, actual = as.numeric(actual))
+
+  # Fit logistic regression
+  model <- stats::glm(actual ~ pred, data = df, family = stats::binomial())
+
+  model
+}
+
+#' Calibrate probabilities using isotonic regression
+#'
+#' Fits isotonic (monotonic) regression on predicted probabilities.
+#' Better for non-sigmoid calibration curves and larger datasets.
+#'
+#' @param predicted Numeric vector. Predicted probabilities (training set).
+#' @param actual Logical or 0/1 numeric. Actual outcomes (training set).
+#' @return An isoreg object for use with [predict_isotonic()].
+#' @family calibration
+#' @export
+fit_isotonic_regression <- function(predicted, actual) {
+  rlang::check_required(predicted)
+  rlang::check_required(actual)
+
+  # Isotonic regression requires data sorted by x
+  ord <- order(predicted)
+  iso <- stats::isoreg(predicted[ord], as.numeric(actual)[ord])
+
+  iso
+}
+
+#' Apply Platt scaling calibration to new predictions
+#'
+#' @param platt_model A model from [fit_platt_scaling()].
+#' @param predicted Numeric vector. New predicted probabilities.
+#' @return Numeric vector. Calibrated probabilities.
+#' @family calibration
+#' @export
+predict_platt <- function(platt_model, predicted) {
+  rlang::check_required(platt_model)
+  rlang::check_required(predicted)
+
+  stats::predict(platt_model,
+                 newdata = data.frame(pred = predicted),
+                 type = "response")
+}
+
+#' Apply isotonic calibration to new predictions
+#'
+#' @param iso_model An isoreg object from [fit_isotonic_regression()].
+#' @param predicted Numeric vector. New predicted probabilities.
+#' @return Numeric vector. Calibrated probabilities.
+#' @family calibration
+#' @export
+predict_isotonic <- function(iso_model, predicted) {
+  rlang::check_required(iso_model)
+  rlang::check_required(predicted)
+
+  # Use stepfun for prediction
+  sf <- stats::stepfun(iso_model$x, c(iso_model$yf[1], iso_model$yf))
+  calibrated <- sf(predicted)
+
+  # Clip to [0, 1]
+  pmin(pmax(calibrated, 0), 1)
+}
+
+# ============================================================================
+# EMPIRICAL BAYES SHRINKAGE
+# ============================================================================
+
+#' Apply empirical Bayes shrinkage to rate estimates
+#'
+#' Shrinks extreme estimates toward the population mean, with more shrinkage
+#' for estimates based on fewer observations. Uses the James-Stein estimator
+#' approach for Gamma-Poisson (goals) or Beta-Binomial (win rates) data.
+#'
+#' Based on Tony ElHabr's implementation of Laurie Shaw's methodology.
+#'
+#' @param observed Numeric vector. Observed counts or rates.
+#' @param sample_size Numeric vector. Number of observations (e.g., shots, matches).
+#' @param type Character. "rate" for goals/xG per match, "count" for raw goals.
+#' @return A tibble with `observed`, `shrunk`, `shrinkage_factor`.
+#' @family features
+#' @references
+#' Shaw, L. (2018). Exceeding Expected Goals.
+#' ElHabr, T. (2023). Measuring Shooting Overperformance in Soccer.
+#' @export
+empirical_bayes_shrink <- function(observed, sample_size, type = c("rate", "count")) {
+
+  rlang::check_required(observed)
+  rlang::check_required(sample_size)
+  type <- match.arg(type)
+
+  if (length(observed) != length(sample_size)) {
+    cli::cli_abort("{.arg observed} and {.arg sample_size} must have same length.")
+  }
+
+  n <- length(observed)
+
+  if (type == "rate") {
+    # For rates (e.g., goals per 90), use moment matching
+    # Estimate prior parameters from population
+    mean_rate <- stats::weighted.mean(observed, sample_size, na.rm = TRUE)
+    var_rate <- stats::var(observed, na.rm = TRUE)
+
+    # Variance of rate estimates due to sampling
+    # Var(rate) = true_var + sampling_var
+    # sampling_var ≈ mean_rate / sample_size (for Poisson)
+    mean_sampling_var <- mean(mean_rate / sample_size, na.rm = TRUE)
+
+    # Prior variance = observed variance - sampling variance
+    prior_var <- max(var_rate - mean_sampling_var, 0.001)
+
+    # Shrinkage factor for each observation
+    # B_i = prior_var / (prior_var + sampling_var_i)
+    sampling_var <- mean_rate / sample_size
+    shrinkage <- prior_var / (prior_var + sampling_var)
+
+    # Shrunk estimate
+    shrunk <- shrinkage * observed + (1 - shrinkage) * mean_rate
+
+  } else {
+    # For counts, use Gamma-Poisson conjugate
+    # Estimate prior from data using method of moments
+    mean_count <- mean(observed, na.rm = TRUE)
+    var_count <- stats::var(observed, na.rm = TRUE)
+
+    # Gamma prior: alpha, beta where mean = alpha/beta, var = alpha/beta^2
+    # From method of moments:
+    if (var_count <= mean_count) {
+      # No overdispersion, minimal shrinkage
+      shrunk <- observed
+      shrinkage <- rep(1, n)
+    } else {
+      beta <- mean_count / (var_count - mean_count)
+      alpha <- mean_count * beta
+
+      # Posterior mean = (observed + alpha) / (sample_size + beta)
+      shrunk <- (observed + alpha) / (sample_size + beta) * sample_size
+      shrinkage <- sample_size / (sample_size + beta)
+    }
+  }
+
+  tibble::tibble(
+    observed = observed,
+    sample_size = sample_size,
+    shrunk = shrunk,
+    shrinkage_factor = shrinkage,
+    grand_mean = mean(observed, na.rm = TRUE)
+  )
+}
+
+#' Shrink team strength estimates
+#'
+#' Applies empirical Bayes shrinkage to team attack/defense ratings,
+#' useful when some teams have few matches.
+#'
+#' @param team_stats A tibble with `team`, `n_matches`, `attack`, `defense`.
+#' @return The input tibble with `attack_shrunk`, `defense_shrunk` columns.
+#' @family features
+#' @export
+shrink_team_strength <- function(team_stats) {
+  rlang::check_required(team_stats)
+
+  required <- c("team", "n_matches", "attack", "defense")
+  missing <- setdiff(required, names(team_stats))
+  if (length(missing) > 0) {
+    cli::cli_abort("Missing required columns: {.val {missing}}")
+  }
+
+  # Shrink attack ratings
+  attack_eb <- empirical_bayes_shrink(
+    team_stats$attack,
+    team_stats$n_matches,
+    type = "rate"
+  )
+
+  # Shrink defense ratings
+  defense_eb <- empirical_bayes_shrink(
+    team_stats$defense,
+    team_stats$n_matches,
+    type = "rate"
+  )
+
+  team_stats |>
+    dplyr::mutate(
+      attack_shrunk = attack_eb$shrunk,
+      defense_shrunk = defense_eb$shrunk,
+      attack_shrinkage = attack_eb$shrinkage_factor,
+      defense_shrinkage = defense_eb$shrinkage_factor
+    )
+}
+
+# ============================================================================
+# META-ANALYTICS: DISCRIMINATION AND STABILITY
+# ============================================================================
+
+#' Compute discrimination meta-metric for a statistic
+#'
+#' Discrimination measures how well a statistic separates good from bad
+#' teams/players within a single season. Higher discrimination means
+#' the stat is more useful for ranking.
+#'
+#' Calculated as: 1 - (within-group variance / total variance)
+#' or equivalently, the ICC (intraclass correlation coefficient).
+#'
+#' @param df A data frame with columns: `team` (or `player`), `season`, `value`.
+#' @param entity_col Character. Name of entity column (default "team").
+#' @param value_col Character. Name of value column (default "value").
+#' @return Numeric. Discrimination coefficient (0-1, higher = better).
+#' @family meta-analytics
+#' @references
+#' Franks, A., D'Amour, A., Cervone, D., & Bornn, L. (2016).
+#' Meta-Analytics: Tools for Understanding the Statistical Properties
+#' of Sports Metrics.
+#' @export
+stat_discrimination <- function(df,
+                                 entity_col = "team",
+                                 value_col = "value") {
+  rlang::check_required(df)
+
+  if (!entity_col %in% names(df)) {
+    cli::cli_abort("Column {.val {entity_col}} not found.")
+  }
+  if (!value_col %in% names(df)) {
+    cli::cli_abort("Column {.val {value_col}} not found.")
+  }
+
+  # Remove NAs
+  df <- df[!is.na(df[[value_col]]), ]
+
+  if (nrow(df) < 10) {
+    cli::cli_warn("Too few observations for reliable discrimination estimate.")
+    return(NA_real_)
+  }
+
+  # Total variance
+  total_var <- stats::var(df[[value_col]], na.rm = TRUE)
+
+  if (total_var == 0) return(0)
+
+  # Within-entity variance (averaged across entities)
+  entity_vars <- df |>
+    dplyr::group_by(.data[[entity_col]]) |>
+    dplyr::summarise(
+      var = stats::var(.data[[value_col]], na.rm = TRUE),
+      n = dplyr::n(),
+      .groups = "drop"
+    ) |>
+    dplyr::filter(!is.na(.data$var), .data$n > 1)
+
+  if (nrow(entity_vars) == 0) return(NA_real_)
+
+  # Weighted average within-entity variance
+  within_var <- stats::weighted.mean(entity_vars$var, entity_vars$n, na.rm = TRUE)
+
+  # Discrimination = 1 - (within / total) = between / total
+  discrimination <- 1 - within_var / total_var
+
+  # Clamp to [0, 1]
+  max(0, min(1, discrimination))
+}
+
+#' Compute stability meta-metric for a statistic
+#'
+#' Stability measures how consistently a statistic persists across seasons
+#' for the same team/player. Higher stability means the stat is more
+#' predictable year-over-year.
+#'
+#' Calculated as the year-over-year correlation.
+#'
+#' @param df A data frame with columns: `team` (or `player`), `season`, `value`.
+#' @param entity_col Character. Name of entity column (default "team").
+#' @param value_col Character. Name of value column (default "value").
+#' @param season_col Character. Name of season column (default "season").
+#' @return Numeric. Stability coefficient (correlation, 0-1).
+#' @family meta-analytics
+#' @export
+stat_stability <- function(df,
+                            entity_col = "team",
+                            value_col = "value",
+                            season_col = "season") {
+  rlang::check_required(df)
+
+  required <- c(entity_col, value_col, season_col)
+  missing <- setdiff(required, names(df))
+  if (length(missing) > 0) {
+    cli::cli_abort("Missing columns: {.val {missing}}")
+  }
+
+  # Sort seasons
+  seasons <- sort(unique(df[[season_col]]))
+
+  if (length(seasons) < 2) {
+    cli::cli_warn("Need at least 2 seasons to compute stability.")
+    return(NA_real_)
+  }
+
+  # Compute year-over-year correlations
+  correlations <- numeric(length(seasons) - 1)
+
+  for (i in seq_len(length(seasons) - 1)) {
+    season_1 <- seasons[i]
+    season_2 <- seasons[i + 1]
+
+    df_1 <- df[df[[season_col]] == season_1, c(entity_col, value_col)]
+    df_2 <- df[df[[season_col]] == season_2, c(entity_col, value_col)]
+
+    names(df_1) <- c("entity", "value_1")
+    names(df_2) <- c("entity", "value_2")
+
+    merged <- dplyr::inner_join(df_1, df_2, by = "entity")
+
+    if (nrow(merged) < 5) {
+      correlations[i] <- NA_real_
+    } else {
+      correlations[i] <- stats::cor(merged$value_1, merged$value_2,
+                                     use = "pairwise.complete.obs")
+    }
+  }
+
+  # Average correlation (Fisher z-transform for proper averaging)
+  valid_cors <- correlations[!is.na(correlations)]
+
+  if (length(valid_cors) == 0) return(NA_real_)
+
+  # Fisher z-transform, average, back-transform
+  z_vals <- atanh(pmin(pmax(valid_cors, -0.999), 0.999))
+  mean_z <- mean(z_vals)
+  stability <- tanh(mean_z)
+
+  # Return as positive value
+
+  max(0, stability)
+}
+
+#' Compute meta-analytics for multiple statistics
+#'
+#' Calculates discrimination and stability for a set of team/player
+#' statistics, identifying which metrics are most useful for prediction.
+#'
+#' @param df A data frame with entity, season, and multiple stat columns.
+#' @param entity_col Character. Name of entity column.
+#' @param season_col Character. Name of season column.
+#' @param stat_cols Character vector. Names of statistic columns to analyze.
+#' @return A tibble with `stat`, `discrimination`, `stability`.
+#' @family meta-analytics
+#' @export
+compute_meta_analytics <- function(df,
+                                    entity_col = "team",
+                                    season_col = "season",
+                                    stat_cols) {
+  rlang::check_required(df)
+  rlang::check_required(stat_cols)
+
+  results <- vector("list", length(stat_cols))
+
+  for (i in seq_along(stat_cols)) {
+    stat <- stat_cols[i]
+
+    if (!stat %in% names(df)) {
+      results[[i]] <- tibble::tibble(
+        stat = stat,
+        discrimination = NA_real_,
+        stability = NA_real_
+      )
+      next
+    }
+
+    # Create subset with renamed columns for helpers
+    subset_df <- df[, c(entity_col, season_col, stat)]
+    names(subset_df) <- c("entity", "season", "value")
+
+    disc <- stat_discrimination(subset_df, "entity", "value")
+    stab <- stat_stability(subset_df, "entity", "value", "season")
+
+    results[[i]] <- tibble::tibble(
+      stat = stat,
+      discrimination = disc,
+      stability = stab
+    )
+  }
+
+  dplyr::bind_rows(results) |>
+    dplyr::mutate(
+      # Composite score: geometric mean of discrimination and stability
+      composite = sqrt(.data$discrimination * .data$stability)
+    ) |>
+    dplyr::arrange(dplyr::desc(.data$composite))
+}
+
 #' Convert odds between any formats
 #'
 #' Convenience function to convert odds between decimal, fractional,
