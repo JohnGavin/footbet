@@ -34,8 +34,16 @@ given average edge and stake sizing.
 Other betting: 
 \code{\link{acca_ev}()},
 \code{\link{acca_odds}()},
+\code{\link{adjust_for_league_strength}()},
+\code{\link{analyze_steam_moves}()},
+\code{\link{detect_flb}()},
+\code{\link{estimate_league_strength}()},
 \code{\link{find_best_accas}()},
+\code{\link{generate_bias_alerts}()},
+\code{\link{line_movement}()},
 \code{\link{multi_kelly_stakes}()},
-\code{\link{simulate_bankroll_growth}()}
+\code{\link{simulate_bankroll_growth}()},
+\code{\link{standard_league_strengths}()},
+\code{\link{summarize_flb}()}
 }
 \concept{betting}

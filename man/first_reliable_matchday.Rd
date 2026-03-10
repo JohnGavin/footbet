@@ -30,6 +30,7 @@ Other features:
 \code{\link{compute_xg_xag_composite}()},
 \code{\link{cumulative_xg_ratio}()},
 \code{\link{devig_odds}()},
+\code{\link{empirical_bayes_shrink}()},
 \code{\link{form_streak}()},
 \code{\link{h2h_record}()},
 \code{\link{key_players_unavailable}()},
@@ -40,6 +41,7 @@ Other features:
 \code{\link{rest_days}()},
 \code{\link{rolling_goals}()},
 \code{\link{rolling_xg}()},
+\code{\link{shrink_team_strength}()},
 \code{\link{team_position}()},
 \code{\link{xg_overperformance}()}
 }

@@ -23,6 +23,8 @@ Converts win/loss outcomes and odds to decimal returns.
 Other evaluation: 
 \code{\link{betting_sharpe_ratio}()},
 \code{\link{brier_1x2}()},
+\code{\link{brier_decomposition}()},
+\code{\link{brier_decomposition_1x2}()},
 \code{\link{closing_line_value}()},
 \code{\link{clv_1x2}()},
 \code{\link{compute_ensemble_weights}()},

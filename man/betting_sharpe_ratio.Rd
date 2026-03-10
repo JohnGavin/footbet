@@ -26,6 +26,8 @@ Higher values indicate better risk-adjusted returns.
 Other evaluation: 
 \code{\link{bet_returns}()},
 \code{\link{brier_1x2}()},
+\code{\link{brier_decomposition}()},
+\code{\link{brier_decomposition_1x2}()},
 \code{\link{closing_line_value}()},
 \code{\link{clv_1x2}()},
 \code{\link{compute_ensemble_weights}()},

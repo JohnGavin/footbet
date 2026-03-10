@@ -34,6 +34,7 @@ Other features:
 \code{\link{compute_xg_xag_composite}()},
 \code{\link{cumulative_xg_ratio}()},
 \code{\link{devig_odds}()},
+\code{\link{empirical_bayes_shrink}()},
 \code{\link{first_reliable_matchday}()},
 \code{\link{form_streak}()},
 \code{\link{h2h_record}()},
@@ -44,6 +45,7 @@ Other features:
 \code{\link{reliability_threshold}()},
 \code{\link{rest_days}()},
 \code{\link{rolling_xg}()},
+\code{\link{shrink_team_strength}()},
 \code{\link{team_position}()},
 \code{\link{xg_overperformance}()}
 }

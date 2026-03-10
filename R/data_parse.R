@@ -126,7 +126,7 @@ parse_fd_odds <- function(file_path, league_code, season) {
 
   result <- tibble::tibble(
     match_id    = match_id,
-    # Pinnacle 1X2
+    # Pinnacle 1X2 (closing odds - most accurate)
     psh         = extract_num_col(raw, "PSH", n_rows),
     psd         = extract_num_col(raw, "PSD", n_rows),
     psa         = extract_num_col(raw, "PSA", n_rows),
@@ -137,6 +137,10 @@ parse_fd_odds <- function(file_path, league_code, season) {
     # Pinnacle Over/Under 2.5
     p_over25    = extract_num_col(raw, "P>2.5", n_rows),
     p_under25   = extract_num_col(raw, "P<2.5", n_rows),
+    # Bet365 1X2 (opening odds proxy - posted early)
+    b365h       = extract_num_col(raw, "B365H", n_rows),
+    b365d       = extract_num_col(raw, "B365D", n_rows),
+    b365a       = extract_num_col(raw, "B365A", n_rows),
     # Market aggregates
     max_h       = extract_num_col(raw, "MaxH", n_rows),
     max_d       = extract_num_col(raw, "MaxD", n_rows),
@@ -206,7 +210,7 @@ fd_odds_col_spec <- function() {
     Date = readr::col_character(),
     HomeTeam = readr::col_character(),
     AwayTeam = readr::col_character(),
-    # Pinnacle 1X2
+    # Pinnacle 1X2 (closing)
     PSH = readr::col_double(),
     PSD = readr::col_double(),
     PSA = readr::col_double(),
@@ -217,6 +221,10 @@ fd_odds_col_spec <- function() {
     # Pinnacle Over/Under
     `P>2.5` = readr::col_double(),
     `P<2.5` = readr::col_double(),
+    # Bet365 1X2 (opening proxy)
+    B365H = readr::col_double(),
+    B365D = readr::col_double(),
+    B365A = readr::col_double(),
     # Market aggregates
     MaxH = readr::col_double(),
     MaxD = readr::col_double(),

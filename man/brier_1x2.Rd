@@ -25,6 +25,8 @@ Compute Brier score for 1X2 predictions
 Other evaluation: 
 \code{\link{bet_returns}()},
 \code{\link{betting_sharpe_ratio}()},
+\code{\link{brier_decomposition}()},
+\code{\link{brier_decomposition_1x2}()},
 \code{\link{closing_line_value}()},
 \code{\link{clv_1x2}()},
 \code{\link{compute_ensemble_weights}()},

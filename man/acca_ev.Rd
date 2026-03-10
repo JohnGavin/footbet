@@ -20,9 +20,17 @@ Calculates the expected value of an accumulator bet per unit staked.
 \seealso{
 Other betting: 
 \code{\link{acca_odds}()},
+\code{\link{adjust_for_league_strength}()},
+\code{\link{analyze_steam_moves}()},
 \code{\link{bankroll_growth_target}()},
+\code{\link{detect_flb}()},
+\code{\link{estimate_league_strength}()},
 \code{\link{find_best_accas}()},
+\code{\link{generate_bias_alerts}()},
+\code{\link{line_movement}()},
 \code{\link{multi_kelly_stakes}()},
-\code{\link{simulate_bankroll_growth}()}
+\code{\link{simulate_bankroll_growth}()},
+\code{\link{standard_league_strengths}()},
+\code{\link{summarize_flb}()}
 }
 \concept{betting}
