@@ -1505,3 +1505,318 @@ add_league_positions <- function(matches_df) {
       position_diff = away_pos - home_pos  # Positive = home is higher
     )
 }
+
+# ============================================================================
+# COMPOSITE FORM SCORE
+# ============================================================================
+
+#' Compute composite team form score
+#'
+#' Combines multiple performance metrics into a single 0-100 score.
+#' Higher scores indicate better recent form. This simplifies betting
+#' rule thresholds compared to multi-factor conditions.
+#'
+#' The default weights prioritize xG (50%) over goals (30%) and Elo (20%),
+#' reflecting that xG is more predictive of future performance.
+#'
+#' @param rolling_gf Numeric. Rolling average goals for.
+#' @param rolling_xg Numeric. Rolling average xG for (optional, uses goals if NA).
+#' @param elo Numeric. Current Elo rating.
+#' @param weight_goals Numeric. Weight for goals component (default 0.3).
+#' @param weight_xg Numeric. Weight for xG component (default 0.5).
+#' @param weight_elo Numeric. Weight for Elo component (default 0.2).
+#' @param elo_center Numeric. Center point for Elo (default 1500).
+#' @param elo_scale Numeric. Scale for Elo normalization (default 500).
+#' @return Numeric. Form score in range 0-100.
+#' @family features
+#' @export
+#'
+#' @examples
+#' # Strong team: high goals, high xG, high Elo
+#' team_form_score(2.5, 2.8, 1750)
+#'
+#' # Average team
+#' team_form_score(1.2, 1.3, 1500)
+#'
+#' # Weak team
+#' team_form_score(0.8, 0.7, 1300)
+team_form_score <- function(rolling_gf,
+                            rolling_xg = NULL,
+                            elo,
+                            weight_goals = 0.3,
+                            weight_xg = 0.5,
+                            weight_elo = 0.2) {
+
+  # Validate weights sum to 1
+
+  if (abs(weight_goals + weight_xg + weight_elo - 1) > 0.001) {
+    cli::cli_abort("Weights must sum to 1. Got {weight_goals + weight_xg + weight_elo}.")
+  }
+
+  elo_center <- 1500
+  elo_scale <- 500
+
+  # If no xG, redistribute weight to goals
+  if (is.null(rolling_xg) || all(is.na(rolling_xg))) {
+    rolling_xg <- rolling_gf
+    weight_goals <- weight_goals + weight_xg
+    weight_xg <- 0
+  }
+
+  # Normalize each component to roughly 0-1 range
+
+  # Goals: typical range 0-3, center at 1.5
+  goals_norm <- (rolling_gf - 1.5) / 1.5
+
+  # xG: typical range 0-3, center at 1.5
+  xg_norm <- (rolling_xg - 1.5) / 1.5
+
+  # Elo: typical range 1200-1800, center at 1500
+  elo_norm <- (elo - elo_center) / elo_scale
+
+  # Weighted combination
+  raw_score <- weight_goals * goals_norm +
+    weight_xg * xg_norm +
+    weight_elo * elo_norm
+
+  # Rescale to 0-100 (raw_score typically in -1 to +1 range)
+  # Use scales::rescale with theoretical bounds
+  scales::rescale(raw_score, to = c(0, 100), from = c(-1, 1))
+}
+
+#' Add form scores to match data
+#'
+#' Computes composite form scores for both home and away teams,
+#' plus the form advantage (home score - away score).
+#'
+#' Requires rolling features to be pre-computed via [rolling_goals()]
+#' and optionally [rolling_xg()], plus Elo ratings via [compute_elo()].
+#'
+#' @param matches_df A tibble with rolling features and Elo ratings.
+#'   Expected columns: `home_rolling_gf`, `away_rolling_gf`,
+#'   `home_elo`, `away_elo`. Optional: `home_rolling_xg_for`, `away_rolling_xg_for`.
+#' @param ... Additional arguments passed to [team_form_score()].
+#' @return The input tibble with `home_form_score`, `away_form_score`,
+#'   `form_advantage` columns.
+#' @family features
+#' @export
+add_form_scores <- function(matches_df, ...) {
+  rlang::check_required(matches_df)
+
+  # Check required columns
+  required <- c("home_rolling_gf", "away_rolling_gf", "home_elo", "away_elo")
+  missing <- setdiff(required, names(matches_df))
+  if (length(missing) > 0) {
+    cli::cli_abort(c(
+      "x" = "Missing required columns: {.val {missing}}",
+      "i" = "Compute rolling features and Elo first."
+    ))
+  }
+
+  # Check for optional xG columns
+  has_xg <- all(c("home_rolling_xg_for", "away_rolling_xg_for") %in% names(matches_df))
+
+  if (has_xg) {
+    home_xg <- matches_df$home_rolling_xg_for
+    away_xg <- matches_df$away_rolling_xg_for
+  } else {
+    home_xg <- NULL
+    away_xg <- NULL
+  }
+
+  matches_df |>
+    dplyr::mutate(
+      home_form_score = team_form_score(
+        .data$home_rolling_gf, home_xg, .data$home_elo, ...
+      ),
+      away_form_score = team_form_score(
+        .data$away_rolling_gf, away_xg, .data$away_elo, ...
+      ),
+      form_advantage = .data$home_form_score - .data$away_form_score
+    )
+}
+
+# ============================================================================
+# MATCHES SINCE EVENT FEATURES
+# ============================================================================
+
+#' Compute matches since a specific event
+#'
+#' Tracks the number of consecutive matches since an event occurred.
+#' Resets to 0 when the event happens, then increments each match.
+#'
+#' This captures momentum/drought better than binary streak indicators.
+#' For example, "5 matches without a win" is more informative than
+#' "currently on a losing/drawing streak".
+#'
+#' @param event_occurred Logical vector. TRUE when the event happened.
+#' @return Integer vector. Matches since the event last occurred.
+#'   Returns NA for first observation, 0 when event just occurred.
+#' @family features
+#' @export
+#'
+#' @examples
+#' # Team results: W, L, L, W, L, L, L
+#' results <- c("W", "L", "L", "W", "L", "L", "L")
+#' won <- results == "W"
+#' matches_since_event(won)
+#' # Returns: NA, 0, 1, 2, 0, 1, 2
+matches_since_event <- function(event_occurred) {
+  rlang::check_required(event_occurred)
+
+  n <- length(event_occurred)
+  if (n == 0L) return(integer(0))
+
+  result <- rep(NA_integer_, n)
+
+  # First match has no history
+  if (n == 1L) return(result)
+
+  # Track matches since last event
+  counter <- 0L
+
+  for (i in 2:n) {
+    if (isTRUE(event_occurred[i - 1])) {
+      # Event occurred in previous match, reset counter
+      counter <- 0L
+    } else {
+      # No event, increment counter
+      counter <- counter + 1L
+    }
+    result[i] <- counter
+  }
+
+  result
+}
+
+#' Add matches-since-event features to team data
+#'
+#' Computes several "matches since" features for each team:
+#' - `matches_since_win`: Matches since last win
+#' - `matches_since_loss`: Matches since last loss
+#' - `matches_since_clean_sheet`: Matches since last clean sheet (0 goals conceded)
+#' - `matches_since_scored`: Matches since last match with a goal
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`,
+#'   `ftr`, `fthg`, `ftag`.
+#' @return A tibble in long format with team, match_date, and
+#'   matches-since features.
+#' @family features
+#' @export
+compute_matches_since <- function(matches_df) {
+  rlang::check_required(matches_df)
+
+  required <- c("match_date", "home_team", "away_team", "ftr", "fthg", "ftag")
+  missing <- setdiff(required, names(matches_df))
+  if (length(missing) > 0) {
+    cli::cli_abort("Missing required columns: {.val {missing}}")
+  }
+
+  # Convert to long format with result from each team's perspective
+  home <- matches_df |>
+    dplyr::transmute(
+      match_id = if ("match_id" %in% names(matches_df)) .data$match_id else NA_character_,
+      team = .data$home_team,
+      match_date = .data$match_date,
+      won = .data$ftr == "H",
+      lost = .data$ftr == "A",
+      clean_sheet = .data$ftag == 0L,
+      scored = .data$fthg > 0L
+    )
+
+  away <- matches_df |>
+    dplyr::transmute(
+      match_id = if ("match_id" %in% names(matches_df)) .data$match_id else NA_character_,
+      team = .data$away_team,
+      match_date = .data$match_date,
+      won = .data$ftr == "A",
+      lost = .data$ftr == "H",
+      clean_sheet = .data$fthg == 0L,
+      scored = .data$ftag > 0L
+    )
+
+  long <- dplyr::bind_rows(home, away) |>
+    dplyr::arrange(.data$team, .data$match_date)
+
+  # Compute matches-since features per team
+  long |>
+    dplyr::group_by(.data$team) |>
+    dplyr::mutate(
+      matches_since_win = matches_since_event(.data$won),
+      matches_since_loss = matches_since_event(.data$lost),
+      matches_since_clean_sheet = matches_since_event(.data$clean_sheet),
+      matches_since_scored = matches_since_event(.data$scored)
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::select(
+      "team", "match_date", "match_id",
+      "matches_since_win", "matches_since_loss",
+      "matches_since_clean_sheet", "matches_since_scored"
+    )
+}
+
+#' Add matches-since features to match data
+#'
+#' Joins matches-since features for both home and away teams.
+#'
+#' @param matches_df A tibble with match data.
+#' @return The input tibble with home/away matches-since columns.
+#' @family features
+#' @export
+add_matches_since <- function(matches_df) {
+  rlang::check_required(matches_df)
+
+  if (nrow(matches_df) == 0L) {
+    return(dplyr::mutate(
+      matches_df,
+      home_matches_since_win = integer(),
+      home_matches_since_loss = integer(),
+      away_matches_since_win = integer(),
+      away_matches_since_loss = integer()
+    ))
+  }
+
+  # Compute matches-since for all teams
+  since_df <- compute_matches_since(matches_df)
+
+  # Join for home teams
+  home_since <- since_df |>
+    dplyr::rename(
+      home_matches_since_win = "matches_since_win",
+      home_matches_since_loss = "matches_since_loss",
+      home_matches_since_clean_sheet = "matches_since_clean_sheet",
+      home_matches_since_scored = "matches_since_scored"
+    )
+
+  # Join for away teams
+  away_since <- since_df |>
+    dplyr::rename(
+      away_matches_since_win = "matches_since_win",
+      away_matches_since_loss = "matches_since_loss",
+      away_matches_since_clean_sheet = "matches_since_clean_sheet",
+      away_matches_since_scored = "matches_since_scored"
+    )
+
+  # Build join keys
+  if ("match_id" %in% names(matches_df)) {
+    matches_df |>
+      dplyr::left_join(
+        home_since |> dplyr::select(-"match_date"),
+        by = c("home_team" = "team", "match_id")
+      ) |>
+      dplyr::left_join(
+        away_since |> dplyr::select(-"match_date"),
+        by = c("away_team" = "team", "match_id")
+      )
+  } else {
+    matches_df |>
+      dplyr::left_join(
+        home_since |> dplyr::select(-"match_id"),
+        by = c("home_team" = "team", "match_date")
+      ) |>
+      dplyr::left_join(
+        away_since |> dplyr::select(-"match_id"),
+        by = c("away_team" = "team", "match_date")
+      )
+  }
+}
