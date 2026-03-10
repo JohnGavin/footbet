@@ -47,6 +47,14 @@ reference:
     desc: Evaluate model performance and calibration
     contents:
       - has_concept("evaluation")
+  - title: Probability Calibration
+    desc: Platt scaling and isotonic regression for calibrating probabilities
+    contents:
+      - has_concept("calibration")
+  - title: Meta-Analytics
+    desc: Discrimination and stability metrics for statistic evaluation
+    contents:
+      - has_concept("meta-analytics")
   - title: Betting Strategy
     desc: Kelly criterion and bankroll management
     contents:
