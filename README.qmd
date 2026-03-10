@@ -60,11 +60,30 @@ rix(
 
 ## Model Pipeline
 
-1. **Data**: football-data.co.uk match results + Pinnacle closing odds
-2. **Features**: Rolling goals, Elo ratings, devigged implied probabilities
-3. **Models**: Poisson GLM baseline, Dixon-Coles, Elo-based
-4. **Evaluation**: Walk-forward CV with log-loss, Brier score, calibration
-5. **Decisions**: Fractional Kelly staking with drawdown guardrails
+```{r}
+#| echo: false
+#| output: asis
+if (file.exists(here::here("_targets"))) {
+  targets::tar_config_set(store = here::here("_targets"))
+  tryCatch({
+    targets::tar_load(readme_pipeline_mermaid)
+    cat(readme_pipeline_mermaid)
+  }, error = function(e) {
+    # Fallback to text description when target not built
+    cat("1. **Data**: football-data.co.uk match results + Pinnacle closing odds\n")
+    cat("2. **Features**: Rolling goals, Elo ratings, devigged implied probabilities\n")
+    cat("3. **Models**: Poisson GLM baseline, Dixon-Coles, Elo-based\n")
+    cat("4. **Evaluation**: Walk-forward CV with log-loss, Brier score, calibration\n")
+    cat("5. **Decisions**: Fractional Kelly staking with drawdown guardrails\n")
+  })
+} else {
+  cat("1. **Data**: football-data.co.uk match results + Pinnacle closing odds\n")
+  cat("2. **Features**: Rolling goals, Elo ratings, devigged implied probabilities\n")
+  cat("3. **Models**: Poisson GLM baseline, Dixon-Coles, Elo-based\n")
+  cat("4. **Evaluation**: Walk-forward CV with log-loss, Brier score, calibration\n")
+  cat("5. **Decisions**: Fractional Kelly staking with drawdown guardrails\n")
+}
+```
 
 ## Project Structure
 

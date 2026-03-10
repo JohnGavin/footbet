@@ -9,6 +9,16 @@ format:
     toc: false
     page-layout: full
     code-fold: true
+    include-in-header:
+      text: |
+        <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+        <script>
+          mermaid.initialize({
+            startOnLoad: true,
+            securityLevel: 'loose',
+            theme: 'default'
+          });
+        </script>
 vignette: >
   %\VignetteIndexEntry{Football Betting Analytics}
   %\VignetteEngine{quarto::html}
@@ -85,6 +95,14 @@ is a 2-character code (e.g., `E0` for the English Premier League).
 
 `footbet::target_leagues()` returns 10 leagues covering the top 2 divisions
 of the "big five" European football countries.
+
+### Data Pipeline Overview
+
+```{r vig-pipeline-diagram}
+#| echo: false
+#| output: asis
+safe_tar_read("vig_pipeline_html")
+```
 
 ```{r vig-data-source-summary}
 safe_tar_read("vig_data_source_summary")
@@ -416,6 +434,12 @@ predict the next month.
 `footbet::walk_forward_splits()` generates the date-based train/test splits,
 and `evaluate_glm_baseline()` / `evaluate_dc()` iterate over them.
 
+```{r vig-cv-diagram}
+#| echo: false
+#| output: asis
+safe_tar_read("vig_cv_html")
+```
+
 ### GLM Poisson
 
 The baseline model is a
@@ -513,6 +537,12 @@ where $p$ is the model probability and $b$ is the decimal odds minus 1.
 - **Max stake**: 3% of current bankroll per bet
 - **Drawdown halt**: Stakes halved when bankroll drops 20% from peak
 - **`apply_guardrails()`**: Automatically reduces stake size during drawdowns
+
+```{r vig-kelly-diagram}
+#| echo: false
+#| output: asis
+safe_tar_read("vig_kelly_html")
+```
 
 ```{r vig-kelly-stake-distribution}
 safe_tar_read("vig_kelly_stake_distribution")

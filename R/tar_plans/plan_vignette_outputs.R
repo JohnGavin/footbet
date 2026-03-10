@@ -6,6 +6,35 @@
 plan_vignette_outputs <- list(
 
 # ============================================================================
+# MERMAID DIAGRAM TARGETS
+# Programmatically generated flowcharts that stay in sync with source code.
+# ============================================================================
+
+  # Pipeline diagram for vignettes (HTML div for mermaid.js CDN rendering)
+  targets::tar_target(
+    vig_pipeline_html,
+    wrap_mermaid_html(generate_data_pipeline_mermaid(here::here()))
+  ),
+
+  # Walk-forward CV diagram for vignettes
+  targets::tar_target(
+    vig_cv_html,
+    wrap_mermaid_html(generate_cv_walkforward_mermaid(here::here()))
+  ),
+
+  # Kelly decision tree for vignettes
+  targets::tar_target(
+    vig_kelly_html,
+    wrap_mermaid_html(generate_kelly_decision_mermaid(here::here()))
+  ),
+
+  # Pipeline diagram for README.md (fenced mermaid for GitHub)
+  targets::tar_target(
+    readme_pipeline_mermaid,
+    wrap_mermaid_fenced(generate_data_pipeline_mermaid(here::here()))
+  ),
+
+# ============================================================================
 # Vignette 1: Data Sources
 # ============================================================================
 
@@ -1000,5 +1029,15 @@ plan_vignette_outputs <- list(
         )
       )
     }
+  ),
+
+# ============================================================================
+# TARGETS DAG VISUALIZATION
+# ============================================================================
+
+  # Interactive targets DAG (htmlwidget - auto-prints in vignettes)
+  targets::tar_target(
+    vig_targets_dag,
+    targets::tar_visnetwork(targets_only = TRUE, label = "name")
   )
 )
