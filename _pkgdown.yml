@@ -79,6 +79,10 @@ reference:
     desc: Helper functions
     contents:
       - has_concept("utilities")
+  - title: Diagrams
+    desc: Auto-generated mermaid flowcharts for documentation
+    contents:
+      - has_concept("diagrams")
 
 articles:
   - title: Guide
