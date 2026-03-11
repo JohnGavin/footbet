@@ -1032,12 +1032,9 @@ plan_vignette_outputs <- list(
   ),
 
 # ============================================================================
-# TARGETS DAG VISUALIZATION
+# NOTE: tar_visnetwork() cannot run inside a target - it's an introspection
+# function that must be called directly in the vignette. Do NOT add
+# vig_targets_dag target here.
 # ============================================================================
-
-  # Interactive targets DAG (htmlwidget - auto-prints in vignettes)
-  targets::tar_target(
-    vig_targets_dag,
-    targets::tar_visnetwork(targets_only = TRUE, label = "name")
-  )
+  NULL
 )
