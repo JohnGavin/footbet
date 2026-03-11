@@ -50,6 +50,13 @@ jobs:
         run: |
           nix-shell default.nix -A shell --run "quarto render README.qmd --to gfm"
 
+      - name: Run targets pipeline
+        run: |
+          nix-shell default.nix -A shell --run "Rscript -e '
+            # Build vignette targets (vig_*) required for pkgdown site
+            targets::tar_make(names = tidyselect::starts_with(\"vig_\"))
+          '"
+
       - name: Build pkgdown site
         run: |
           nix-shell default.nix -A shell --run "Rscript -e '
