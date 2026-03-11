@@ -950,7 +950,7 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_poisson_test,
     {
-      goals <- c(parsed_matches$fthg, parsed_matches$ftag)
+      goals <- c(parsed_matches[["fthg"]], parsed_matches[["ftag"]])
       goals <- goals[!is.na(goals)]
 
       # Chi-square goodness of fit
@@ -958,19 +958,33 @@ plan_vignette_outputs <- list(
       lambda <- mean(goals)
       expected <- length(goals) * stats::dpois(0:8, lambda)
 
-      test <- stats::chisq.test(observed, p = expected / sum(expected))
+      test <- tryCatch(
+        stats::chisq.test(observed, p = expected / sum(expected)),
+        error = function(e) NULL
+      )
+
+      if (is.null(test)) {
+        return(tibble::tibble(
+          test = "Chi-square GoF",
+          statistic = NA_real_,
+          df = NA_integer_,
+          p_value = "N/A",
+          mean_goals = round(lambda, 3),
+          conclusion = "Test failed"
+        ))
+      }
 
       tibble::tibble(
         test = "Chi-square GoF",
-        statistic = round(unname(test$statistic), 2),
-        df = unname(test$parameter),
-        p_value = format.pval(test$p.value, digits = 3),
+        statistic = round(as.numeric(test[["statistic"]]), 2),
+        df = as.integer(test[["parameter"]]),
+        p_value = format.pval(test[["p.value"]], digits = 3),
         mean_goals = round(lambda, 3),
-        conclusion = ifelse(
-          test$p.value < 0.05,
-          "Reject pure Poisson (overdispersion present)",
+        conclusion = if (test[["p.value"]] < 0.05) {
+          "Reject pure Poisson (overdispersion present)"
+        } else {
           "Poisson acceptable"
-        )
+        }
       )
     }
   ),
@@ -985,16 +999,17 @@ plan_vignette_outputs <- list(
         dplyr::summarise(home_win_pct = mean(ftr == "H"), .groups = "drop")
 
       model <- stats::lm(home_win_pct ~ season_num, data = ha_data)
-      coefs <- summary(model)$coefficients
+      model_summary <- summary(model)
+      coefs <- model_summary[["coefficients"]]
 
       tibble::tibble(
         trend_per_season = round(coefs[2, 1] * 100, 3),
-        r_squared = round(summary(model)$r.squared, 4),
+        r_squared = round(model_summary[["r.squared"]], 4),
         p_value = format.pval(coefs[2, 4], digits = 3),
         n_seasons = nrow(ha_data),
         conclusion = dplyr::case_when(
-          coefs[2, 1] < 0 & coefs[2, 4] < 0.05 ~ "Significant decline in home advantage",
-          coefs[2, 1] > 0 & coefs[2, 4] < 0.05 ~ "Significant increase in home advantage",
+          coefs[2, 1] < 0 && coefs[2, 4] < 0.05 ~ "Significant decline in home advantage",
+          coefs[2, 1] > 0 && coefs[2, 4] < 0.05 ~ "Significant increase in home advantage",
           TRUE ~ "No significant trend"
         )
       )
@@ -1005,8 +1020,8 @@ plan_vignette_outputs <- list(
     vig_model_comparison_test,
     {
       # Paired t-test on log-loss across folds
-      glm_ll <- glm_baseline_cv$log_loss
-      dc_ll <- dc_cv$log_loss
+      glm_ll <- glm_baseline_cv[["log_loss"]]
+      dc_ll <- dc_cv[["log_loss"]]
 
       # Ensure same number of folds
       n_folds <- min(length(glm_ll), length(dc_ll))
@@ -1019,11 +1034,11 @@ plan_vignette_outputs <- list(
         mean_glm_logloss = round(mean(glm_ll), 4),
         mean_dc_logloss = round(mean(dc_ll), 4),
         mean_diff = round(mean(glm_ll - dc_ll), 4),
-        t_statistic = round(test$statistic, 3),
-        p_value = format.pval(test$p.value, digits = 3),
+        t_statistic = round(as.numeric(test[["statistic"]]), 3),
+        p_value = format.pval(test[["p.value"]], digits = 3),
         n_folds = n_folds,
         conclusion = dplyr::case_when(
-          test$p.value >= 0.05 ~ "No significant difference between models",
+          test[["p.value"]] >= 0.05 ~ "No significant difference between models",
           mean(glm_ll) > mean(dc_ll) ~ "Dixon-Coles significantly better than GLM",
           TRUE ~ "GLM significantly better than Dixon-Coles"
         )
