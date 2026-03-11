@@ -38,37 +38,44 @@ if (file.exists(here::here("_targets"))) {
 
 safe_tar_read <- function(name) {
   # Try targets store first
- result <- tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+  result <- tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
 
- # Fallback to pre-computed RDS (for CI builds without _targets)
- if (is.null(result)) {
-   rds_path <- system.file(
-     file.path("extdata", "vignettes", paste0(name, ".rds")),
-     package = "footbet"
-   )
-   if (nzchar(rds_path) && file.exists(rds_path)) {
-     result <- readRDS(rds_path)
-   }
- }
+  # Fallback to pre-computed RDS (for CI builds without _targets)
+  if (is.null(result)) {
+    # Try installed package location first
+    rds_path <- system.file(
+      file.path("extdata", "vignettes", paste0(name, ".rds")),
+      package = "footbet"
+    )
 
- # Return visible error if still missing
- if (is.null(result)) {
-   htmltools::div(
-     style = paste(
-       "background: #dc3545; color: white; padding: 1em;",
-       "border-radius: 4px; margin: 1em 0; font-weight: bold;"
-     ),
-     htmltools::p(
-       paste0("[MISSING EVIDENCE] Target `", name, "` not found.")
-     ),
-     htmltools::p(
-       "Run `targets::tar_make()` to build vignette outputs.",
-       style = "font-weight: normal; font-size: 0.9em;"
-     )
-   )
- } else {
-   result
- }
+    # Fallback to source inst/ directory (for pkgdown build from source)
+    if (!nzchar(rds_path) || !file.exists(rds_path)) {
+      rds_path <- here::here("inst", "extdata", "vignettes", paste0(name, ".rds"))
+    }
+
+    if (file.exists(rds_path)) {
+      result <- readRDS(rds_path)
+    }
+  }
+
+  # Return visible error if still missing
+  if (is.null(result)) {
+    htmltools::div(
+      style = paste(
+        "background: #dc3545; color: white; padding: 1em;",
+        "border-radius: 4px; margin: 1em 0; font-weight: bold;"
+      ),
+      htmltools::p(
+        paste0("[MISSING EVIDENCE] Target `", name, "` not found.")
+      ),
+      htmltools::p(
+        "Run `targets::tar_make()` to build vignette outputs.",
+        style = "font-weight: normal; font-size: 0.9em;"
+      )
+    )
+  } else {
+    result
+  }
 }
 ```
 
