@@ -2,6 +2,7 @@ url: https://johngavin.github.io/footbet/
 
 template:
   bootstrap: 5
+  light-switch: true
   bslib:
     preset: "shiny"
   includes:
