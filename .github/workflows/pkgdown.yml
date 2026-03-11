@@ -50,12 +50,9 @@ jobs:
         run: |
           nix-shell default.nix -A shell --run "quarto render README.qmd --to gfm"
 
-      - name: Run targets pipeline
-        run: |
-          nix-shell default.nix -A shell --run "Rscript -e '
-            # Build vignette targets (vig_*) required for pkgdown site
-            targets::tar_make(names = tidyselect::starts_with(\"vig_\"))
-          '"
+      # NOTE: tar_make() removed - full pipeline exceeds 40min CI timeout.
+      # Vignettes use safe_tar_read() which falls back to pre-computed RDS
+      # files in inst/extdata/vignettes/. See vignette-targets-export.md rule.
 
       - name: Build pkgdown site
         run: |
