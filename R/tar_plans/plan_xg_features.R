@@ -132,7 +132,7 @@ plan_xg_features <- list(
   targets::tar_target(
     cv_goals_only,
     evaluate_glm_baseline(
-      long_df = long_df,
+      long_df = matches_long,
       matches_df = parsed_matches,
       train_months = 24L,
       test_months = 1L
