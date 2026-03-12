@@ -29,6 +29,13 @@ fit_dixon_coles <- function(matches_df, xi = 0.003) {
     cli::cli_abort("{.arg matches_df} must not be empty.")
   }
 
+
+  # Filter out rows with NA dates (cannot compute weights)
+  matches_df <- matches_df[!is.na(matches_df$match_date), ]
+  if (nrow(matches_df) == 0L) {
+    cli::cli_abort("All rows have NA match_date.")
+  }
+
   # Compute time-decay weights
   max_date <- max(matches_df$match_date, na.rm = TRUE)
   days_ago <- as.numeric(difftime(max_date, matches_df$match_date, units = "days"))
