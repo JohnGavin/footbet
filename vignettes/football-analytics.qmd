@@ -6,7 +6,9 @@ format:
     theme:
       light: flatly
       dark: darkly
-    toc: false
+    toc: true
+    toc-location: right
+    toc-depth: 3
     page-layout: full
     code-fold: true
     include-in-header:
@@ -158,16 +160,16 @@ the following columns:
 | `season` | 4-digit season code (e.g., 2324) | character |
 | `match_date` | Match date | Date |
 | `home_team` / `away_team` | Team names | character |
-| `fthg` / `ftag` | Full-time home/away goals | integer |
-| `ftr` | Full-time result: H, D, or A | character |
-| `hthg` / `htag` | Half-time home/away goals | integer |
-| `htr` | Half-time result | character |
-| `hs` / `as_` | Home/away shots | integer |
-| `hst` / `ast` | Home/away shots on target | integer |
-| `hf` / `af` | Home/away fouls | integer |
-| `hc` / `ac` | Home/away corners | integer |
-| `hy` / `ay` | Home/away yellow cards | integer |
-| `hr` / `ar` | Home/away red cards | integer |
+| `fthg` / `ftag` | Full-time home/away goals ([FTHG/FTAG](#fthg-ftag)) | integer |
+| `ftr` | Full-time result: H, D, or A ([FTR](#ftr-full-time-result)) | character |
+| `hthg` / `htag` | Half-time home/away goals ([HTHG/HTAG](#hthg-htag-htr)) | integer |
+| `htr` | Half-time result ([HTR](#hthg-htag-htr)) | character |
+| `hs` / `as_` | Home/away shots ([HS/AS](#match-statistics)) | integer |
+| `hst` / `ast` | Home/away shots on target ([HST/AST](#match-statistics)) | integer |
+| `hf` / `af` | Home/away fouls ([HF/AF](#match-statistics)) | integer |
+| `hc` / `ac` | Home/away corners ([HC/AC](#match-statistics)) | integer |
+| `hy` / `ay` | Home/away yellow cards ([HY/AY](#match-statistics)) | integer |
+| `hr` / `ar` | Home/away red cards ([HR/AR](#match-statistics)) | integer |
 
 `footbet::parse_fd_odds()` extracts Pinnacle closing odds:
 

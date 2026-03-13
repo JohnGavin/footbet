@@ -257,6 +257,9 @@ plan_vignette_outputs <- list(
         y = ~pct_missing,
         type = "bar",
         marker = list(color = "#e74c3c"),
+        text = ~paste0(round(pct_missing, 1), "%"),
+        textposition = "outside",
+        textfont = list(color = "white", size = 11),
         hovertemplate = paste(
           "<b>%{x}</b><br>",
           "Missing: %{y:.1f}%<extra></extra>"
