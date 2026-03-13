@@ -2,6 +2,68 @@
 # Dark theme styling for interactive plotly visualizations
 # tonyelhabr-inspired aesthetics: dark background, white text, subtle gridlines
 
+# ============================================================================
+# TIER AND COUNTRY COLOR CONSTANTS
+# ============================================================================
+
+#' Tier color palette
+#'
+#' Colors for European football league tiers.
+#' @export
+#' @concept plotting
+TIER_COLORS <- c("Top 5" = "#3498db", "2nd Tier" = "#e67e22")
+
+#' Country color palette
+#'
+#' Colors for the big five European football countries.
+#' @export
+#' @concept plotting
+COUNTRY_COLORS <- c(
+England = "#dc3545",
+Germany = "#ffc107",
+Italy = "#28a745",
+Spain = "#fd7e14",
+France = "#007bff"
+)
+
+#' Add league tier and country metadata
+#'
+#' Augments a data frame containing `league_code` with tier and country columns.
+#' Top 5 leagues (E0, D1, I1, SP1, F1) are marked as "Top 5"; all others as "2nd Tier".
+#'
+#' @param df A data frame with a `league_code` column.
+#'
+#' @return The input data frame with `tier` and `country` columns added.
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' tibble::tibble(league_code = c("E0", "E1", "D1", "D2")) |>
+#'   add_league_metadata()
+#' }
+#' @concept plotting
+add_league_metadata <- function(df) {
+df |>
+  dplyr::mutate(
+    tier = dplyr::case_when(
+      league_code %in% c("E0", "D1", "I1", "SP1", "F1") ~ "Top 5",
+      TRUE ~ "2nd Tier"
+    ),
+    country = dplyr::case_when(
+      grepl("^E", league_code) ~ "England",
+      grepl("^D", league_code) ~ "Germany",
+      grepl("^I", league_code) ~ "Italy",
+      grepl("^SP", league_code) ~ "Spain",
+      grepl("^F", league_code) ~ "France",
+      TRUE ~ "Other"
+    )
+  )
+}
+
+# ============================================================================
+# THEME FUNCTIONS
+# ============================================================================
+
 #' Dark theme for plotly plots
 #'
 #' Apply a consistent dark theme to plotly visualizations with dark background,

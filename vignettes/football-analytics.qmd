@@ -33,6 +33,8 @@ knitr::opts_chunk$set(
 )
 library(targets)
 library(htmltools)
+library(DT)
+library(dplyr)
 
 if (file.exists(here::here("_targets"))) {
   tar_config_set(store = here::here("_targets"))
@@ -114,7 +116,19 @@ safe_tar_read("vig_pipeline_html")
 ```
 
 ```{r vig-data-source-summary}
-safe_tar_read("vig_data_source_summary")
+data_summary <- safe_tar_read("vig_data_source_summary")
+if (is.data.frame(data_summary)) {
+  data_summary |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Data coverage by league. 10 leagues across 5 countries, top 2 divisions each."
+      ),
+      options = list(pageLength = 15, dom = "t")
+    )
+} else {
+  data_summary
+}
 ```
 
 ### Coverage Grid
@@ -123,7 +137,19 @@ The grid below shows the number of parsed matches per league-season cell.
 Zeroes indicate seasons where the CSV was unavailable or empty.
 
 ```{r vig-league-season-grid}
-safe_tar_read("vig_league_season_grid")
+grid <- safe_tar_read("vig_league_season_grid")
+if (is.data.frame(grid)) {
+  grid |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Matches per league-season. 0 = data unavailable. ~380 for Div 1, ~460+ for Div 2."
+      ),
+      options = list(pageLength = 15, dom = "t", scrollX = TRUE)
+    )
+} else {
+  grid
+}
 ```
 
 ```{r vig-matches-per-season-plot}
@@ -145,7 +171,20 @@ Pinnacle coverage dropped significantly for some leagues from mid-2025 due to
 a feed break at football-data.co.uk.
 
 ```{r vig-odds-columns-available}
-safe_tar_read("vig_odds_columns_available")
+odds_avail <- safe_tar_read("vig_odds_columns_available")
+if (is.data.frame(odds_avail)) {
+  odds_avail |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Pinnacle odds coverage. pct_1x2 = % with home/draw/away odds. pct_over_under = % with O/U 2.5."
+      ),
+      filter = "top",
+      options = list(pageLength = 15, dom = "Bfrtip", scrollX = TRUE)
+    )
+} else {
+  odds_avail
+}
 ```
 
 ### Column Schema
@@ -232,10 +271,24 @@ more frequently missing than core fields.
 safe_tar_read("vig_missing_data_heatmap")
 ```
 
-The table below provides detailed missing counts:
+The table below provides detailed missing counts with variable descriptions.
+See [Glossary > Data Terminology](#data-terminology) for full definitions.
 
 ```{r vig-missing-data-table}
-safe_tar_read("vig_missing_data_by_column")
+missing_data <- safe_tar_read("vig_missing_data_by_column")
+if (is.data.frame(missing_data)) {
+  missing_data |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Missing data by column. Match statistics often unavailable in older seasons."
+      ),
+      filter = "top",
+      options = list(pageLength = 15, dom = "Bfrtip")
+    )
+} else {
+  missing_data  # Show error div if target missing
+}
 ```
 
 ### Anomaly Detection
@@ -249,7 +302,25 @@ The pipeline flags matches with:
 - **Missing team names**: Rows with NA home or away team
 
 ```{r vig-anomalies-table}
-safe_tar_read("vig_anomalies_table")
+anomalies <- safe_tar_read("vig_anomalies_table")
+if (is.data.frame(anomalies) && nrow(anomalies) > 0) {
+  anomalies |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Flagged anomalies for manual review. Empty table = no anomalies detected."
+      ),
+      filter = "top",
+      options = list(pageLength = 10, dom = "Bfrtip")
+    )
+} else if (is.data.frame(anomalies)) {
+  htmltools::div(
+    style = "background: #28a745; color: white; padding: 1em; border-radius: 4px;",
+    "No anomalies detected in the dataset."
+  )
+} else {
+  anomalies
+}
 ```
 
 ### QC Summary
@@ -363,16 +434,44 @@ Matches with more than 7 total goals are rare outliers. These are worth
 inspecting for data quality and as edge cases for model robustness.
 
 ```{r vig-outlier-matches}
-safe_tar_read("vig_outlier_matches")
+outliers <- safe_tar_read("vig_outlier_matches")
+if (is.data.frame(outliers)) {
+  outliers |>
+    dplyr::select(-match_id) |>  # Drop internal ID
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "High-scoring matches (>7 goals). ~0.1% of all matches."
+      ),
+      filter = "top",
+      options = list(pageLength = 10, dom = "Bfrtip")
+    )
+} else {
+  outliers  # Show error div if target missing
+}
 ```
 
 ### Match Statistics
 
 Median match statistics (shots, corners, fouls, cards) by league. These vary
 across leagues reflecting different playing styles.
+See [Glossary > Match Statistics](#match-statistics-1) for variable definitions.
 
 ```{r vig-typical-match-stats}
-safe_tar_read("vig_typical_match_stats")
+match_stats <- safe_tar_read("vig_typical_match_stats")
+if (is.data.frame(match_stats)) {
+  match_stats |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Median match statistics by league. HS/AS = shots, HC/AC = corners, HY/AY = yellow cards."
+      ),
+      filter = "top",
+      options = list(pageLength = 15, dom = "Bfrtip", scrollX = TRUE)
+    )
+} else {
+  match_stats
+}
 ```
 
 ### Pinnacle Overround
@@ -508,7 +607,19 @@ The table below summarises mean metrics across all folds, with the Pinnacle
 benchmark for comparison. Positive "edge" means the model outperforms Pinnacle.
 
 ```{r vig-model-comparison-table}
-safe_tar_read("vig_model_comparison_table")
+model_comp <- safe_tar_read("vig_model_comparison_table")
+if (is.data.frame(model_comp)) {
+  model_comp |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Model comparison. Lower scores = better. Positive edge = outperforms Pinnacle."
+      ),
+      options = list(pageLength = 10, dom = "t")
+    )
+} else {
+  model_comp
+}
 ```
 
 ### Value Bets
@@ -521,7 +632,20 @@ market's implied probability by a minimum edge threshold. The pipeline uses:
 - **Devigged odds**: Market probabilities via [Shin (1993)](https://doi.org/10.2307/2234526) method
 
 ```{r vig-value-bets-summary}
-safe_tar_read("vig_value_bets_summary")
+vb_summary <- safe_tar_read("vig_value_bets_summary")
+if (is.data.frame(vb_summary)) {
+  vb_summary |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Value bet summary by outcome and league. Edge = model prob - market prob."
+      ),
+      filter = "top",
+      options = list(pageLength = 15, dom = "Bfrtip")
+    )
+} else {
+  vb_summary
+}
 ```
 
 ```{r vig-edge-distribution}
@@ -580,7 +704,19 @@ risk metric.
 #### Summary
 
 ```{r vig-pnl-summary-table}
-safe_tar_read("vig_pnl_summary_table")
+pnl_summary <- safe_tar_read("vig_pnl_summary_table")
+if (is.data.frame(pnl_summary)) {
+  pnl_summary |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "P&L summary. ROI = total profit / total staked. Sharpe = risk-adjusted return."
+      ),
+      options = list(pageLength = 10, dom = "t")
+    )
+} else {
+  pnl_summary
+}
 ```
 
 ## Glossary
@@ -588,9 +724,11 @@ safe_tar_read("vig_pnl_summary_table")
 This glossary defines betting and statistical terms used throughout the
 [footbet](https://johngavin.github.io/footbet/) package.
 
-### Odds Formats
+### Odds Formats {.tabset}
 
-#### Decimal Odds
+::: {.panel-tabset}
+
+#### Decimal
 
 The total payout per unit staked, including the original stake. A decimal
 odds of 2.50 means a 1 unit stake returns 2.50 units if the bet wins
@@ -598,7 +736,7 @@ odds of 2.50 means a 1 unit stake returns 2.50 units if the bet wins
 
 **Example:** Decimal 2.50 on a 10 unit stake pays 25 units (15 profit).
 
-#### Fractional Odds
+#### Fractional
 
 Expresses profit relative to stake as a fraction. Traditional UK format.
 "3/2" (read "three to two") means 3 units profit for every 2 units staked.
@@ -607,7 +745,7 @@ Expresses profit relative to stake as a fraction. Traditional UK format.
 
 **Example:** 3/2 fractional = 2.50 decimal
 
-#### American Odds
+#### American
 
 Positive numbers show profit on a 100 unit stake; negative numbers show
 stake needed to win 100 units. Standard in the United States.
@@ -619,6 +757,17 @@ stake needed to win 100 units. Standard in the United States.
 
 - Positive: Decimal = (American / 100) + 1
 - Negative: Decimal = (100 / |American|) + 1
+
+#### Conversion Table
+
+| Format | Example | Implied Probability |
+|--------|---------|---------------------|
+| Decimal 2.50 | Win 2.50 per 1 staked | 40% (1/2.50) |
+| Fractional 3/2 | Win 3 per 2 staked | 40% (2/(2+3)) |
+| American +150 | Win 150 per 100 staked | 40% (100/(100+150)) |
+| American -200 | Stake 200 to win 100 | 66.7% (200/(200+100)) |
+
+:::
 
 ### Market Types
 
@@ -805,8 +954,21 @@ Common abbreviations in football-data.co.uk files:
 
 ### See Also
 
-- [Data Sources tab](#data-sources) for data download and parsing
-- [Models tab](#models) for model implementation details
-- Package help: `?closing_line_value`, `?betting_sharpe_ratio`, `?convert_odds`
+**Package functions:**
+
+- `?target_leagues` --- List of supported leagues
+- `?parse_fd_csv` --- Parse football-data.co.uk CSV files
+- `?devig_shin` --- Remove bookmaker margin using Shin method
+- `?fit_dixon_coles` --- Fit Dixon-Coles goal model
+- `?kelly_stake` --- Calculate Kelly criterion stake
+- `?closing_line_value` --- Track CLV performance
+- `?betting_sharpe_ratio` --- Risk-adjusted returns
+
+**External resources:**
+
+- [football-data.co.uk](https://www.football-data.co.uk/) --- Data source
+- [Pinnacle](https://www.pinnacle.com/) --- Sharp bookmaker benchmark
+- [Dixon & Coles (1997)](https://doi.org/10.1111/1467-9876.00065) --- Correlation correction paper
+- [goalmodel package](https://cran.r-project.org/package=goalmodel) --- Dixon-Coles implementation
 
 :::

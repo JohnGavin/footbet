@@ -4,11 +4,11 @@ This vignette provides a comprehensive overview of the
 [footbet](https://johngavin.github.io/footbet/) package for European
 football betting analytics. Navigate using the tabs below.
 
-- [Data Sources](#tabset-1-1)
-- [Cleaning](#tabset-1-2)
-- [EDA](#tabset-1-3)
-- [Models](#tabset-1-4)
-- [Glossary](#tabset-1-5)
+- [Data Sources](#tabset-2-1)
+- [Cleaning](#tabset-2-2)
+- [EDA](#tabset-2-3)
+- [Models](#tabset-2-4)
+- [Glossary](#tabset-2-5)
 
 &nbsp;
 
@@ -46,39 +46,10 @@ football betting analytics. Navigate using the tabs below.
   Value\[find_value_bets\] Odds --\> Devig\[devig_odds\] Devig --\>
   Value Value --\> Kelly\[kelly_fraction\] end
 
-      # A tibble: 10 × 7
-         country league_code division n_seasons n_matches first_date last_date
-         <chr>   <chr>          <int>     <int>     <int> <date>     <date>
-       1 England E0                 1        11      4081 2015-08-08 2026-03-01
-       2 England E1                 2        11      5938 2015-08-07 2026-03-02
-       3 France  F1                 1        11      3768 2015-08-07 2026-03-01
-       4 France  F2                 2        11      3849 2015-07-31 2026-03-02
-       5 Germany D1                 1        11      3275 2015-08-14 2026-03-01
-       6 Germany D2                 2        11      3276 2015-07-24 2026-03-01
-       7 Italy   I1                 1        11      4071 2015-08-22 2026-03-02
-       8 Italy   I2                 2        11      4278 2015-09-05 2026-03-01
-       9 Spain   SP1                1        11      4059 2015-08-21 2026-03-02
-      10 Spain   SP2                2        11      4928 2015-08-22 2026-03-02
-
   ### Coverage Grid
 
   The grid below shows the number of parsed matches per league-season
   cell. Zeroes indicate seasons where the CSV was unavailable or empty.
-
-      # A tibble: 10 × 12
-         league_code `1516` `1617` `1718` `1819` `1920` `2021` `2122` `2223` `2324`
-         <chr>        <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>  <int>
-       1 D1             306    306    306    306    306    306    306    306    306
-       2 D2             306    306    306    306    306    306    306    306    306
-       3 E0             380    380    380    380    380    380    380    380    380
-       4 E1             552    552    552    552    552    552    552    552    552
-       5 F1             381    380    380    380    279    380    380    380    306
-       6 F2             380    380    380    380    280    380    380    380    379
-       7 I1             381    380    380    380    380    380    380    380    380
-       8 I2             462    462    462    342    380    380    380    380    380
-       9 SP1            380    380    380    380    380    380    380    380    380
-      10 SP2            462    462    462    462    462    462    462    462    462
-      # ℹ 2 more variables: `2425` <int>, `2526` <int>
 
   > **Note**
   >
@@ -94,21 +65,6 @@ football betting analytics. Navigate using the tabs below.
 
   Pinnacle coverage dropped significantly for some leagues from mid-2025
   due to a feed break at football-data.co.uk.
-
-      # A tibble: 110 × 5
-         league_code season n_matches pct_1x2 pct_over_under
-         <chr>       <chr>      <int>   <dbl>          <dbl>
-       1 D1          1516         306   100              0
-       2 D1          1617         306   100              0
-       3 D1          1718         306   100              0
-       4 D1          1819         306    99.7            0
-       5 D1          1920         306   100            100
-       6 D1          2021         306   100             98.4
-       7 D1          2122         306   100             98.4
-       8 D1          2223         306   100             95.4
-       9 D1          2324         306   100             95.4
-      10 D1          2425         306   100             97.1
-      # ℹ 100 more rows
 
   ### Column Schema
 
@@ -185,22 +141,9 @@ The chart below shows the percentage of missing values for each column
 across all parsed matches. Match statistics (shots, corners, cards) are
 more frequently missing than core fields.
 
-The table below provides detailed missing counts:
-
-    # A tibble: 21 × 4
-       column n_missing pct_missing n_total
-       <chr>      <int>       <dbl>   <int>
-     1 hf          3632         8.7   41523
-     2 af          3632         8.7   41523
-     3 hs          3251         7.8   41523
-     4 as_         3251         7.8   41523
-     5 hst         3251         7.8   41523
-     6 ast         3251         7.8   41523
-     7 hc          3251         7.8   41523
-     8 ac          3251         7.8   41523
-     9 hy          3251         7.8   41523
-    10 ay          3251         7.8   41523
-    # ℹ 11 more rows
+The table below provides detailed missing counts with variable
+descriptions. See [Glossary \> Data Terminology](#data-terminology) for
+full definitions.
 
 ### Anomaly Detection
 
@@ -212,12 +155,6 @@ The pipeline flags matches with:
 - **Future matches**: Dates more than 7 days beyond the pipeline run
   date
 - **Missing team names**: Rows with NA home or away team
-
-    # A tibble: 2 × 9
-      match_id   league_code season match_date home_team away_team  fthg  ftag flag
-      <chr>      <chr>       <chr>  <date>     <chr>     <chr>     <int> <int> <chr>
-    1 I1_NA_NA_… I1          1516   NA         <NA>      <NA>         NA    NA Miss…
-    2 F1_NA_NA_… F1          1516   NA         <NA>      <NA>         NA    NA Miss…
 
 ### QC Summary
 
@@ -314,41 +251,11 @@ specific periods.
 Matches with more than 7 total goals are rare outliers. These are worth
 inspecting for data quality and as edge cases for model robustness.
 
-    # A tibble: 258 × 9
-       match_id        league_code season match_date home_team away_team  fthg  ftag
-       <chr>           <chr>       <chr>  <date>     <chr>     <chr>     <int> <int>
-     1 SP1_2015-12-20… SP1         1516   2015-12-20 Real Mad… Vallecano    10     2
-     2 F2_2019-04-19_… F2          1819   2019-04-19 Valencie… Beziers       5     6
-     3 D2_2021-05-09_… D2          2021   2021-05-09 Erzgebir… Paderborn     3     8
-     4 D2_2024-10-25_… D2          2425   2024-10-25 Nurnberg  Regensbu…     8     3
-     5 SP1_2016-08-20… SP1         1617   2016-08-20 Sevilla   Espanol       6     4
-     6 I1_2017-05-07_… I1          1617   2017-05-07 Lazio     Sampdoria     7     3
-     7 E1_2018-04-21_… E1          1718   2018-04-21 Bristol … Hull          5     5
-     8 SP1_2018-09-02… SP1         1819   2018-09-02 Barcelona Huesca        8     2
-     9 E1_2018-11-28_… E1          1819   2018-11-28 Aston Vi… Nott'm F…     5     5
-    10 I1_2023-01-15_… I1          2223   2023-01-15 Atalanta  Salernit…     8     2
-    # ℹ 248 more rows
-    # ℹ 1 more variable: total_goals <int>
-
 ### Match Statistics
 
 Median match statistics (shots, corners, fouls, cards) by league. These
-vary across leagues reflecting different playing styles.
-
-    # A tibble: 10 × 14
-       league_code    hs   as_   hst   ast    hf    af    hc    ac    hy    ay    hr
-       <chr>       <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl> <dbl>
-     1 D1             14    11     5     4    12    12     5     4     2     2     0
-     2 D2             14    12     5     4    12    13     5     4     2     2     0
-     3 E0             13    11     4     4    10    11     5     4     1     2     0
-     4 E1             13    11     4     3    11    12     5     4     1     2     0
-     5 F1             13    11     4     4    12    13     5     4     2     2     0
-     6 F2             12    10     4     3    13    14     5     4     2     2     0
-     7 I1             13    11     5     4    13    13     5     4     2     2     0
-     8 I2             13    11     4     4    15    15     5     4     2     2     0
-     9 SP1            13    10     4     3    13    13     5     4     2     2     0
-    10 SP2            12    10     4     3    14    14     5     4     2     2     0
-    # ℹ 2 more variables: ar <dbl>, n_matches <int>
+vary across leagues reflecting different playing styles. See [Glossary
+\> Match Statistics](#match-statistics-1) for variable definitions.
 
 ### Pinnacle Overround
 
@@ -480,12 +387,6 @@ The table below summarises mean metrics across all folds, with the
 Pinnacle benchmark for comparison. Positive “edge” means the model
 outperforms Pinnacle.
 
-    # A tibble: 2 × 5
-      Model       Folds Mean_LogLoss Mean_Brier Mean_RPS
-      <chr>       <int>        <dbl>      <dbl>    <dbl>
-    1 GLM Poisson   779         1.07      0.620    0.211
-    2 Dixon-Coles   776         1.07      0.618    0.210
-
 ### Value Bets
 
 A **value bet** exists when the model’s estimated probability exceeds
@@ -496,13 +397,6 @@ pipeline uses:
 - **Odds filter**: Only bets between 1.50 and 10.00 decimal odds
 - **Devigged odds**: Market probabilities via [Shin
   (1993)](https://doi.org/10.2307/2234526) method
-
-    # A tibble: 3 × 6
-      outcome league_code n_bets mean_edge mean_odds mean_kelly
-      <chr>   <chr>        <int>     <dbl>     <dbl>      <dbl>
-    1 A       E0            1438    0.0998      4.39     0.0327
-    2 D       E0             540    0.0523      5.96     0.0131
-    3 H       E0            1370    0.100       3.58     0.0362
 
 > **Note**
 >
@@ -548,25 +442,21 @@ guardrails. Use the range slider to zoom into specific periods.
 
 #### Summary
 
-    # A tibble: 1 × 7
-      n_bets total_pnl roi_pct max_drawdown final_bankroll win_rate avg_odds
-       <int>     <dbl>   <dbl>        <dbl>          <dbl>    <dbl>    <dbl>
-    1   3348     -280.   -28.0        0.802           720.    0.293     4.31
-
 This glossary defines betting and statistical terms used throughout the
 [footbet](https://johngavin.github.io/footbet/) package.
 
 ### Odds Formats
 
-#### Decimal Odds
+- [Decimal](#tabset-1-1)
+- [Fractional](#tabset-1-2)
+- [American](#tabset-1-3)
+- [Conversion Table](#tabset-1-4)
 
 The total payout per unit staked, including the original stake. A
 decimal odds of 2.50 means a 1 unit stake returns 2.50 units if the bet
 wins (1 unit profit + 1 unit stake). Standard in Europe and Australia.
 
 **Example:** Decimal 2.50 on a 10 unit stake pays 25 units (15 profit).
-
-#### Fractional Odds
 
 Expresses profit relative to stake as a fraction. Traditional UK format.
 “3/2” (read “three to two”) means 3 units profit for every 2 units
@@ -575,8 +465,6 @@ staked.
 **Conversion:** Decimal = (numerator / denominator) + 1
 
 **Example:** 3/2 fractional = 2.50 decimal
-
-#### American Odds
 
 Positive numbers show profit on a 100 unit stake; negative numbers show
 stake needed to win 100 units. Standard in the United States.
@@ -588,6 +476,13 @@ stake needed to win 100 units. Standard in the United States.
 
 - Positive: Decimal = (American / 100) + 1
 - Negative: Decimal = (100 / \|American\|) + 1
+
+| Format         | Example                | Implied Probability   |
+|----------------|------------------------|-----------------------|
+| Decimal 2.50   | Win 2.50 per 1 staked  | 40% (1/2.50)          |
+| Fractional 3/2 | Win 3 per 2 staked     | 40% (2/(2+3))         |
+| American +150  | Win 150 per 100 staked | 40% (100/(100+150))   |
+| American -200  | Stake 200 to win 100   | 66.7% (200/(200+100)) |
 
 ### Market Types
 
@@ -791,9 +686,27 @@ Common abbreviations in football-data.co.uk files:
 
 ### See Also
 
-- [Data Sources tab](#data-sources) for data download and parsing
-- [Models tab](#models) for model implementation details
-- Package help:
-  [`?closing_line_value`](https://johngavin.github.io/footbet/reference/closing_line_value.md),
-  [`?betting_sharpe_ratio`](https://johngavin.github.io/footbet/reference/betting_sharpe_ratio.md),
-  [`?convert_odds`](https://johngavin.github.io/footbet/reference/convert_odds.md)
+**Package functions:**
+
+- [`?target_leagues`](https://johngavin.github.io/footbet/reference/target_leagues.md)
+  — List of supported leagues
+- [`?parse_fd_csv`](https://johngavin.github.io/footbet/reference/parse_fd_csv.md)
+  — Parse football-data.co.uk CSV files
+- [`?devig_shin`](https://johngavin.github.io/footbet/reference/devig_shin.md)
+  — Remove bookmaker margin using Shin method
+- [`?fit_dixon_coles`](https://johngavin.github.io/footbet/reference/fit_dixon_coles.md)
+  — Fit Dixon-Coles goal model
+- `?kelly_stake` — Calculate Kelly criterion stake
+- [`?closing_line_value`](https://johngavin.github.io/footbet/reference/closing_line_value.md)
+  — Track CLV performance
+- [`?betting_sharpe_ratio`](https://johngavin.github.io/footbet/reference/betting_sharpe_ratio.md)
+  — Risk-adjusted returns
+
+**External resources:**
+
+- [football-data.co.uk](https://www.football-data.co.uk/) — Data source
+- [Pinnacle](https://www.pinnacle.com/) — Sharp bookmaker benchmark
+- [Dixon & Coles (1997)](https://doi.org/10.1111/1467-9876.00065) —
+  Correlation correction paper
+- [goalmodel package](https://cran.r-project.org/package=goalmodel) —
+  Dixon-Coles implementation

@@ -1,8 +1,9 @@
 #' Setup Nix Library Paths for Football Project
-#' 
+#'
 #' Workaround for nested nix-shell conflicts. Adds football project's
 #' nix packages to .libPaths() without spawning nested shell.
-#' 
+#'
+#' @keywords internal
 #' @export
 setup_nix_libs <- function() {
   # Direct paths for known project-specific packages
