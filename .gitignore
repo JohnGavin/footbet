@@ -8,6 +8,7 @@ result
 
 # Targets pipeline
 _targets/
+_targets.yaml
 
 # R session
 .Rproj.user
