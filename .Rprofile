@@ -52,3 +52,15 @@
     }
     rm(is_rstudio, is_nix_r, is_code, is_positron)
 }
+
+# Football project: Auto-detect nested nix-shell conflicts
+if (interactive() && nzchar(Sys.getenv("IN_NIX_SHELL"))) {
+  .check_project_packages <- function() {
+    if (!requireNamespace("goalmodel", quietly = TRUE)) {
+      message("\nDetected nested nix-shell conflict.")
+      message("Run: source('R/setup_nix_libs.R')")
+      message("Or see: NIX_SHELL_WORKAROUND.md")
+    }
+  }
+  .check_project_packages()
+}
