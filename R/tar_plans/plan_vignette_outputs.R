@@ -336,6 +336,7 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_result_proportions,
     {
+      # Cleveland dot chart: simpler than stacked bars, easier to compare
       result_data <- parsed_matches |>
         dplyr::filter(!is.na(ftr)) |>
         dplyr::count(league_code, ftr) |>
@@ -343,40 +344,43 @@ plan_vignette_outputs <- list(
         dplyr::mutate(pct = 100 * n / sum(n)) |>
         dplyr::ungroup() |>
         dplyr::mutate(
-          ftr = factor(ftr, levels = c("H", "D", "A")),
           ftr_label = dplyr::case_when(
-            ftr == "H" ~ "Home",
+            ftr == "H" ~ "Home Win",
             ftr == "D" ~ "Draw",
-            ftr == "A" ~ "Away"
-          )
+            ftr == "A" ~ "Away Win"
+          ),
+          ftr_label = factor(ftr_label, levels = c("Home Win", "Draw", "Away Win"))
         )
 
-      colors <- c(Home = "#3498db", Draw = "#95a5a6", Away = "#e67e22")
+      colors <- c("Home Win" = "#3498db", "Draw" = "#95a5a6", "Away Win" = "#e67e22")
 
+      # Dot chart (scatter plot with markers)
       plotly::plot_ly(
         result_data,
         x = ~pct,
         y = ~league_code,
         color = ~ftr_label,
         colors = colors,
-        type = "bar",
-        orientation = "h",
+        type = "scatter",
+        mode = "markers",
+        marker = list(size = 12),
         hovertemplate = paste(
-          "League: %{y}<br>",
+          "<b>%{y}</b><br>",
           "%{fullData.name}: %{x:.1f}%<extra></extra>"
         )
       ) |>
-        theme_dark_plotly(title = "Result Proportions by League") |>
+        theme_dark_plotly(title = "Result Proportions by League (Dot Chart)") |>
         plotly::layout(
-          barmode = "stack",
-          xaxis = list(title = "Percentage (%)", range = c(0, 100)),
-          yaxis = list(title = ""),
-          legend = list(title = list(text = "Result")),
+          xaxis = list(title = "Percentage (%)", range = c(0, 60)),
+          yaxis = list(title = "", categoryorder = "category ascending"),
           shapes = list(
             list(type = "line", x0 = 33.3, x1 = 33.3, y0 = -0.5, y1 = 9.5,
-                 line = list(color = "white", dash = "dash", width = 1)),
-            list(type = "line", x0 = 66.7, x1 = 66.7, y0 = -0.5, y1 = 9.5,
-                 line = list(color = "white", dash = "dash", width = 1))
+                 line = list(color = "rgba(255,255,255,0.5)", dash = "dash", width = 1))
+          ),
+          annotations = list(
+            list(x = 33.3, y = 1, xref = "x", yref = "paper",
+                 text = "33% baseline", showarrow = FALSE, yanchor = "bottom",
+                 font = list(color = "rgba(255,255,255,0.7)", size = 10))
           )
         )
     }

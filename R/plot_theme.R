@@ -23,29 +23,34 @@
 #' @concept plotting
 theme_dark_plotly <- function(p, title = NULL) {
   layout_args <- list(
-    paper_bgcolor = "#1c1c1c",
-    plot_bgcolor = "#1c1c1c",
+    paper_bgcolor = "#000000",
+    plot_bgcolor = "#000000",
     font = list(
       color = "white",
       family = "Titillium Web, sans-serif"
     ),
     xaxis = list(
-      gridcolor = "#4d4d4d",
-      zerolinecolor = "#4d4d4d",
+      gridcolor = "rgba(255, 255, 255, 0.3)",
+      zerolinecolor = "rgba(255, 255, 255, 0.5)",
       tickfont = list(color = "white"),
       titlefont = list(color = "white")
     ),
     yaxis = list(
-      gridcolor = "#4d4d4d",
-      zerolinecolor = "#4d4d4d",
+      gridcolor = "rgba(255, 255, 255, 0.3)",
+      zerolinecolor = "rgba(255, 255, 255, 0.5)",
       tickfont = list(color = "white"),
       titlefont = list(color = "white")
     ),
     legend = list(
-      bgcolor = "transparent",
-      font = list(color = "white")
+      bgcolor = "#000000",
+      font = list(color = "white"),
+      orientation = "h",
+      yanchor = "top",
+      y = -0.15,
+      xanchor = "center",
+      x = 0.5
     ),
-    margin = list(t = 60, b = 50, l = 60, r = 40)
+    margin = list(t = 60, b = 80, l = 60, r = 40)
   )
 
   if (!is.null(title)) {
@@ -86,8 +91,8 @@ add_time_slider <- function(p) {
     xaxis = list(
       rangeslider = list(
         visible = TRUE,
-        bgcolor = "#2d2d2d",
-        bordercolor = "#4d4d4d",
+        bgcolor = "#000000",
+        bordercolor = "rgba(255, 255, 255, 0.3)",
         thickness = 0.1
       ),
       rangeselector = list(
@@ -96,9 +101,10 @@ add_time_slider <- function(p) {
           list(count = 5, label = "5y", step = "year", stepmode = "backward"),
           list(step = "all", label = "All")
         ),
-        bgcolor = "#3d3d3d",
+        bgcolor = "#000000",
         font = list(color = "white"),
-        activecolor = "#5d5d5d"
+        activecolor = "#333333",
+        bordercolor = "rgba(255, 255, 255, 0.3)"
       )
     )
   )

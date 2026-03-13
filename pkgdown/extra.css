@@ -4,6 +4,18 @@ body {
 }
 
 /* =================================================================
+   TEXT ALIGNMENT: LEFT JUSTIFY (not centered)
+   ================================================================= */
+.contents, main, article, .section, p, li, td, th {
+  text-align: left !important;
+}
+
+/* Headings can be left-aligned too */
+h1, h2, h3, h4, h5, h6, .section-title {
+  text-align: left !important;
+}
+
+/* =================================================================
    FULL-WIDTH VIGNETTES (100% RELATIVE WIDTH)
    Use percentages, not pixels, for responsive design across devices
    ================================================================= */
