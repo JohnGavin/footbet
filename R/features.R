@@ -1525,8 +1525,6 @@ add_league_positions <- function(matches_df) {
 #' @param weight_goals Numeric. Weight for goals component (default 0.3).
 #' @param weight_xg Numeric. Weight for xG component (default 0.5).
 #' @param weight_elo Numeric. Weight for Elo component (default 0.2).
-#' @param elo_center Numeric. Center point for Elo (default 1500).
-#' @param elo_scale Numeric. Scale for Elo normalization (default 500).
 #' @return Numeric. Form score in range 0-100.
 #' @family features
 #' @export

@@ -315,6 +315,15 @@ fetch_league_suspensions <- function(country, start_year = 2024L) {
 
   cli::cli_alert("Fetching suspensions for {.val {country}} {start_year}/{start_year + 1L}")
 
+  if (!exists("tm_get_suspensions", asNamespace("worldfootballR"))) {
+    cli::cli_warn(c(
+      "!" = "{.fn worldfootballR::tm_get_suspensions} is no longer available.",
+      "i" = "This function was removed from {.pkg worldfootballR}.",
+      "i" = "Returning empty tibble."
+    ))
+    return(tibble::tibble())
+  }
+
   raw <- tryCatch(
     worldfootballR::tm_get_suspensions(country_name = country),
     error = function(e) {

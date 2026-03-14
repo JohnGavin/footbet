@@ -61,6 +61,7 @@ Suggests:
     understatr,
     withr,
     worldfootballR,
-    xgboost
+    xgboost,
+    yaml
 VignetteBuilder: quarto
 Config/testthat/edition: 3

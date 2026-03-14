@@ -75,6 +75,7 @@ extract_phase_labels <- function(pkg_path = ".") {
 
 
   if (!file.exists(pkgdown_file)) return(defaults)
+  if (!requireNamespace("yaml", quietly = TRUE)) return(defaults)
 
   yml <- tryCatch(
     yaml::read_yaml(pkgdown_file),

@@ -25,10 +25,6 @@ team_form_score(
 \item{weight_xg}{Numeric. Weight for xG component (default 0.5).}
 
 \item{weight_elo}{Numeric. Weight for Elo component (default 0.2).}
-
-\item{elo_center}{Numeric. Center point for Elo (default 1500).}
-
-\item{elo_scale}{Numeric. Scale for Elo normalization (default 500).}
 }
 \value{
 Numeric. Form score in range 0-100.

@@ -21,3 +21,8 @@
 ^pkgdown$
 ^vignettes/.*_files$
 ^result$
+^vignettes/\.quarto$
+^_targets\.yaml$
+^NIX_SHELL_WORKAROUND\.md$
+^QUICK_START\.md$
+^scripts$
