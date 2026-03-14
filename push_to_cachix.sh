@@ -90,9 +90,15 @@ main() {
   fi
 
   if ! command -v cachix &> /dev/null; then
-    log_error "cachix not found."
-    log_info "Install: nix-env -iA cachix -f https://cachix.org/api/v1/install"
-    exit 2
+    # Try common nix-profile location
+    if [ -x "$HOME/.nix-profile/bin/cachix" ]; then
+      export PATH="$HOME/.nix-profile/bin:$PATH"
+      log_info "Found cachix at ~/.nix-profile/bin/cachix"
+    else
+      log_error "cachix not found."
+      log_info "Install: nix-env -iA cachix -f https://cachix.org/api/v1/install"
+      exit 2
+    fi
   fi
 
   log_success "Environment validated"
