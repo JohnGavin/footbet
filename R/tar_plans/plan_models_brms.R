@@ -123,20 +123,57 @@ plan_models_brms <- list(
   targets::tar_target(
     vig_pp_check_goals,
     {
-      if (is.null(brms_full_model) ||
-          !requireNamespace("brms", quietly = TRUE)) {
-        return(NULL)
+      if (!is.null(brms_full_model) &&
+          requireNamespace("brms", quietly = TRUE)) {
+        # Real brms posterior predictive check
+        brms::pp_check(brms_full_model, type = "bars", ndraws = 100) +
+          ggplot2::labs(
+            title = "Posterior Predictive Check: Goals Distribution",
+            subtitle = "Observed (dark) vs replicated (light) from posterior",
+            caption = "Model: Poisson with team random effects. 100 posterior draws.",
+            x = "Goals per team per match",
+            y = "Count"
+          ) +
+          ggplot2::theme_minimal(base_size = 12)
+      } else {
+        # Fallback: compare observed goals vs Poisson fit from data
+        goals <- c(matches_long$goals)
+        lambda <- mean(goals, na.rm = TRUE)
+        obs <- table(factor(goals, levels = 0:max(goals, na.rm = TRUE)))
+        obs_df <- tibble::tibble(
+          goals = as.integer(names(obs)),
+          observed = as.integer(obs),
+          poisson = stats::dpois(as.integer(names(obs)), lambda) * sum(obs)
+        )
+        obs_long <- tidyr::pivot_longer(
+          obs_df, cols = c("observed", "poisson"),
+          names_to = "source", values_to = "count"
+        )
+        ggplot2::ggplot(obs_long, ggplot2::aes(
+          x = goals, y = count, fill = source
+        )) +
+          ggplot2::geom_col(position = "dodge", alpha = 0.8) +
+          ggplot2::scale_fill_manual(
+            values = c(observed = "#2c3e50", poisson = "#95a5a6"),
+            labels = c(observed = "Observed", poisson = "Poisson fit")
+          ) +
+          ggplot2::labs(
+            title = "Goals Distribution: Observed vs Poisson Model",
+            subtitle = paste0(
+              "Poisson(\u03bb=", round(lambda, 2),
+              ") fitted to ", format(length(goals), big.mark = ","),
+              " team-match observations"
+            ),
+            caption = paste(
+              "Poisson GLM baseline shown (brms model not yet fitted).",
+              "A hierarchical model would capture team-level variation."
+            ),
+            x = "Goals per team per match",
+            y = "Count",
+            fill = NULL
+          ) +
+          ggplot2::theme_minimal(base_size = 12)
       }
-
-      brms::pp_check(brms_full_model, type = "bars", ndraws = 100) +
-        ggplot2::labs(
-          title = "Posterior Predictive Check: Goals Distribution",
-          subtitle = "Observed (dark) vs replicated (light) from posterior",
-          caption = "Model: Poisson with team random effects. 100 posterior draws.",
-          x = "Goals per team per match",
-          y = "Count"
-        ) +
-        ggplot2::theme_minimal(base_size = 12)
     }
   ),
 
@@ -144,37 +181,83 @@ plan_models_brms <- list(
   targets::tar_target(
     vig_shrinkage_plot,
     {
-      if (is.null(brms_full_model) ||
-          !requireNamespace("brms", quietly = TRUE)) {
-        return(NULL)
+      if (!is.null(brms_full_model) &&
+          requireNamespace("brms", quietly = TRUE)) {
+        # Real brms random effects
+        ranef_df <- brms::ranef(brms_full_model)$team[, , "Intercept"]
+        ranef_tbl <- tibble::tibble(
+          team = rownames(ranef_df),
+          re_estimate = ranef_df[, "Estimate"],
+          re_lower = ranef_df[, "Q2.5"],
+          re_upper = ranef_df[, "Q97.5"]
+        )
+      } else {
+        # Fallback: use GLM team coefficients as proxy
+        goals_by_team <- matches_long |>
+          dplyr::group_by(team) |>
+          dplyr::summarise(
+            mean_goals = mean(goals, na.rm = TRUE),
+            n_matches = dplyr::n(),
+            se = stats::sd(goals, na.rm = TRUE) / sqrt(dplyr::n()),
+            .groups = "drop"
+          )
+        grand_mean <- mean(goals_by_team$mean_goals)
+        ranef_tbl <- goals_by_team |>
+          dplyr::mutate(
+            re_estimate = log(mean_goals / grand_mean),
+            re_lower = re_estimate - 1.96 * se / mean_goals,
+            re_upper = re_estimate + 1.96 * se / mean_goals
+          ) |>
+          dplyr::select(team, re_estimate, re_lower, re_upper)
       }
 
-      ranef_df <- brms::ranef(brms_full_model)$team[, , "Intercept"]
-      ranef_tbl <- tibble::tibble(
-        team = rownames(ranef_df),
-        re_estimate = ranef_df[, "Estimate"],
-        re_lower = ranef_df[, "Q2.5"],
-        re_upper = ranef_df[, "Q97.5"]
-      )
+      # Show top and bottom 20 teams to keep plot readable
+      ranef_tbl <- ranef_tbl |>
+        dplyr::arrange(re_estimate)
+      if (nrow(ranef_tbl) > 40L) {
+        ranef_tbl <- dplyr::bind_rows(
+          utils::head(ranef_tbl, 20L),
+          utils::tail(ranef_tbl, 20L)
+        )
+      }
+
+      is_brms <- !is.null(brms_full_model) &&
+        requireNamespace("brms", quietly = TRUE)
 
       ranef_tbl |>
-        dplyr::arrange(re_estimate) |>
         dplyr::mutate(team = factor(team, levels = team)) |>
         ggplot2::ggplot(ggplot2::aes(x = re_estimate, y = team)) +
         ggplot2::geom_point() +
-        ggplot2::geom_errorbarh(
+        ggplot2::geom_errorbar(
           ggplot2::aes(xmin = re_lower, xmax = re_upper),
-          height = 0
+          height = 0,
+          orientation = "y"
         ) +
         ggplot2::geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
         ggplot2::labs(
-          title = "Team Attack Strength (Random Effects)",
-          subtitle = "Partial pooling shrinks extreme estimates toward zero",
-          caption = paste(
-            "95% credible intervals shown.",
-            "Teams with few matches are shrunk more toward the grand mean (0).",
-            "Source: brms Poisson model with team random effects."
-          ),
+          title = if (is_brms) {
+            "Team Attack Strength (Random Effects)"
+          } else {
+            "Team Attack Strength (GLM Estimates)"
+          },
+          subtitle = if (is_brms) {
+            "Partial pooling shrinks extreme estimates toward zero"
+          } else {
+            "Top/bottom 20 teams by log(goals ratio). Hierarchical model would shrink extremes."
+          },
+          caption = if (is_brms) {
+            paste(
+              "95% credible intervals shown.",
+              "Teams with few matches are shrunk more toward the grand mean (0).",
+              "Source: brms Poisson model with team random effects."
+            )
+          } else {
+            paste(
+              "95% confidence intervals from observed goal rates.",
+              "A brms hierarchical model would apply partial pooling,",
+              "shrinking teams with few matches toward the grand mean."
+            )
+          },
           x = "Attack strength (log scale, 0 = average)",
           y = NULL
         ) +
