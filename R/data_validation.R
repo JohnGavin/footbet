@@ -27,14 +27,17 @@ validate_temporal_coverage <- function(matches) {
   }
 
   coverage <- matches |>
-    dplyr::group_by(.data$league_code, .data$season) |>
-    dplyr::summarise(
-      n_actual = dplyr::n(),
+    dplyr::mutate(
       n_expected = dplyr::case_when(
         .data$league_code == "E0" ~ EXPECTED_MATCHES_EPL,
         .data$league_code == "E1" ~ 552L,
         TRUE ~ EXPECTED_MATCHES_OTHER
-      ),
+      )
+    ) |>
+    dplyr::group_by(.data$league_code, .data$season) |>
+    dplyr::summarise(
+      n_actual = dplyr::n(),
+      n_expected = dplyr::first(.data$n_expected),
       coverage_pct = 100 * .data$n_actual / .data$n_expected,
       .groups = "drop"
     )
