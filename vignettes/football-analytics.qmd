@@ -115,6 +115,8 @@ of the "big five" European football countries.
 safe_tar_read("vig_pipeline_html")
 ```
 
+*Data pipeline: CSV download → parsing → validation → modelling → evaluation. Nodes link to package functions.*
+
 ```{r vig-data-source-summary}
 data_summary <- safe_tar_read("vig_data_source_summary")
 if (is.data.frame(data_summary)) {
@@ -552,6 +554,8 @@ and `evaluate_glm_baseline()` / `evaluate_dc()` iterate over them.
 safe_tar_read("vig_cv_html")
 ```
 
+*Walk-forward cross-validation: 24-month rolling training window, 1-month test.*
+
 ### GLM Poisson
 
 The baseline model is a
@@ -680,6 +684,8 @@ where $p$ is the model probability and $b$ is the decimal odds minus 1.
 #| output: asis
 safe_tar_read("vig_kelly_html")
 ```
+
+*Kelly staking decision tree: edge ≥ 3% and odds 1.50–10.00 triggers quarter-Kelly stake.*
 
 ```{r vig-kelly-stake-distribution}
 safe_tar_read("vig_kelly_stake_distribution")
