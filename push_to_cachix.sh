@@ -136,48 +136,67 @@ main() {
   # STEP 4: Pre-check then push ONLY this package
   log_step "Step 4/4: Pushing ONLY $PKG_NAME to johngavin cachix..."
 
-  # CRITICAL: Check johngavin specifically (not rstats-on-nix or cache.nixos.org)
-  # because cachix push uploads anything NOT in the TARGET cache, regardless of
-  # whether it exists elsewhere. This prevents accidental dep uploads.
-  log_info "Pre-check: verifying ALL closure paths are in johngavin..."
+  # Pre-check: only verify R packages (r-* store paths) are in johngavin OR
+  # rstats-on-nix. System packages (zlib, openssl, llvm, etc.) are skipped —
+  # they come from cache.nixos.org and are tiny quota cost even if re-uploaded.
+  log_info "Pre-check: verifying R package deps are in johngavin or rstats-on-nix..."
 
-  # Get the package store path hash for filtering
   PKG_HASH=$(basename "$RESULT" | cut -c1-32)
 
-  MISSING_IN_JG=0
+  TOTAL_CLOSURE=$(nix-store -qR "$RESULT" | wc -l | tr -d ' ')
+  R_PKG_COUNT=0
+  MISSING_R_PKGS=0
   MISSING_LIST=""
+
   for path in $(nix-store -qR "$RESULT"); do
-    HASH=$(basename "$path" | cut -c1-32)
-    # Skip our own package - it's what we're pushing
-    if [ "$HASH" = "$PKG_HASH" ]; then
-      continue
-    fi
+    BASENAME=$(basename "$path")
+    HASH=$(echo "$BASENAME" | cut -c1-32)
+    NAME=$(echo "$BASENAME" | cut -c34-)
+
+    # Skip our own package
+    [ "$HASH" = "$PKG_HASH" ] && continue
+
+    # Only check R packages (nix store names start with "r-")
+    [[ "$NAME" != r-* ]] && continue
+
+    R_PKG_COUNT=$((R_PKG_COUNT + 1))
+
+    # Check johngavin first
     JG_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
       --max-time 5 "https://johngavin.cachix.org/${HASH}.narinfo" 2>/dev/null || echo "000")
-    if [ "$JG_CODE" != "200" ]; then
-      MISSING_IN_JG=$((MISSING_IN_JG + 1))
-      MISSING_LIST="${MISSING_LIST}  ${path}\n"
+    if [ "$JG_CODE" = "200" ]; then
+      continue
     fi
+
+    # Not in johngavin — check rstats-on-nix (where standard R packages live)
+    RON_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+      --max-time 5 "https://rstats-on-nix.cachix.org/${HASH}.narinfo" 2>/dev/null || echo "000")
+    if [ "$RON_CODE" = "200" ]; then
+      continue
+    fi
+
+    # R package missing from BOTH caches — this is the real problem
+    MISSING_R_PKGS=$((MISSING_R_PKGS + 1))
+    MISSING_LIST="${MISSING_LIST}  ${path}\n"
   done
 
-  TOTAL_CLOSURE=$(nix-store -qR "$RESULT" | wc -l | tr -d ' ')
+  SYSTEM_COUNT=$((TOTAL_CLOSURE - R_PKG_COUNT - 1))
+  log_info "Closure: $TOTAL_CLOSURE paths ($R_PKG_COUNT R packages, $SYSTEM_COUNT system, 1 project)"
 
-  if [ "$MISSING_IN_JG" -gt 0 ]; then
-    log_error "ABORT: $MISSING_IN_JG of $TOTAL_CLOSURE closure paths are NOT in johngavin cache."
-    log_error "cachix push would upload these (quota waste, forbidden)."
+  if [ "$MISSING_R_PKGS" -gt 0 ]; then
+    log_error "ABORT: $MISSING_R_PKGS R packages not in johngavin OR rstats-on-nix."
+    log_error "This means package.nix date pin doesn't match rstats-on-nix builds."
     echo ""
-    log_info "Missing paths (first 10):"
-    echo -e "$MISSING_LIST" | head -10
+    log_info "Missing R packages:"
+    echo -e "$MISSING_LIST"
     echo ""
-    log_info "These deps should come from rstats-on-nix or cache.nixos.org."
-    log_info "To seed johngavin ONE TIME (if absolutely needed):"
-    log_info "  nix-store -qR '$RESULT' | cachix push johngavin"
-    log_info ""
-    log_info "Or update package.nix to use a nixpkgs pin where all deps are pre-built."
+    log_info "Fix: sync package.nix date pin with default.nix:"
+    log_info "  grep 'rstats-on-nix/nixpkgs/archive' default.nix package.nix"
     exit 4
   fi
 
-  log_success "All $((TOTAL_CLOSURE - 1)) dependency paths already in johngavin"
+  log_success "All $R_PKG_COUNT R package deps verified (in johngavin or rstats-on-nix)"
+  log_info "$SYSTEM_COUNT system deps skipped (from cache.nixos.org)"
   log_info "Pushing package (only $PKG_NAME will be uploaded)..."
 
   PUSH_LOG="/tmp/cachix-push-${PKG_NAME}.log"
