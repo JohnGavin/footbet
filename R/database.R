@@ -289,7 +289,8 @@ create_predictions_schema <- function(con) {
       clv_h           DOUBLE,
       clv_d           DOUBLE,
       clv_a           DOUBLE,
-      profit_loss     DOUBLE
+      profit_loss     DOUBLE,
+      UNIQUE (match_id, model_name)
     )
   ")
   invisible(con)
@@ -375,7 +376,8 @@ log_prediction <- function(con,
   DBI::dbExecute(con, "
     INSERT INTO predictions
     SELECT * FROM predictions_staging
-    ON CONFLICT (prediction_id) DO UPDATE SET
+    ON CONFLICT (match_id, model_name) DO UPDATE SET
+      prediction_id = EXCLUDED.prediction_id,
       prob_h = EXCLUDED.prob_h,
       prob_d = EXCLUDED.prob_d,
       prob_a = EXCLUDED.prob_a,
@@ -443,7 +445,7 @@ log_predictions_batch <- function(con, predictions_df) {
   n <- DBI::dbExecute(con, "
     INSERT INTO predictions
     SELECT * FROM predictions_staging
-    ON CONFLICT (prediction_id) DO NOTHING
+    ON CONFLICT (match_id, model_name) DO NOTHING
   ")
   DBI::dbExecute(con, "DROP TABLE IF EXISTS predictions_staging")
 
