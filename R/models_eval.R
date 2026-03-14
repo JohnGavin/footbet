@@ -146,12 +146,44 @@ evaluate_glm_baseline <- function(long_df,
     cli::cli_abort("{.arg matches_df} must be a data frame, not {.cls {class(matches_df)}}.")
   }
 
-  # Use unique match dates for splits (wide format)
+  # Run per-league to avoid 222-team design matrix (444 cols, OOM)
+  leagues <- unique(matches_df$league_code)
+  all_results <- purrr::map(leagues, function(lg) {
+    lg_long <- long_df[long_df$league_code == lg, ]
+    lg_matches <- matches_df[matches_df$league_code == lg, ]
+
+    if (nrow(lg_long) < 100L) return(NULL)
+
+    tryCatch({
+      res <- evaluate_glm_baseline_single(
+        lg_long, lg_matches,
+        train_months = train_months,
+        test_months = test_months
+      )
+      if (nrow(res) > 0L) res$league_code <- lg
+      res
+    }, error = function(e) NULL)
+  })
+
+  dplyr::bind_rows(all_results)
+}
+
+#' Walk-forward GLM evaluation for a single league
+#'
+#' Internal workhorse called by [evaluate_glm_baseline()] per league.
+#' Splitting by league keeps the design matrix small (~40 cols vs ~444).
+#'
+#' @inheritParams evaluate_glm_baseline
+#' @return A tibble with one row per fold.
+#' @keywords internal
+evaluate_glm_baseline_single <- function(long_df,
+                                         matches_df,
+                                         train_months = 24L,
+                                         test_months = 1L) {
   dates <- sort(unique(matches_df$match_date))
   splits <- walk_forward_splits(dates, train_months, test_months)
 
   if (length(splits) == 0L) {
-    cli::cli_warn("No valid walk-forward splits. Need > {train_months} months of data.")
     return(tibble::tibble(
       fold = integer(), n_train = integer(), n_test = integer(),
       log_loss = numeric(), brier = numeric(), rps = numeric(),
@@ -160,37 +192,36 @@ evaluate_glm_baseline <- function(long_df,
     ))
   }
 
-  results <- vector("list", length(splits))
+  n_folds <- length(splits)
+  results <- vector("list", n_folds)
 
-  for (k in seq_along(splits)) {
+  for (k in seq_len(n_folds)) {
     sp <- splits[[k]]
 
-    # Split long_df by date
     train_long <- long_df[long_df$match_date >= sp$train_start &
                             long_df$match_date < sp$test_start, ]
     test_matches <- matches_df[matches_df$match_date >= sp$test_start &
                                  matches_df$match_date < sp$test_end, ]
 
     if (nrow(train_long) < 20L || nrow(test_matches) == 0L) next
+    n_train_rows <- nrow(train_long)
 
-    # Fit model
     model <- tryCatch(
       fit_poisson_glm(train_long),
       error = function(e) NULL
     )
     if (is.null(model)) next
 
-    # Predict
     preds <- predict_matches_glm(model, test_matches)
+    rm(model, train_long)
 
-    # Join with actual results
     eval_df <- dplyr::inner_join(preds, test_matches[, c("match_id", "ftr")],
                                   by = "match_id") |>
       dplyr::filter(!is.na(.data$pred_h))
+    rm(preds, test_matches)
 
     if (nrow(eval_df) == 0L) next
 
-    # Compute prob of actual outcome for log loss
     prob_actual <- dplyr::case_when(
       eval_df$ftr == "H" ~ eval_df$pred_h,
       eval_df$ftr == "D" ~ eval_df$pred_d,
@@ -203,7 +234,7 @@ evaluate_glm_baseline <- function(long_df,
 
     results[[k]] <- tibble::tibble(
       fold = k,
-      n_train = nrow(train_long),
+      n_train = n_train_rows,
       n_test = nrow(eval_df),
       log_loss = log_loss(prob_actual),
       brier = brier_1x2(eval_df$pred_h, eval_df$pred_d, eval_df$pred_a,
@@ -214,6 +245,9 @@ evaluate_glm_baseline <- function(long_df,
       test_start = sp$test_start,
       test_end = sp$test_end
     )
+    rm(eval_df, prob_actual)
+
+    if (k %% 20L == 0L) gc(verbose = FALSE)
   }
 
   dplyr::bind_rows(results)

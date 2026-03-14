@@ -178,6 +178,12 @@ plan_xg_features <- list(
           n_folds = dplyr::n()
         )
 
+      # Guard: cv_xg_features may be empty if no xG data
+      if (!is.data.frame(cv_xg_features) || nrow(cv_xg_features) == 0L ||
+          !"log_loss" %in% names(cv_xg_features)) {
+        return(goals |> dplyr::mutate(log_loss_improvement = NA_real_))
+      }
+
       xg <- cv_xg_features |>
         dplyr::summarise(
           model = "xg_features",
@@ -189,13 +195,10 @@ plan_xg_features <- list(
 
       comparison <- dplyr::bind_rows(goals, xg)
 
-      # Add improvement metrics
-      if (nrow(xg) > 0 && nrow(goals) > 0) {
-        comparison$log_loss_improvement <- c(
-          NA,
-          (goals$mean_log_loss - xg$mean_log_loss) / goals$mean_log_loss * 100
-        )
-      }
+      comparison$log_loss_improvement <- c(
+        NA,
+        (goals$mean_log_loss - xg$mean_log_loss) / goals$mean_log_loss * 100
+      )
 
       comparison
     }

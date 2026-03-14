@@ -66,7 +66,8 @@ plan_models_brms <- list(
   targets::tar_target(
     brms_eval_summary,
     {
-      if (nrow(brms_cv) == 0L) {
+      # Guard: brms may not be available in Nix
+      if (!is.data.frame(brms_cv) || nrow(brms_cv) == 0L) {
         return(tibble::tibble(
           model = "brms_poisson",
           mean_log_loss = NA_real_,
@@ -84,23 +85,37 @@ plan_models_brms <- list(
   targets::tar_target(
     all_models_comparison,
     {
-      # Combine summaries
+      # All summaries use long format: metric, mean, median, sd, n_folds
       glm_sum <- glm_eval_summary |>
         dplyr::mutate(model = "glm_poisson", .before = 1)
 
       dc_sum <- dc_eval_summary |>
         dplyr::mutate(model = "dixon_coles", .before = 1)
 
-      pin_sum <- tibble::tibble(
-        model = "pinnacle",
-        mean_log_loss = pinnacle_eval$log_loss,
-        mean_brier = pinnacle_eval$brier,
-        mean_rps = pinnacle_eval$rps,
-        n_folds = 1L
-      )
+      # pinnacle_eval is metric/value format (no CV folds)
+      pin_sum <- pinnacle_eval |>
+        dplyr::transmute(
+          model = "pinnacle",
+          metric = metric,
+          mean = value,
+          median = value,
+          sd = NA_real_,
+          n_folds = 1L
+        )
 
-      dplyr::bind_rows(glm_sum, dc_sum, brms_eval_summary, pin_sum) |>
-        dplyr::arrange(mean_log_loss)
+      models <- list(glm_sum, dc_sum, pin_sum)
+
+      # Include brms only if it has real results
+      if (is.data.frame(brms_eval_summary) && nrow(brms_eval_summary) > 0L &&
+          "mean" %in% names(brms_eval_summary) &&
+          !all(is.na(brms_eval_summary$mean))) {
+        models <- c(models, list(
+          brms_eval_summary |>
+            dplyr::mutate(model = "brms_poisson", .before = 1)
+        ))
+      }
+
+      dplyr::bind_rows(models)
     }
   ),
 
@@ -108,11 +123,11 @@ plan_models_brms <- list(
   targets::tar_target(
     vig_pp_check_goals,
     {
-      if (is.null(brms_full_model)) {
+      if (is.null(brms_full_model) ||
+          !requireNamespace("brms", quietly = TRUE)) {
         return(NULL)
       }
 
-      # brms::pp_check returns a ggplot object
       brms::pp_check(brms_full_model, type = "bars", ndraws = 100) +
         ggplot2::labs(
           title = "Posterior Predictive Check: Goals Distribution",
@@ -129,11 +144,11 @@ plan_models_brms <- list(
   targets::tar_target(
     vig_shrinkage_plot,
     {
-      if (is.null(brms_full_model)) {
+      if (is.null(brms_full_model) ||
+          !requireNamespace("brms", quietly = TRUE)) {
         return(NULL)
       }
 
-      # Extract random effects
       ranef_df <- brms::ranef(brms_full_model)$team[, , "Intercept"]
       ranef_tbl <- tibble::tibble(
         team = rownames(ranef_df),
@@ -142,8 +157,6 @@ plan_models_brms <- list(
         re_upper = ranef_df[, "Q97.5"]
       )
 
-      # Get simple fixed effect estimates for comparison (from GLM)
-      # This is approximate - ideally we'd have a no-pooling model
       ranef_tbl |>
         dplyr::arrange(re_estimate) |>
         dplyr::mutate(team = factor(team, levels = team)) |>

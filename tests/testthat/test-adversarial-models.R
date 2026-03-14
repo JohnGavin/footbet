@@ -261,10 +261,8 @@ test_that("evaluate_glm_baseline: too few matches warns and returns empty", {
     season = "2324", league_code = "E0"
   )
   long <- matches_to_long(matches)
-  expect_warning(
-    result <- evaluate_glm_baseline(long, matches, train_months = 24L),
-    "No valid walk-forward splits"
-  )
+  # Per-league evaluation: too-short data returns empty tibble
+  result <- evaluate_glm_baseline(long, matches, train_months = 24L)
   expect_equal(nrow(result), 0L)
 })
 

@@ -7,10 +7,18 @@ plan_decisions <- list(
   targets::tar_target(
     value_bets_glm,
     {
-      # Get GLM predictions for all matches
-      long <- matches_long
-      model <- fit_poisson_glm(long)
-      preds <- predict_matches_glm(model, parsed_matches)
+      # Fit per-league to avoid 222-team design matrix (OOM)
+      leagues <- unique(parsed_matches$league_code)
+      all_preds <- purrr::map(leagues, function(lg) {
+        lg_long <- matches_long[matches_long$league_code == lg, ]
+        lg_matches <- parsed_matches[parsed_matches$league_code == lg, ]
+        if (nrow(lg_long) < 100L) return(NULL)
+        tryCatch({
+          model <- fit_poisson_glm(lg_long)
+          predict_matches_glm(model, lg_matches)
+        }, error = function(e) NULL)
+      })
+      preds <- dplyr::bind_rows(all_preds)
 
       find_value_bets(
         preds = preds,

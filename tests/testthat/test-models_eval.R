@@ -178,11 +178,8 @@ test_that("evaluate_glm_baseline returns empty for short data", {
   )
   long <- matches_to_long(matches)
 
-  # Expect warning about insufficient data for walk-forward splits
-  expect_warning(
-    result <- evaluate_glm_baseline(long, matches,
-                                     train_months = 24L, test_months = 1L),
-    "No valid walk-forward splits"
-  )
+  # Per-league evaluation: too-short data returns empty tibble
+  result <- evaluate_glm_baseline(long, matches,
+                                   train_months = 24L, test_months = 1L)
   expect_equal(nrow(result), 0L)
 })

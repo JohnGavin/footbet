@@ -17,11 +17,23 @@ fit_poisson_glm <- function(long_df) {
     cli::cli_abort("Missing columns: {.val {missing}}")
   }
 
-  stats::glm(
+  model <- stats::glm(
     goals ~ home + team + opponent,
     family = stats::poisson(),
-    data = long_df
+    data = long_df,
+    model = FALSE  # Don't store model frame (~54MB saved)
   )
+
+  # Strip heavy components not needed for predict()
+  model$residuals <- NULL
+  model$weights <- NULL
+  model$fitted.values <- NULL
+  model$prior.weights <- NULL
+  model$linear.predictors <- NULL
+  model$effects <- NULL
+  model$data <- long_df[, c("team", "opponent")]  # Keep only factor levels for predict
+
+  model
 }
 
 #' Predict score probabilities from a Poisson model
@@ -182,6 +194,7 @@ predict_matches_glm <- function(model, matches_df) {
   if (!inherits(model, "glm")) {
     cli::cli_abort("{.arg model} must be a {.cls glm} object, not {.cls {class(model)}}.")
   }
+
   rlang::check_required(matches_df)
 
   if (nrow(matches_df) == 0L) {
@@ -199,30 +212,81 @@ predict_matches_glm <- function(model, matches_df) {
   ))
 
   n <- nrow(matches_df)
+
+  # Filter to predictable matches (both teams in training data)
+  known <- matches_df$home_team %in% model_teams &
+    matches_df$away_team %in% model_teams
+  known_idx <- which(known)
+
   pred_h <- rep(NA_real_, n)
   pred_d <- rep(NA_real_, n)
   pred_a <- rep(NA_real_, n)
   pred_over25 <- rep(NA_real_, n)
   pred_under25 <- rep(NA_real_, n)
 
-  for (i in seq_len(n)) {
-    ht <- matches_df$home_team[i]
-    at <- matches_df$away_team[i]
+  if (length(known_idx) == 0L) {
+    return(tibble::tibble(
+      match_id = matches_df$match_id,
+      pred_h = pred_h, pred_d = pred_d, pred_a = pred_a,
+      pred_over25 = pred_over25, pred_under25 = pred_under25
+    ))
+  }
 
-    # Skip teams not in training data
-    if (!(ht %in% model_teams) || !(at %in% model_teams)) next
+  # Batch predict: build newdata for all known matches at once
+  nd_home <- data.frame(
+    home = 1L,
+    team = matches_df$home_team[known_idx],
+    opponent = matches_df$away_team[known_idx],
+    stringsAsFactors = FALSE
+  )
+  nd_away <- data.frame(
+    home = 0L,
+    team = matches_df$away_team[known_idx],
+    opponent = matches_df$home_team[known_idx],
+    stringsAsFactors = FALSE
+  )
 
-    p <- tryCatch(
-      predict_glm(model, ht, at),
-      error = function(e) NULL
-    )
-    if (is.null(p)) next
+  lambda_home <- tryCatch(
+    stats::predict(model, newdata = nd_home, type = "response"),
+    error = function(e) rep(NA_real_, length(known_idx))
+  )
+  lambda_away <- tryCatch(
+    stats::predict(model, newdata = nd_away, type = "response"),
+    error = function(e) rep(NA_real_, length(known_idx))
+  )
 
-    pred_h[i] <- p$probs_1x2[["H"]]
-    pred_d[i] <- p$probs_1x2[["D"]]
-    pred_a[i] <- p$probs_1x2[["A"]]
-    pred_over25[i] <- p$probs_ou25[["over"]]
-    pred_under25[i] <- p$probs_ou25[["under"]]
+  # Vectorized score matrix -> 1X2 and O/U computation
+  max_goals <- 7L
+  goals <- 0:max_goals
+
+  for (j in seq_along(known_idx)) {
+    lh <- lambda_home[j]
+    la <- lambda_away[j]
+    if (is.na(lh) || is.na(la)) next
+
+    p_home <- stats::dpois(goals, lh)
+    p_away <- stats::dpois(goals, la)
+    mat <- outer(p_home, p_away)
+    mat <- mat / sum(mat)
+
+    # 1X2 from score matrix (vectorized)
+    ng <- max_goals + 1L
+    row_idx <- rep(seq_len(ng), ng)
+    col_idx <- rep(seq_len(ng), each = ng)
+    ph <- sum(mat[row_idx > col_idx])
+    pd <- sum(mat[row_idx == col_idx])
+    pa <- sum(mat[row_idx < col_idx])
+
+    # O/U 2.5
+    total_goals <- rep(goals, ng) + rep(goals, each = ng)
+    p_over <- sum(mat[total_goals > 2.5])
+
+    idx <- known_idx[j]
+    pred_h[idx] <- ph
+    pred_d[idx] <- pd
+    pred_a[idx] <- pa
+    pred_over25[idx] <- p_over
+    pred_under25[idx] <- 1 - p_over
   }
 
   tibble::tibble(
