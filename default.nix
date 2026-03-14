@@ -111,21 +111,10 @@ let
 
     buildInputs = [ rpkgs goalmodel system_packages ];
 
-    # Fix nested nix-shell: filter R_LIBS_SITE to only packages
-    # built against this shell's R (prevents segfaults from ABI mismatch)
-    shellHook = ''
-      export R_LIBS_USER=""
-      THIS_R="$(${pkgs.R}/bin/R RHOME)"
-      CLEAN=""
-      IFS=':' read -ra PATHS <<< "$R_LIBS_SITE"
-      for p in "''${PATHS[@]}"; do
-        so="$(find "$p" -name '*.so' -maxdepth 3 2>/dev/null | head -1)"
-        if [ -z "$so" ] || otool -L "$so" 2>/dev/null | grep -q "$THIS_R"; then
-          CLEAN="''${CLEAN:+$CLEAN:}$p"
-        fi
-      done
-      export R_LIBS_SITE="$CLEAN"
-    '';
+    # Clear inherited R library paths from outer nix-shell.
+    # Nix's R setup hook will rebuild R_LIBS_SITE from buildInputs.
+    R_LIBS_SITE = "";
+    R_LIBS_USER = "";
 
   };
 in
