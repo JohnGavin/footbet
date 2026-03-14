@@ -350,11 +350,10 @@ wrap_mermaid_html <- function(mermaid_code, caption = NULL) {
   diagram <- paste0('<div class="mermaid">\n', mermaid_code, '\n</div>')
   if (!is.null(caption)) {
     html <- paste0(
-      '<figure style="text-align:center;">\n',
       diagram, '\n',
-      '<figcaption style="text-align:left;font-size:0.9em;color:#666;margin-top:0.5em;">',
+      '<p style="text-align:left;font-size:0.9em;color:#666;margin-top:0.5em;">',
       caption,
-      '</figcaption>\n</figure>'
+      '</p>'
     )
   } else {
     html <- diagram
