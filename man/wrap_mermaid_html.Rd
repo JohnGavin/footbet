@@ -4,10 +4,12 @@
 \alias{wrap_mermaid_html}
 \title{Wrap mermaid code in HTML div for vignettes}
 \usage{
-wrap_mermaid_html(mermaid_code)
+wrap_mermaid_html(mermaid_code, caption = NULL)
 }
 \arguments{
 \item{mermaid_code}{Character. Mermaid diagram code.}
+
+\item{caption}{Optional caption text displayed below the diagram.}
 }
 \value{
 Character with class "html" for auto-printing with output: asis.
