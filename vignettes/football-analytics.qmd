@@ -210,12 +210,16 @@ the following columns:
 | `hy` / `ay` | Home/away yellow cards ([HY/AY](#match-statistics)) | integer |
 | `hr` / `ar` | Home/away red cards ([HR/AR](#match-statistics)) | integer |
 
+: Columns produced by `parse_fd_csv()`. Cross-references link to the Glossary. {.striped}
+
 `footbet::parse_fd_odds()` extracts Pinnacle closing odds:
 
 | Column | Description |
 |--------|-------------|
 | `psh` / `psd` / `psa` | Pinnacle closing 1X2 odds (Home/Draw/Away) |
 | `p_over25` / `p_under25` | Pinnacle over/under 2.5 goals odds |
+
+: Columns produced by `parse_fd_odds()`. Pinnacle odds serve as the sharp-market benchmark. {.striped}
 
 ## Cleaning
 
@@ -766,6 +770,8 @@ stake needed to win 100 units. Standard in the United States.
 | Fractional 3/2 | Win 3 per 2 staked | 40% (2/(2+3)) |
 | American +150 | Win 150 per 100 staked | 40% (100/(100+150)) |
 | American -200 | Stake 200 to win 100 | 66.7% (200/(200+100)) |
+
+: Odds format conversions and implied probabilities. All examples show the same 40% implied probability. {.striped}
 
 :::
 

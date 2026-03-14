@@ -13,19 +13,28 @@ plan_vignette_outputs <- list(
   # Pipeline diagram for vignettes (HTML div for mermaid.js CDN rendering)
   targets::tar_target(
     vig_pipeline_html,
-    wrap_mermaid_html(generate_data_pipeline_mermaid(here::here()))
+    wrap_mermaid_html(
+      generate_data_pipeline_mermaid(here::here()),
+      caption = "Data pipeline: CSV download \u2192 parsing \u2192 validation \u2192 modelling \u2192 evaluation. Nodes link to package functions."
+    )
   ),
 
   # Walk-forward CV diagram for vignettes
   targets::tar_target(
     vig_cv_html,
-    wrap_mermaid_html(generate_cv_walkforward_mermaid(here::here()))
+    wrap_mermaid_html(
+      generate_cv_walkforward_mermaid(here::here()),
+      caption = "Walk-forward cross-validation: 24-month rolling training window, 1-month test. Each fold fits GLM and Dixon-Coles per league."
+    )
   ),
 
   # Kelly decision tree for vignettes
   targets::tar_target(
     vig_kelly_html,
-    wrap_mermaid_html(generate_kelly_decision_mermaid(here::here()))
+    wrap_mermaid_html(
+      generate_kelly_decision_mermaid(here::here()),
+      caption = "Kelly staking decision tree: edge \u2265 3% and odds 1.50\u201310.00 triggers quarter-Kelly stake with 3% max and 20% drawdown halt."
+    )
   ),
 
   # Pipeline diagram for README.md (fenced mermaid for GitHub)
