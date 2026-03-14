@@ -18,7 +18,6 @@ setup_nix_libs <- function() {
     "targets",
     "tarchetypes", 
     "crew",
-    "vetiver",
     "worldfootballR"
   )
   

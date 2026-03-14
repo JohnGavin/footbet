@@ -85,7 +85,6 @@ let
       tibble
       tidyr
       usethis
-      vetiver
       withr
       worldfootballR;
   };
