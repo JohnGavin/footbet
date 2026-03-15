@@ -1,0 +1,231 @@
+---
+title: "Models & Betting Strategy"
+subtitle: "Walk-forward CV, value bets, Kelly staking"
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    page-layout: full
+    code-fold: true
+    include-in-header:
+      text: |
+        <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+        <script>
+          mermaid.initialize({
+            startOnLoad: true,
+            securityLevel: 'loose',
+            theme: 'dark',
+            themeVariables: {
+              background: '#000000',
+              primaryColor: '#999999',
+              primaryTextColor: '#000000',
+              primaryBorderColor: '#CC0000',
+              lineColor: '#CC0000',
+              secondaryColor: '#333333',
+              tertiaryColor: '#333333'
+            }
+          });
+        </script>
+vignette: >
+  %\VignetteIndexEntry{Models & Betting Strategy}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(targets)
+library(htmltools)
+library(DT)
+library(dplyr)
+
+if (file.exists(here::here("_targets"))) {
+  tar_config_set(store = here::here("_targets"))
+}
+
+safe_tar_read <- function(name) {
+  result <- tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+  if (is.null(result)) {
+    rds_path <- system.file(file.path("extdata", "vignettes", paste0(name, ".rds")), package = "footbet")
+    if (!nzchar(rds_path) || !file.exists(rds_path))
+      rds_path <- here::here("inst", "extdata", "vignettes", paste0(name, ".rds"))
+    if (file.exists(rds_path)) result <- readRDS(rds_path)
+  }
+  if (is.null(result)) {
+    htmltools::div(style = "background: #dc3545; color: white; padding: 1em; border-radius: 4px;",
+      htmltools::p(paste0("[MISSING EVIDENCE] Target `", name, "` not found.")))
+  } else result
+}
+```
+
+Part 4 of the [footbet](https://johngavin.github.io/footbet/) analytics guide.
+See also: [Data Sources](data-sources.html) |
+[Data Cleaning](data-cleaning.html) | [EDA](eda.html) |
+[Glossary](glossary.html)
+
+## Cross-Validation
+
+Football data is time-ordered, so standard k-fold CV would leak future
+information. The pipeline uses **walk-forward** (expanding window) splits:
+
+- **Training window**: 24 months of historical matches
+- **Test window**: 1 month of subsequent matches
+- The window slides forward by 1 month for each fold
+
+```{r vig-cv-diagram}
+#| echo: false
+#| output: asis
+safe_tar_read("vig_cv_html")
+```
+
+## GLM Poisson
+
+The baseline model is a
+[Poisson regression](https://en.wikipedia.org/wiki/Poisson_regression)
+for goal counts, following Maher (1982):
+
+$$\text{goals}_{ij} \sim \text{Poisson}(\lambda_{ij})$$
+
+$$\log(\lambda_{ij}) = \mu + \alpha_i + \beta_j + \gamma \cdot \mathbb{1}[\text{home}]$$
+
+where $\alpha_i$ is team $i$'s attack strength, $\beta_j$ is team $j$'s
+defence weakness, and $\gamma$ captures home advantage.
+
+## Dixon-Coles
+
+Dixon & Coles (1997) extend the Poisson model with:
+
+1. **Correlation correction**: A parameter $\rho$ adjusts the joint
+   probability of low-scoring outcomes (0-0, 1-0, 0-1, 1-1)
+2. **Time-decay weights**: Recent matches receive higher weight via
+   exponential decay ($\xi = 0.003$, ~1-year half-life)
+
+## CV Metrics
+
+Log-loss, Brier score, and RPS per CV fold for both models, with Pinnacle
+as benchmark. All are **proper scoring rules** --- lower is better.
+
+```{r vig-cv-metrics-plot}
+safe_tar_read("vig_cv_metrics_plot")
+```
+
+```{r vig-model-comparison-test}
+safe_tar_read("vig_model_comparison_test")
+```
+
+::: {.callout-note}
+**Key Finding:** Dixon-Coles slightly outperforms GLM. Both models trail
+Pinnacle on most folds.
+:::
+
+## Model Comparison
+
+```{r vig-model-comparison-table}
+model_comp <- safe_tar_read("vig_model_comparison_table")
+if (is.data.frame(model_comp)) {
+  model_comp |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Model comparison. Lower scores = better. Positive edge = outperforms Pinnacle."
+      ),
+      options = list(pageLength = 10, dom = "t")
+    )
+} else {
+  model_comp
+}
+```
+
+## Value Bets
+
+A **value bet** exists when the model's estimated probability exceeds the
+market's implied probability by a minimum edge threshold:
+
+- **Minimum edge**: 3% (model_prob - market_prob > 0.03)
+- **Odds filter**: Only bets between 1.50 and 10.00 decimal odds
+- **Devigged odds**: Market probabilities via Shin (1993) method
+
+```{r vig-value-bets-summary}
+vb_summary <- safe_tar_read("vig_value_bets_summary")
+if (is.data.frame(vb_summary)) {
+  vb_summary |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Value bet summary by outcome and league. Edge = model prob - market prob."
+      ),
+      filter = "top",
+      options = list(pageLength = 15, dom = "Bfrtip")
+    )
+} else {
+  vb_summary
+}
+```
+
+```{r vig-edge-distribution}
+safe_tar_read("vig_edge_distribution")
+```
+
+::: {.callout-note}
+**Key Finding:** Most edges cluster at 3-8%. Large edges (>15%) are rare and
+may signal model error.
+:::
+
+## Kelly Staking
+
+The pipeline uses **quarter Kelly** staking with guardrails:
+
+$$f^* = \frac{1}{4} \cdot \frac{p \cdot (b + 1) - 1}{b}$$
+
+- **Max stake**: 3% of current bankroll per bet
+- **Drawdown halt**: Stakes halved when bankroll drops 20% from peak
+
+```{r vig-kelly-diagram}
+#| echo: false
+#| output: asis
+safe_tar_read("vig_kelly_html")
+```
+
+```{r vig-kelly-stake-distribution}
+safe_tar_read("vig_kelly_stake_distribution")
+```
+
+## P&L Simulation
+
+The bankroll curve below shows the simulated profit & loss trajectory for all
+GLM value bets, staked with quarter Kelly and drawdown guardrails.
+
+```{r vig-pnl-curve}
+safe_tar_read("vig_pnl_curve")
+```
+
+```{r vig-drawdown-plot}
+safe_tar_read("vig_drawdown_plot")
+```
+
+::: {.callout-note}
+**Key Finding:** Trajectory depends on model accuracy and market conditions.
+Maximum drawdown is the key risk metric.
+:::
+
+### Summary
+
+```{r vig-pnl-summary-table}
+pnl_summary <- safe_tar_read("vig_pnl_summary_table")
+if (is.data.frame(pnl_summary)) {
+  pnl_summary |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "P&L summary. ROI = total profit / total staked. Sharpe = risk-adjusted return."
+      ),
+      options = list(pageLength = 10, dom = "t")
+    )
+} else {
+  pnl_summary
+}
+```

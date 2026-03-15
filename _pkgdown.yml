@@ -89,7 +89,10 @@ articles:
   - title: Guide
     navbar: Guide
     contents:
-      - football-analytics
+      - data-sources
+      - data-cleaning
+      - eda
+      - models-betting
   - title: Reference
     contents:
       - glossary

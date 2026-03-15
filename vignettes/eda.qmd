@@ -1,0 +1,223 @@
+---
+title: "Exploratory Data Analysis"
+subtitle: "Statistical patterns in European football"
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    page-layout: full
+    code-fold: true
+vignette: >
+  %\VignetteIndexEntry{Exploratory Data Analysis}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(targets)
+library(htmltools)
+library(DT)
+library(dplyr)
+
+if (file.exists(here::here("_targets"))) {
+  tar_config_set(store = here::here("_targets"))
+}
+
+safe_tar_read <- function(name) {
+  result <- tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+  if (is.null(result)) {
+    rds_path <- system.file(file.path("extdata", "vignettes", paste0(name, ".rds")), package = "footbet")
+    if (!nzchar(rds_path) || !file.exists(rds_path))
+      rds_path <- here::here("inst", "extdata", "vignettes", paste0(name, ".rds"))
+    if (file.exists(rds_path)) result <- readRDS(rds_path)
+  }
+  if (is.null(result)) {
+    htmltools::div(style = "background: #dc3545; color: white; padding: 1em; border-radius: 4px;",
+      htmltools::p(paste0("[MISSING EVIDENCE] Target `", name, "` not found.")))
+  } else result
+}
+```
+
+Part 3 of the [footbet](https://johngavin.github.io/footbet/) analytics guide.
+See also: [Data Sources](data-sources.html) |
+[Data Cleaning](data-cleaning.html) | [Models & Betting](models-betting.html) |
+[Glossary](glossary.html)
+
+This section explores key statistical patterns in European football match
+data across 10 leagues and multiple seasons.
+
+## Goal Distributions
+
+Football goals are often modelled as
+[Poisson-distributed](https://en.wikipedia.org/wiki/Poisson_distribution)
+random variables. The chart below compares the observed goal distribution
+against a Poisson overlay for home and away teams.
+
+```{r vig-goals-distribution}
+safe_tar_read("vig_goals_distribution")
+```
+
+```{r vig-poisson-test}
+safe_tar_read("vig_poisson_test")
+```
+
+::: {.callout-note}
+**Key Finding:** Home teams score slightly more than away teams (home
+advantage). The Poisson distribution is a reasonable first approximation,
+though it underpredicts 0-0 draws and some high-scoring outcomes.
+:::
+
+## Result Proportions
+
+Home advantage is a well-documented phenomenon in football. The chart below
+shows the proportion of Home wins, Draws, and Away wins by league, compared
+to a uniform 33/33/33 baseline.
+
+```{r vig-result-proportions}
+safe_tar_read("vig_result_proportions")
+```
+
+::: {.callout-note}
+**Key Finding:** Home win rate ranges 43-47% across leagues. Draws: 25-28%.
+Away wins: 27-30%. All leagues show significant home advantage.
+:::
+
+## Home Advantage Trends
+
+Home advantage has declined in recent years, with a notable drop during the
+COVID-19 pandemic (2020-21 season) when matches were played in empty stadiums.
+
+```{r vig-home-advantage-by-league}
+safe_tar_read("vig_home_advantage_by_league")
+```
+
+```{r vig-home-trend-test}
+safe_tar_read("vig_home_trend_test")
+```
+
+::: {.callout-note}
+**Key Finding:** COVID seasons (2020-21) show reduced home advantage across
+all leagues. Post-COVID recovery varies by league.
+:::
+
+## Common Scorelines
+
+The heatmap below shows the frequency of each scoreline (home goals x away
+goals). Hover over cells to see exact percentages.
+
+```{r vig-scoreline-heatmap}
+safe_tar_read("vig_scoreline_heatmap")
+```
+
+::: {.callout-note}
+**Key Finding:** 1-0 (~12%), 1-1 (~11%), 2-1 (~10%) are most common.
+Scorelines above 4-4 are extremely rare (<0.5% combined).
+:::
+
+## Goals Per Season
+
+Is scoring increasing over time? The chart below tracks mean total goals
+per match by season and league.
+
+```{r vig-goals-per-season-trend}
+safe_tar_read("vig_goals_per_season_trend")
+```
+
+::: {.callout-note}
+**Key Finding:** Slight upward trend since 2015 in most leagues. Bundesliga
+consistently among highest-scoring (~3.0 goals/match).
+:::
+
+## Outliers
+
+Matches with more than 7 total goals are rare outliers. These are worth
+inspecting for data quality and as edge cases for model robustness.
+
+```{r vig-outlier-matches}
+outliers <- safe_tar_read("vig_outlier_matches")
+if (is.data.frame(outliers)) {
+  outliers |>
+    dplyr::select(-match_id) |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "High-scoring matches (>7 goals). ~0.1% of all matches."
+      ),
+      filter = "top",
+      options = list(pageLength = 10, dom = "Bfrtip")
+    )
+} else {
+  outliers
+}
+```
+
+## Match Statistics
+
+Median match statistics (shots, corners, fouls, cards) by league.
+See [Glossary > Match Statistics](glossary.html#match-statistics) for variable definitions.
+
+```{r vig-typical-match-stats}
+match_stats <- safe_tar_read("vig_typical_match_stats")
+if (is.data.frame(match_stats)) {
+  match_stats |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Median match statistics by league. HS/AS = shots, HC/AC = corners, HY/AY = yellow cards."
+      ),
+      filter = "top",
+      options = list(pageLength = 15, dom = "Bfrtip", scrollX = TRUE)
+    )
+} else {
+  match_stats
+}
+```
+
+## Pinnacle Overround
+
+The [overround](https://en.wikipedia.org/wiki/Vigorish) is the bookmaker's
+built-in margin. Pinnacle's margin (~2-4%) is the lowest in the industry.
+
+```{r vig-overround-by-league}
+safe_tar_read("vig_overround_by_league")
+```
+
+::: {.callout-note}
+**Key Finding:** Pinnacle margin is ~2-4%, far below soft bookmakers (5-15%).
+Consistent across all leagues.
+:::
+
+## Pinnacle Calibration
+
+A well-calibrated bookmaker's implied probabilities should match actual outcome
+frequencies.
+
+```{r vig-odds-vs-result}
+safe_tar_read("vig_odds_vs_result")
+```
+
+::: {.callout-note}
+**Key Finding:** Pinnacle is near-perfectly calibrated (points near diagonal).
+Slight favourite-longshot bias at extremes.
+:::
+
+## Elo Ratings
+
+[Elo ratings](https://en.wikipedia.org/wiki/Elo_rating_system) quantify
+relative team strength, updated match-by-match with
+[COOPER/FiveThirtyEight enhancements](https://www.natesilver.net/p/introducing-cooper-silver-bulletins):
+dynamic K-factor, margin weighting, league reversion, and asymmetric wins.
+
+```{r vig-elo-spread-plot}
+safe_tar_read("vig_elo_spread_plot")
+```
+
+::: {.callout-note}
+**Key Finding:** Top divisions have wider Elo spreads (more competitive
+imbalance). Division 2 leagues show more compressed rating distributions.
+:::

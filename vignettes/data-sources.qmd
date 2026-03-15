@@ -1,0 +1,209 @@
+---
+title: "Data Sources & Coverage"
+subtitle: "Football-data.co.uk CSV pipeline"
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    page-layout: full
+    code-fold: true
+    include-in-header:
+      text: |
+        <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+        <script>
+          mermaid.initialize({
+            startOnLoad: true,
+            securityLevel: 'loose',
+            theme: 'dark',
+            themeVariables: {
+              background: '#000000',
+              primaryColor: '#999999',
+              primaryTextColor: '#000000',
+              primaryBorderColor: '#CC0000',
+              lineColor: '#CC0000',
+              secondaryColor: '#333333',
+              tertiaryColor: '#333333'
+            }
+          });
+        </script>
+vignette: >
+  %\VignetteIndexEntry{Data Sources & Coverage}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE, message = FALSE, warning = FALSE
+)
+library(targets)
+library(htmltools)
+library(DT)
+library(dplyr)
+
+if (file.exists(here::here("_targets"))) {
+  tar_config_set(store = here::here("_targets"))
+}
+
+safe_tar_read <- function(name) {
+  result <- tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+  if (is.null(result)) {
+    rds_path <- system.file(
+      file.path("extdata", "vignettes", paste0(name, ".rds")),
+      package = "footbet"
+    )
+    if (!nzchar(rds_path) || !file.exists(rds_path)) {
+      rds_path <- here::here("inst", "extdata", "vignettes", paste0(name, ".rds"))
+    }
+    if (file.exists(rds_path)) result <- readRDS(rds_path)
+  }
+  if (is.null(result)) {
+    htmltools::div(
+      style = "background: #dc3545; color: white; padding: 1em; border-radius: 4px;",
+      htmltools::p(paste0("[MISSING EVIDENCE] Target `", name, "` not found.")),
+      htmltools::p("Run `targets::tar_make()` to build vignette outputs.",
+                   style = "font-weight: normal; font-size: 0.9em;")
+    )
+  } else {
+    result
+  }
+}
+```
+
+Part 1 of the [footbet](https://johngavin.github.io/footbet/) analytics guide.
+See also: [Data Cleaning](data-cleaning.html) |
+[EDA](eda.html) | [Models & Betting](models-betting.html) |
+[Glossary](glossary.html)
+
+The [footbet](https://johngavin.github.io/footbet/) package downloads match
+data from [football-data.co.uk](https://www.football-data.co.uk/), a free
+source of European football results and bookmaker odds maintained since the
+mid-1990s. Each CSV file contains one league-season and includes full-time and
+half-time scores, match statistics (shots, corners, cards), and closing odds
+from multiple bookmakers including
+[Pinnacle](https://en.wikipedia.org/wiki/Pinnacle_(sportsbook)) --- widely
+regarded as the sharpest bookmaker in the industry.
+
+The URL pattern is `https://www.football-data.co.uk/mmz4281/{season}/{league}.csv`,
+where `{season}` is a 4-digit code (e.g., `2324` for 2023-24) and `{league}`
+is a 2-character code (e.g., `E0` for the English Premier League).
+
+`footbet::target_leagues()` returns 10 leagues covering the top 2 divisions
+of the "big five" European football countries.
+
+## Data Pipeline Overview
+
+```{r vig-pipeline-diagram}
+#| echo: false
+#| output: asis
+safe_tar_read("vig_pipeline_html")
+```
+
+## Data Coverage
+
+```{r vig-data-source-summary}
+data_summary <- safe_tar_read("vig_data_source_summary")
+if (is.data.frame(data_summary)) {
+  data_summary |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Data coverage by league. 10 leagues across 5 countries, top 2 divisions each."
+      ),
+      options = list(pageLength = 15, dom = "t")
+    )
+} else {
+  data_summary
+}
+```
+
+## Coverage Grid
+
+The grid below shows the number of parsed matches per league-season cell.
+Zeroes indicate seasons where the CSV was unavailable or empty.
+
+```{r vig-league-season-grid}
+grid <- safe_tar_read("vig_league_season_grid")
+if (is.data.frame(grid)) {
+  grid |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Matches per league-season. 0 = data unavailable. ~380 for Div 1, ~460+ for Div 2."
+      ),
+      options = list(pageLength = 15, dom = "t", scrollX = TRUE)
+    )
+} else {
+  grid
+}
+```
+
+```{r vig-matches-per-season-plot}
+safe_tar_read("vig_matches_per_season_plot")
+```
+
+::: {.callout-note}
+**Key Finding:** Division 1 leagues (E0, D1, I1, SP1, F1) have ~380
+matches/season. Division 2 leagues have more (~460-550 matches/season).
+:::
+
+## Pinnacle Odds
+
+Not all leagues and seasons have Pinnacle odds. The table below shows the
+percentage of matches with complete Pinnacle 1X2 closing odds (PSH, PSD, PSA)
+and over/under odds.
+
+```{r vig-odds-columns-available}
+odds_avail <- safe_tar_read("vig_odds_columns_available")
+if (is.data.frame(odds_avail)) {
+  odds_avail |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Pinnacle odds coverage. pct_1x2 = % with home/draw/away odds. pct_over_under = % with O/U 2.5."
+      ),
+      filter = "top",
+      options = list(pageLength = 15, dom = "Bfrtip", scrollX = TRUE)
+    )
+} else {
+  odds_avail
+}
+```
+
+## Column Schema
+
+After parsing, `footbet::parse_fd_csv()` produces a standardised tibble with
+the following columns:
+
+| Column | Description | Type |
+|--------|-------------|------|
+| `match_id` | Deterministic ID: `league_date_home_away` | character |
+| `league_code` | 2-char league code (e.g., E0, D1) | character |
+| `season` | 4-digit season code (e.g., 2324) | character |
+| `match_date` | Match date | Date |
+| `home_team` / `away_team` | Team names | character |
+| `fthg` / `ftag` | Full-time home/away goals | integer |
+| `ftr` | Full-time result: H, D, or A | character |
+| `hthg` / `htag` | Half-time home/away goals | integer |
+| `htr` | Half-time result | character |
+| `hs` / `as_` | Home/away shots | integer |
+| `hst` / `ast` | Home/away shots on target | integer |
+| `hf` / `af` | Home/away fouls | integer |
+| `hc` / `ac` | Home/away corners | integer |
+| `hy` / `ay` | Home/away yellow cards | integer |
+| `hr` / `ar` | Home/away red cards | integer |
+
+: Columns produced by `parse_fd_csv()`. See [Glossary](glossary.html#data-terminology) for definitions. {.striped}
+
+`footbet::parse_fd_odds()` extracts Pinnacle closing odds:
+
+| Column | Description |
+|--------|-------------|
+| `psh` / `psd` / `psa` | Pinnacle closing 1X2 odds (Home/Draw/Away) |
+| `p_over25` / `p_under25` | Pinnacle over/under 2.5 goals odds |
+
+: Columns produced by `parse_fd_odds()`. Pinnacle odds serve as the sharp-market benchmark. {.striped}

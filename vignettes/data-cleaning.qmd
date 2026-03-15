@@ -1,0 +1,159 @@
+---
+title: "Data Cleaning & QC"
+subtitle: "Automated quality control pipeline"
+format:
+  html:
+    theme:
+      light: flatly
+      dark: darkly
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    page-layout: full
+    code-fold: true
+vignette: >
+  %\VignetteIndexEntry{Data Cleaning & QC}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(targets)
+library(htmltools)
+library(DT)
+library(dplyr)
+
+if (file.exists(here::here("_targets"))) {
+  tar_config_set(store = here::here("_targets"))
+}
+
+safe_tar_read <- function(name) {
+  result <- tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+  if (is.null(result)) {
+    rds_path <- system.file(file.path("extdata", "vignettes", paste0(name, ".rds")), package = "footbet")
+    if (!nzchar(rds_path) || !file.exists(rds_path))
+      rds_path <- here::here("inst", "extdata", "vignettes", paste0(name, ".rds"))
+    if (file.exists(rds_path)) result <- readRDS(rds_path)
+  }
+  if (is.null(result)) {
+    htmltools::div(style = "background: #dc3545; color: white; padding: 1em; border-radius: 4px;",
+      htmltools::p(paste0("[MISSING EVIDENCE] Target `", name, "` not found.")))
+  } else result
+}
+```
+
+Part 2 of the [footbet](https://johngavin.github.io/footbet/) analytics guide.
+See also: [Data Sources](data-sources.html) |
+[EDA](eda.html) | [Models & Betting](models-betting.html) |
+[Glossary](glossary.html)
+
+The footbet pipeline includes automated quality control checks that run after
+data parsing. This section summarises the QC outputs.
+
+## Match Completeness
+
+The chart below shows the percentage of matches per league-season with a
+valid full-time result (FTR). A value below 100% indicates matches where the
+result is missing --- typically from ongoing or postponed fixtures in the current
+season.
+
+```{r vig-completeness-plot}
+safe_tar_read("vig_completeness_plot")
+```
+
+::: {.callout-note}
+**Key Finding:** Most historical league-seasons achieve 100% completeness.
+Current season shows partial data (matches not yet played).
+:::
+
+## Pinnacle Coverage
+
+Pinnacle odds are the primary benchmark for model evaluation. The chart
+shows the percentage of matches with all three Pinnacle 1X2 closing odds
+present.
+
+Coverage gaps arise from:
+
+- **Division 2 leagues**: Pinnacle may not offer odds for lower divisions
+- **Feed breaks**: The football-data.co.uk Pinnacle feed experienced a break
+  from mid-2025
+- **Early seasons**: Pinnacle data availability improves in more recent seasons
+
+```{r vig-pinnacle-coverage-plot}
+safe_tar_read("vig_pinnacle_coverage_plot")
+```
+
+::: {.callout-note}
+**Key Finding:** Top divisions have near-100% coverage from ~2016 onward.
+Division 2 coverage is variable. 0% coverage indicates feed breaks or no
+Pinnacle market.
+:::
+
+## Missing Data
+
+The chart below shows the percentage of missing values for each
+column across all parsed matches. Match statistics (shots, corners, cards) are
+more frequently missing than core fields.
+
+```{r vig-missing-data-by-column}
+safe_tar_read("vig_missing_data_heatmap")
+```
+
+The table below provides detailed missing counts with variable descriptions.
+See [Glossary > Data Terminology](glossary.html#data-terminology) for full definitions.
+
+```{r vig-missing-data-table}
+missing_data <- safe_tar_read("vig_missing_data_by_column")
+if (is.data.frame(missing_data)) {
+  missing_data |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Missing data by column. Match statistics often unavailable in older seasons."
+      ),
+      filter = "top",
+      options = list(pageLength = 15, dom = "Bfrtip")
+    )
+} else {
+  missing_data
+}
+```
+
+## Anomaly Detection
+
+The pipeline flags matches with:
+
+- **Extreme scorelines**: Total goals > 10 (very rare, may indicate data entry errors)
+- **Missing dates**: Matches without a parseable date
+- **Future matches**: Dates more than 7 days beyond the pipeline run date
+- **Missing team names**: Rows with NA home or away team
+
+```{r vig-anomalies-table}
+anomalies <- safe_tar_read("vig_anomalies_table")
+if (is.data.frame(anomalies) && nrow(anomalies) > 0) {
+  anomalies |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "Flagged anomalies for manual review. Empty table = no anomalies detected."
+      ),
+      filter = "top",
+      options = list(pageLength = 10, dom = "Bfrtip")
+    )
+} else if (is.data.frame(anomalies)) {
+  htmltools::div(
+    style = "background: #28a745; color: white; padding: 1em; border-radius: 4px;",
+    "No anomalies detected in the dataset."
+  )
+} else {
+  anomalies
+}
+```
+
+## QC Summary
+
+The `qc_summary` target combines all QC checks into a single report. The
+pipeline computes total matches parsed, odds rows, completeness percentage,
+Pinnacle coverage, and anomaly count. These targets serve as data
+contracts --- downstream model targets depend on QC to ensure data quality.
