@@ -18,7 +18,16 @@ format:
           mermaid.initialize({
             startOnLoad: true,
             securityLevel: 'loose',
-            theme: 'default'
+            theme: 'dark',
+            themeVariables: {
+              background: '#000000',
+              primaryColor: '#999999',
+              primaryTextColor: '#000000',
+              primaryBorderColor: '#CC0000',
+              lineColor: '#CC0000',
+              secondaryColor: '#333333',
+              tertiaryColor: '#333333'
+            }
           });
         </script>
 vignette: >

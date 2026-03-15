@@ -122,7 +122,9 @@ theme_dark_plotly <- function(p, title = NULL) {
     )
   }
 
-  do.call(plotly::layout, c(list(p = p), layout_args))
+  result <- do.call(plotly::layout, c(list(p = p), layout_args))
+  # Reduce JS bundle size — only include trace types actually used
+  plotly::partial_bundle(result)
 }
 
 

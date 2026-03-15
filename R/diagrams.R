@@ -348,11 +348,26 @@ flowchart TD
 #' @family diagrams
 #' @export
 wrap_mermaid_html <- function(mermaid_code, caption = NULL) {
-  diagram <- paste0('<div class="mermaid">\n', mermaid_code, '\n</div>')
+  # Inject dark theme with high-contrast colors:
+  # black background, gray-60 nodes, red arrows/borders, black text
+  theme_init <- paste0(
+    "%%{init: {'theme': 'dark', 'themeVariables': {",
+    "'background': '#000000',",
+    "'primaryColor': '#999999',",
+    "'primaryTextColor': '#000000',",
+    "'primaryBorderColor': '#CC0000',",
+    "'lineColor': '#CC0000',",
+    "'secondaryColor': '#333333',",
+    "'tertiaryColor': '#333333'",
+    "}}}%%"
+  )
+  themed_code <- paste0(theme_init, "\n", mermaid_code)
+  diagram <- paste0('<div class="mermaid">\n', themed_code, '\n</div>')
   if (!is.null(caption)) {
     html <- paste0(
       diagram, '\n',
-      '<p style="text-align:left;font-size:0.9em;color:#666;margin-top:0.5em;">',
+      '<p style="text-align:left;font-size:0.9em;color:#cccccc;',
+      'margin-top:0.5em;user-select:text;-webkit-user-select:text;">',
       caption,
       '</p>'
     )
