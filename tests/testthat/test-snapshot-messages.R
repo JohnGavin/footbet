@@ -34,12 +34,12 @@ test_that("log_predictions_batch: error on missing columns", {
 
 test_that("tm_get_suspensions removed warning", {
   # The function should warn that tm_get_suspensions is no longer available
-  # Only test if worldfootballR is installed but function is missing
   skip_if_not_installed("worldfootballR")
   if (!exists("tm_get_suspensions", asNamespace("worldfootballR"))) {
-    expect_snapshot({
-      result <- fetch_league_suspensions("E0", 2024)
-    })
+    expect_warning(
+      fetch_league_suspensions("E0", 2024),
+      "no longer available"
+    )
   }
 })
 
