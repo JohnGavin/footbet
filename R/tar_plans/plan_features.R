@@ -25,14 +25,18 @@ plan_features <- list(
     matches_to_long(parsed_matches)
   ),
 
-  # Elo ratings per league
+  # Elo ratings per league (match-by-match with dynamic K and margin adjustment)
   targets::tar_target(
     elo_ratings,
     {
       leagues <- unique(parsed_matches$league_code)
       dfs <- lapply(leagues, function(lc) {
         league_matches <- dplyr::filter(parsed_matches, league_code == lc)
-        ratings <- compute_elo(league_matches)
+        ratings <- compute_elo(
+          league_matches,
+          dynamic_k = TRUE, k_start = 40, k_end = 20,
+          margin_k = TRUE
+        )
         ratings$league_code <- lc
         ratings
       })
@@ -80,15 +84,17 @@ plan_features <- list(
         dplyr::left_join(away_roll,
           by = c("away_team" = "team", "match_date" = "match_date"))
 
-      # Join Elo ratings
+      # Join Elo ratings (match-by-match, keyed on team + date + league)
       fm <- fm |>
         dplyr::left_join(
           dplyr::rename(elo_ratings, home_elo = elo),
-          by = c("home_team" = "team", "league_code" = "league_code")
+          by = c("home_team" = "team", "match_date" = "match_date",
+                 "league_code" = "league_code")
         ) |>
         dplyr::left_join(
           dplyr::rename(elo_ratings, away_elo = elo),
-          by = c("away_team" = "team", "league_code" = "league_code")
+          by = c("away_team" = "team", "match_date" = "match_date",
+                 "league_code" = "league_code")
         ) |>
         dplyr::mutate(elo_diff = home_elo - away_elo)
 

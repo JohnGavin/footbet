@@ -4,23 +4,54 @@
 \alias{compute_elo}
 \title{Compute Elo ratings for a league}
 \usage{
-compute_elo(matches_df, k = 20, home_advantage = 65, init = 1500)
+compute_elo(
+  matches_df,
+  k = 20,
+  home_advantage = 65,
+  init = 1500,
+  dynamic_k = FALSE,
+  k_start = 40,
+  k_end = 20,
+  team_home_advantage = NULL,
+  margin_k = FALSE
+)
 }
 \arguments{
-\item{matches_df}{A tibble with \code{match_date}, \code{home_team}, \code{away_team}, \code{ftr}.}
+\item{matches_df}{A tibble with \code{match_date}, \code{home_team}, \code{away_team}, \code{ftr}.
+For \code{margin_k = TRUE}, also needs \code{fthg} and \code{ftag}.}
 
-\item{k}{Numeric. K-factor (default 20).}
+\item{k}{Numeric. Base K-factor (default 20). Ignored when \code{dynamic_k = TRUE}.}
 
-\item{home_advantage}{Numeric. Home advantage in Elo points (default 65).}
+\item{home_advantage}{Numeric. Uniform home advantage in Elo points (default 65).
+Ignored when \code{team_home_advantage} is provided.}
 
 \item{init}{Numeric. Initial Elo rating (default 1500).}
+
+\item{dynamic_k}{Logical. Use seasonal K-factor decay (default FALSE).}
+
+\item{k_start}{Numeric. K-factor at season start (August). Default 40.}
+
+\item{k_end}{Numeric. K-factor at season end. Default 20.}
+
+\item{team_home_advantage}{Named numeric vector. Per-team home advantage
+(e.g., \code{c(Liverpool = 80, Brentford = 40)}). Default NULL (use uniform).}
+
+\item{margin_k}{Logical. Downweight blowouts in K-factor (default FALSE).}
 }
 \value{
 A tibble with columns \code{team}, \code{match_date}, \code{elo}.
 }
 \description{
-Updates Elo ratings match-by-match using the \code{elo} package.
+Updates Elo ratings match-by-match using standard Elo formula.
 Matches must be sorted by date. Returns ratings after each match.
+}
+\details{
+Supports three enhancements inspired by COOPER/FiveThirtyEight:
+\itemize{
+\item \strong{Dynamic K-factor}: higher K early season, decaying by December
+\item \strong{Team-specific home advantage}: named vector of per-team adjustments
+\item \strong{Margin-adjusted K}: downweight blowouts (requires \code{fthg}/\code{ftag} columns)
+}
 }
 \seealso{
 Other features: 
@@ -44,6 +75,7 @@ Other features:
 \code{\link{h2h_record}()},
 \code{\link{key_players_unavailable}()},
 \code{\link{league_table}()},
+\code{\link{margin_k_factor}()},
 \code{\link{matches_since_event}()},
 \code{\link{matches_to_long}()},
 \code{\link{ratio_normalize}()},
@@ -51,6 +83,7 @@ Other features:
 \code{\link{rest_days}()},
 \code{\link{rolling_goals}()},
 \code{\link{rolling_xg}()},
+\code{\link{seasonal_k}()},
 \code{\link{shrink_team_strength}()},
 \code{\link{team_form_score}()},
 \code{\link{team_position}()},

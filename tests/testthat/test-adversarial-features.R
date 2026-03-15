@@ -4,12 +4,12 @@
 # ---- compute_elo ----
 
 test_that("compute_elo: NULL input", {
-  skip_if_not_installed("elo")
+
   expect_error(compute_elo(NULL))
 })
 
 test_that("compute_elo: all NA results filtered out", {
-  skip_if_not_installed("elo")
+
   matches <- tibble::tibble(
     match_date = as.Date("2024-01-01"),
     home_team = "A",
@@ -21,7 +21,7 @@ test_that("compute_elo: all NA results filtered out", {
 })
 
 test_that("compute_elo: invalid FTR values filtered", {
-  skip_if_not_installed("elo")
+
   matches <- tibble::tibble(
     match_date = as.Date("2024-01-01"),
     home_team = "A",
@@ -33,7 +33,7 @@ test_that("compute_elo: invalid FTR values filtered", {
 })
 
 test_that("compute_elo: single match still works", {
-  skip_if_not_installed("elo")
+
   matches <- tibble::tibble(
     match_date = as.Date("2024-01-01"),
     home_team = "A",
@@ -45,7 +45,7 @@ test_that("compute_elo: single match still works", {
 })
 
 test_that("compute_elo: k=0 gives no rating changes", {
-  skip_if_not_installed("elo")
+
   matches <- tibble::tibble(
     match_date = as.Date(c("2024-01-01", "2024-01-08")),
     home_team = c("A", "B"),
@@ -54,7 +54,7 @@ test_that("compute_elo: k=0 gives no rating changes", {
   )
   result <- compute_elo(matches, k = 0)
   # All ratings should be initial (1500)
-  expect_equal(result$elo, c(1500, 1500))
+  expect_true(all(result$elo == 1500))
 })
 
 # ---- devig_odds ----

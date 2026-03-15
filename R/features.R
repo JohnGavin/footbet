@@ -110,26 +110,83 @@ matches_to_long <- function(matches_df) {
   dplyr::bind_rows(home, away)
 }
 
+#' Compute seasonal K-factor
+#'
+#' Returns a K-factor that decays from `k_start` in August (season opener)
+#' to `k_end` by December. Rationale: early-season matches are more
+#' informative about squad changes (transfers, new manager).
+#'
+#' @param match_date Date vector.
+#' @param k_start Numeric. K-factor at season start (August). Default 40.
+#' @param k_end Numeric. K-factor at season midpoint (December+). Default 20.
+#' @return Numeric vector of K-factors, same length as `match_date`.
+#' @family features
+#' @export
+seasonal_k <- function(match_date, k_start = 40, k_end = 20) {
+  month <- as.integer(format(match_date, "%m"))
+  # Season months: Aug=8 → May=5 (next year)
+
+  # Map to 0-based season month: Aug=0, Sep=1, ..., Dec=4, Jan=5, ..., May=9
+  season_month <- ifelse(month >= 8L, month - 8L, month + 4L)
+  # Decay over first 5 months (Aug-Dec), then hold at k_end
+  decay_months <- 4  # Aug(0) to Dec(4)
+  progress <- pmin(season_month / decay_months, 1)
+  k_start + (k_end - k_start) * progress
+}
+
+#' Margin-based K-factor weight
+#'
+#' Downweights blowouts for Elo updates. Close matches (1-goal margin)
+#' get full weight; large margins are downweighted using inverse variance.
+#' Based on COOPER methodology (Nate Silver).
+#'
+#' @param home_goals Integer. Home team goals.
+#' @param away_goals Integer. Away team goals.
+#' @return Numeric weight in (0, 1].
+#' @family features
+#' @export
+margin_k_factor <- function(home_goals, away_goals) {
+  margin <- abs(home_goals - away_goals)
+  # Inverse log scaling: weight = 1 / (1 + ln(1 + margin))
+  # margin=0 → 1.0, margin=1 → 0.59, margin=3 → 0.42, margin=5 → 0.36
+  1 / (1 + log(1 + margin))
+}
+
 #' Compute Elo ratings for a league
 #'
-#' Updates Elo ratings match-by-match using the `elo` package.
+#' Updates Elo ratings match-by-match using standard Elo formula.
 #' Matches must be sorted by date. Returns ratings after each match.
 #'
+#' Supports three enhancements inspired by COOPER/FiveThirtyEight:
+#' - **Dynamic K-factor**: higher K early season, decaying by December
+#' - **Team-specific home advantage**: named vector of per-team adjustments
+#' - **Margin-adjusted K**: downweight blowouts (requires `fthg`/`ftag` columns)
+#'
 #' @param matches_df A tibble with `match_date`, `home_team`, `away_team`, `ftr`.
-#' @param k Numeric. K-factor (default 20).
-#' @param home_advantage Numeric. Home advantage in Elo points (default 65).
+#'   For `margin_k = TRUE`, also needs `fthg` and `ftag`.
+#' @param k Numeric. Base K-factor (default 20). Ignored when `dynamic_k = TRUE`.
+#' @param home_advantage Numeric. Uniform home advantage in Elo points (default 65).
+#'   Ignored when `team_home_advantage` is provided.
 #' @param init Numeric. Initial Elo rating (default 1500).
+#' @param dynamic_k Logical. Use seasonal K-factor decay (default FALSE).
+#' @param k_start Numeric. K-factor at season start (August). Default 40.
+#' @param k_end Numeric. K-factor at season end. Default 20.
+#' @param team_home_advantage Named numeric vector. Per-team home advantage
+#'   (e.g., `c(Liverpool = 80, Brentford = 40)`). Default NULL (use uniform).
+#' @param margin_k Logical. Downweight blowouts in K-factor (default FALSE).
 #' @return A tibble with columns `team`, `match_date`, `elo`.
 #' @family features
 #' @export
-compute_elo <- function(matches_df, k = 20, home_advantage = 65, init = 1500) {
-  rlang::check_installed("elo", reason = "to compute Elo ratings")
+compute_elo <- function(matches_df, k = 20, home_advantage = 65, init = 1500,
+                        dynamic_k = FALSE, k_start = 40, k_end = 20,
+                        team_home_advantage = NULL, margin_k = FALSE) {
   rlang::check_required(matches_df)
 
-  if (nrow(matches_df) == 0L) {
-    return(tibble::tibble(team = character(), match_date = as.Date(character()),
-                          elo = numeric()))
-  }
+  empty_result <- tibble::tibble(
+    team = character(), match_date = as.Date(character()), elo = numeric()
+  )
+
+  if (nrow(matches_df) == 0L) return(empty_result)
 
   # Convert FTR to numeric result: H=1, D=0.5, A=0
   matches_df <- matches_df |>
@@ -144,24 +201,53 @@ compute_elo <- function(matches_df, k = 20, home_advantage = 65, init = 1500) {
     ) |>
     dplyr::filter(!is.na(.data$result))
 
-  if (nrow(matches_df) == 0L) {
-    return(tibble::tibble(team = character(), match_date = as.Date(character()),
-                          elo = numeric()))
+  if (nrow(matches_df) == 0L) return(empty_result)
+
+  # Initialize ratings
+  all_teams <- unique(c(matches_df$home_team, matches_df$away_team))
+  ratings <- stats::setNames(rep(init, length(all_teams)), all_teams)
+
+  # Collect match-by-match output
+  out_list <- vector("list", nrow(matches_df) * 2L)
+  idx <- 1L
+
+  for (i in seq_len(nrow(matches_df))) {
+    row <- matches_df[i, ]
+    home <- row$home_team
+    away <- row$away_team
+    actual <- row$result
+    date <- row$match_date
+
+    # Home advantage
+    ha <- if (!is.null(team_home_advantage) && home %in% names(team_home_advantage)) {
+      team_home_advantage[[home]]
+    } else {
+      home_advantage
+    }
+
+    # Expected score (with home advantage)
+    exp_home <- 1 / (1 + 10^((ratings[[away]] - (ratings[[home]] + ha)) / 400))
+
+    # K-factor
+    k_match <- if (dynamic_k) seasonal_k(date, k_start, k_end) else k
+
+    # Margin adjustment
+    if (margin_k && "fthg" %in% names(row) && "ftag" %in% names(row)) {
+      k_match <- k_match * margin_k_factor(row$fthg, row$ftag)
+    }
+
+    # Update ratings
+    delta <- k_match * (actual - exp_home)
+    ratings[[home]] <- ratings[[home]] + delta
+    ratings[[away]] <- ratings[[away]] - delta
+
+    # Record both teams' ratings after this match
+    out_list[[idx]] <- list(team = home, match_date = date, elo = ratings[[home]])
+    out_list[[idx + 1L]] <- list(team = away, match_date = date, elo = ratings[[away]])
+    idx <- idx + 2L
   }
 
-  elo_run <- elo::elo.run(
-    result ~ elo::adjust(home_team, home_advantage) + away_team,
-    k = k,
-    data = matches_df,
-    initial.elos = init
-  )
-
-  # Extract final ratings
-  final <- elo::final.elos(elo_run)
-  tibble::tibble(
-    team = names(final),
-    elo = as.numeric(final)
-  )
+  dplyr::bind_rows(out_list)
 }
 
 #' Devig Pinnacle odds for all matches

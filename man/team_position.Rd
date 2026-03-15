@@ -47,6 +47,7 @@ Other features:
 \code{\link{h2h_record}()},
 \code{\link{key_players_unavailable}()},
 \code{\link{league_table}()},
+\code{\link{margin_k_factor}()},
 \code{\link{matches_since_event}()},
 \code{\link{matches_to_long}()},
 \code{\link{ratio_normalize}()},
@@ -54,6 +55,7 @@ Other features:
 \code{\link{rest_days}()},
 \code{\link{rolling_goals}()},
 \code{\link{rolling_xg}()},
+\code{\link{seasonal_k}()},
 \code{\link{shrink_team_strength}()},
 \code{\link{team_form_score}()},
 \code{\link{xg_overperformance}()}
