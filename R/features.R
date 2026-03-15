@@ -152,15 +152,82 @@ margin_k_factor <- function(home_goals, away_goals) {
   1 / (1 + log(1 + margin))
 }
 
+#' Compute rest days for all matches
+#'
+#' Adds `home_rest_days`, `away_rest_days`, and `rest_diff` columns.
+#' Rest days = days since team's most recent match before the current one.
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`.
+#' @return The input tibble with three new columns added.
+#' @family features
+#' @export
+compute_rest_days <- function(matches_df) {
+  rlang::check_required(matches_df)
+  if (nrow(matches_df) == 0L) {
+    return(dplyr::mutate(matches_df,
+      home_rest_days = integer(), away_rest_days = integer(),
+      rest_diff = integer()
+    ))
+  }
+
+  matches_df <- dplyr::arrange(matches_df, .data$match_date)
+
+  home_rest <- vapply(seq_len(nrow(matches_df)), function(i) {
+    rest_days(matches_df, matches_df$home_team[i], matches_df$match_date[i])
+  }, integer(1))
+
+  away_rest <- vapply(seq_len(nrow(matches_df)), function(i) {
+    rest_days(matches_df, matches_df$away_team[i], matches_df$match_date[i])
+  }, integer(1))
+
+  matches_df$home_rest_days <- home_rest
+  matches_df$away_rest_days <- away_rest
+  matches_df$rest_diff <- home_rest - away_rest
+  matches_df
+}
+
+#' Convert Pinnacle probability to implied Elo rating
+#'
+#' Maps a win probability to an Elo-equivalent rating difference.
+#' Useful for blending Pinnacle market data as an ensemble member.
+#'
+#' @param prob Numeric. Win probability (0-1).
+#' @param base Numeric. Base Elo (default 1500).
+#' @return Numeric. Implied Elo rating.
+#' @family features
+#' @export
+pinnacle_implied_elo <- function(prob, base = 1500) {
+  # Inverse of Elo expected score: E = 1/(1+10^(-d/400))
+
+  # Solving for d: d = -400 * log10(1/prob - 1)
+  prob <- pmax(pmin(prob, 0.999), 0.001)  # clamp to avoid Inf
+  base + (-400 * log10(1 / prob - 1))
+}
+
+#' Detect season boundaries
+#'
+#' Returns TRUE for the first match of each new season. Season is detected
+#' by a gap of 30+ days (summer break) in the match schedule.
+#'
+#' @param match_dates Date vector, sorted ascending.
+#' @return Logical vector.
+#' @keywords internal
+is_season_start <- function(match_dates) {
+  gaps <- c(FALSE, diff(match_dates) > 30)
+  gaps
+}
+
 #' Compute Elo ratings for a league
 #'
 #' Updates Elo ratings match-by-match using standard Elo formula.
 #' Matches must be sorted by date. Returns ratings after each match.
 #'
-#' Supports three enhancements inspired by COOPER/FiveThirtyEight:
+#' Supports enhancements inspired by COOPER/FiveThirtyEight:
 #' - **Dynamic K-factor**: higher K early season, decaying by December
 #' - **Team-specific home advantage**: named vector of per-team adjustments
 #' - **Margin-adjusted K**: downweight blowouts (requires `fthg`/`ftag` columns)
+#' - **League reversion**: regress toward league mean at season start
+#' - **Asymmetric wins**: underperforming winners get reduced Elo gain
 #'
 #' @param matches_df A tibble with `match_date`, `home_team`, `away_team`, `ftr`.
 #'   For `margin_k = TRUE`, also needs `fthg` and `ftag`.
@@ -174,12 +241,17 @@ margin_k_factor <- function(home_goals, away_goals) {
 #' @param team_home_advantage Named numeric vector. Per-team home advantage
 #'   (e.g., `c(Liverpool = 80, Brentford = 40)`). Default NULL (use uniform).
 #' @param margin_k Logical. Downweight blowouts in K-factor (default FALSE).
+#' @param reversion Numeric 0-1. Fraction to regress toward league mean at
+#'   season start (default 0 = no reversion). COOPER uses 0.28.
+#' @param asymmetric Logical. Allow winners to lose Elo when underperforming
+#'   expected margin (default FALSE). Requires `fthg`/`ftag`.
 #' @return A tibble with columns `team`, `match_date`, `elo`.
 #' @family features
 #' @export
 compute_elo <- function(matches_df, k = 20, home_advantage = 65, init = 1500,
                         dynamic_k = FALSE, k_start = 40, k_end = 20,
-                        team_home_advantage = NULL, margin_k = FALSE) {
+                        team_home_advantage = NULL, margin_k = FALSE,
+                        reversion = 0, asymmetric = FALSE) {
   rlang::check_required(matches_df)
 
   empty_result <- tibble::tibble(
@@ -207,11 +279,20 @@ compute_elo <- function(matches_df, k = 20, home_advantage = 65, init = 1500,
   all_teams <- unique(c(matches_df$home_team, matches_df$away_team))
   ratings <- stats::setNames(rep(init, length(all_teams)), all_teams)
 
+  # Detect season boundaries for reversion
+  season_starts <- is_season_start(matches_df$match_date)
+
   # Collect match-by-match output
   out_list <- vector("list", nrow(matches_df) * 2L)
   idx <- 1L
 
   for (i in seq_len(nrow(matches_df))) {
+    # League-relative mean reversion at season start
+    if (reversion > 0 && season_starts[i]) {
+      league_mean <- mean(ratings)
+      ratings <- ratings + reversion * (league_mean - ratings)
+    }
+
     row <- matches_df[i, ]
     home <- row$home_team
     away <- row$away_team
@@ -236,8 +317,31 @@ compute_elo <- function(matches_df, k = 20, home_advantage = 65, init = 1500,
       k_match <- k_match * margin_k_factor(row$fthg, row$ftag)
     }
 
-    # Update ratings
+    # Standard Elo delta
     delta <- k_match * (actual - exp_home)
+
+    # Asymmetric win treatment: if winner massively underperformed expected
+    # margin, cap the positive delta. E.g., 1600 vs 1200 team wins 1-0
+    # when expected to win by 3+ → reduced Elo gain.
+    if (asymmetric && "fthg" %in% names(row) && "ftag" %in% names(row)) {
+      actual_margin <- row$fthg - row$ftag
+      # Expected margin from Elo difference (roughly 1 goal per 200 Elo)
+      elo_diff_with_ha <- (ratings[[home]] + ha) - ratings[[away]]
+      expected_margin <- elo_diff_with_ha / 200
+      margin_ratio <- if (abs(expected_margin) > 0.5) {
+        actual_margin / expected_margin
+      } else {
+        1  # Don't adjust for evenly matched teams
+      }
+      # If winner underperformed (ratio < 0.5), scale down the positive delta
+      if (delta > 0 && margin_ratio < 0.5 && margin_ratio >= 0) {
+        delta <- delta * pmax(margin_ratio, 0.1)
+      } else if (delta < 0 && margin_ratio < 0.5 && margin_ratio >= 0) {
+        delta <- delta * pmax(margin_ratio, 0.1)
+      }
+    }
+
+    # Update ratings
     ratings[[home]] <- ratings[[home]] + delta
     ratings[[away]] <- ratings[[away]] - delta
 

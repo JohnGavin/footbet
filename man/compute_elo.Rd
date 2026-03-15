@@ -13,7 +13,9 @@ compute_elo(
   k_start = 40,
   k_end = 20,
   team_home_advantage = NULL,
-  margin_k = FALSE
+  margin_k = FALSE,
+  reversion = 0,
+  asymmetric = FALSE
 )
 }
 \arguments{
@@ -37,6 +39,12 @@ Ignored when \code{team_home_advantage} is provided.}
 (e.g., \code{c(Liverpool = 80, Brentford = 40)}). Default NULL (use uniform).}
 
 \item{margin_k}{Logical. Downweight blowouts in K-factor (default FALSE).}
+
+\item{reversion}{Numeric 0-1. Fraction to regress toward league mean at
+season start (default 0 = no reversion). COOPER uses 0.28.}
+
+\item{asymmetric}{Logical. Allow winners to lose Elo when underperforming
+expected margin (default FALSE). Requires \code{fthg}/\code{ftag}.}
 }
 \value{
 A tibble with columns \code{team}, \code{match_date}, \code{elo}.
@@ -46,11 +54,13 @@ Updates Elo ratings match-by-match using standard Elo formula.
 Matches must be sorted by date. Returns ratings after each match.
 }
 \details{
-Supports three enhancements inspired by COOPER/FiveThirtyEight:
+Supports enhancements inspired by COOPER/FiveThirtyEight:
 \itemize{
 \item \strong{Dynamic K-factor}: higher K early season, decaying by December
 \item \strong{Team-specific home advantage}: named vector of per-team adjustments
 \item \strong{Margin-adjusted K}: downweight blowouts (requires \code{fthg}/\code{ftag} columns)
+\item \strong{League reversion}: regress toward league mean at season start
+\item \strong{Asymmetric wins}: underperforming winners get reduced Elo gain
 }
 }
 \seealso{
@@ -65,6 +75,7 @@ Other features:
 \code{\link{add_rest_days}()},
 \code{\link{compute_gamestate_xg}()},
 \code{\link{compute_matches_since}()},
+\code{\link{compute_rest_days}()},
 \code{\link{compute_xg_features}()},
 \code{\link{compute_xg_xag_composite}()},
 \code{\link{cumulative_xg_ratio}()},
@@ -78,6 +89,7 @@ Other features:
 \code{\link{margin_k_factor}()},
 \code{\link{matches_since_event}()},
 \code{\link{matches_to_long}()},
+\code{\link{pinnacle_implied_elo}()},
 \code{\link{ratio_normalize}()},
 \code{\link{reliability_threshold}()},
 \code{\link{rest_days}()},

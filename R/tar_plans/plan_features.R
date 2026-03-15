@@ -35,7 +35,7 @@ plan_features <- list(
         ratings <- compute_elo(
           league_matches,
           dynamic_k = TRUE, k_start = 40, k_end = 20,
-          margin_k = TRUE
+          margin_k = TRUE, reversion = 0.28, asymmetric = TRUE
         )
         ratings$league_code <- lc
         ratings
@@ -101,6 +101,19 @@ plan_features <- list(
       # Join devigged odds
       fm <- fm |>
         dplyr::left_join(devigged_odds, by = "match_id")
+
+      # Add rest days
+      fm <- compute_rest_days(fm)
+
+      # Add Pinnacle implied Elo (ensemble feature)
+      if ("fair_h" %in% names(fm)) {
+        fm <- fm |>
+          dplyr::mutate(
+            pinnacle_home_elo = pinnacle_implied_elo(fair_h),
+            pinnacle_away_elo = pinnacle_implied_elo(fair_a),
+            pinnacle_elo_diff = pinnacle_home_elo - pinnacle_away_elo
+          )
+      }
 
       fm
     }

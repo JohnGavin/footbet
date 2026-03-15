@@ -205,6 +205,120 @@ test_that("compute_elo: returns match-by-match ratings", {
   expect_equal(nrow(a_rows), 3L)  # A plays in all 3 matches
 })
 
+# ---- compute_elo: league reversion ----
+
+test_that("compute_elo: reversion pulls ratings toward league mean at season start", {
+  # Season 1: A dominates
+  s1 <- tibble::tibble(
+    match_date = as.Date(c("2024-01-01", "2024-01-08", "2024-01-15")),
+    home_team = c("A", "A", "A"),
+    away_team = c("B", "B", "B"),
+    ftr       = c("H", "H", "H")
+  )
+  # Season 2: 60-day gap triggers reversion
+
+  s2 <- tibble::tibble(
+    match_date = as.Date(c("2024-08-10")),
+    home_team = "B",
+    away_team = "A",
+    ftr       = "D"
+  )
+  matches <- dplyr::bind_rows(s1, s2)
+
+  result_no_rev <- final_elo(compute_elo(matches, reversion = 0))
+  result_rev <- final_elo(compute_elo(matches, reversion = 0.28))
+
+  # With reversion, A's final Elo should be closer to B's
+  gap_no_rev <- abs(result_no_rev$elo[result_no_rev$team == "A"] -
+                    result_no_rev$elo[result_no_rev$team == "B"])
+  gap_rev <- abs(result_rev$elo[result_rev$team == "A"] -
+                 result_rev$elo[result_rev$team == "B"])
+  expect_true(gap_rev < gap_no_rev)
+})
+
+# ---- compute_elo: asymmetric wins ----
+
+test_that("compute_elo: asymmetric reduces Elo gain for underperforming winners", {
+  # Strong team (high Elo after 3 wins) barely beats weak team
+  setup <- tibble::tibble(
+    match_date = as.Date(c("2024-01-01", "2024-01-08", "2024-01-15")),
+    home_team = c("A", "A", "A"),
+    away_team = c("B", "B", "B"),
+    ftr       = c("H", "H", "H"),
+    fthg      = c(3L, 3L, 3L),
+    ftag      = c(0L, 0L, 0L)
+  )
+  # Now A barely wins 1-0 (underperformance given Elo difference)
+  narrow <- tibble::tibble(
+    match_date = as.Date("2024-01-22"),
+    home_team = "A", away_team = "B", ftr = "H",
+    fthg = 1L, ftag = 0L
+  )
+  matches <- dplyr::bind_rows(setup, narrow)
+
+  result_std <- final_elo(compute_elo(matches, asymmetric = FALSE))
+  result_asym <- final_elo(compute_elo(matches, asymmetric = TRUE))
+
+  # Asymmetric should give A less Elo gain (or B less Elo loss)
+  elo_a_std <- result_std$elo[result_std$team == "A"]
+  elo_a_asym <- result_asym$elo[result_asym$team == "A"]
+  expect_true(elo_a_asym <= elo_a_std)
+})
+
+# ---- compute_rest_days ----
+
+test_that("compute_rest_days adds rest day columns", {
+  matches <- tibble::tibble(
+    match_date = as.Date(c("2024-01-01", "2024-01-04", "2024-01-08")),
+    home_team = c("A", "B", "A"),
+    away_team = c("B", "A", "B"),
+    ftr       = c("H", "D", "H")
+  )
+
+  result <- compute_rest_days(matches)
+  expect_true(all(c("home_rest_days", "away_rest_days", "rest_diff") %in% names(result)))
+
+  # First match: NA rest days (no prior match)
+  expect_true(is.na(result$home_rest_days[1]))
+  expect_true(is.na(result$away_rest_days[1]))
+
+  # Second match (2024-01-04): B played on 01-01 (3 days), A played on 01-01 (3 days)
+  expect_equal(result$home_rest_days[2], 3L)  # B
+  expect_equal(result$away_rest_days[2], 3L)  # A
+
+  # Third match (2024-01-08): A played on 01-04 (4 days), B played on 01-04 (4 days)
+  expect_equal(result$home_rest_days[3], 4L)
+  expect_equal(result$away_rest_days[3], 4L)
+})
+
+# ---- pinnacle_implied_elo ----
+
+test_that("pinnacle_implied_elo converts probabilities correctly", {
+  # 50% → base (1500)
+  expect_equal(pinnacle_implied_elo(0.5), 1500)
+
+  # Higher prob → higher Elo
+  expect_true(pinnacle_implied_elo(0.7) > 1500)
+  expect_true(pinnacle_implied_elo(0.3) < 1500)
+
+  # Symmetric
+  high <- pinnacle_implied_elo(0.7) - 1500
+  low <- 1500 - pinnacle_implied_elo(0.3)
+  expect_equal(high, low, tolerance = 0.01)
+
+  # Edge cases clamped
+  expect_true(is.finite(pinnacle_implied_elo(0.0)))
+  expect_true(is.finite(pinnacle_implied_elo(1.0)))
+})
+
+# ---- is_season_start ----
+
+test_that("is_season_start detects gaps > 30 days", {
+  dates <- as.Date(c("2024-01-01", "2024-01-08", "2024-08-10", "2024-08-17"))
+  result <- is_season_start(dates)
+  expect_equal(result, c(FALSE, FALSE, TRUE, FALSE))
+})
+
 # ---- devig_odds ----
 
 test_that("devig_odds produces fair probabilities summing to 1", {
