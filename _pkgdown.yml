@@ -90,3 +90,6 @@ articles:
     navbar: Guide
     contents:
       - football-analytics
+  - title: Reference
+    contents:
+      - glossary
