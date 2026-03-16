@@ -62,6 +62,8 @@ season.
 safe_tar_read("vig_completeness_plot")
 ```
 
+*Match completeness by league-season. X-axis: season (year). Y-axis: percentage of matches with a valid full-time result (FTR). Colour = league code (E0, D1, etc.). A value of 100% means all matches in that league-season have a recorded result. Most historical seasons achieve full completeness. The current season shows partial data because not all fixtures have been played yet. This metric is critical for ensuring model training data does not include unresolved matches. Source: [football-data.co.uk](https://www.football-data.co.uk/) parsed via `parse_fd_csv()`. See [Glossary > FTR](glossary.html#data-terminology).*
+
 ::: {.callout-note}
 **Key Finding:** Most historical league-seasons achieve 100% completeness.
 Current season shows partial data (matches not yet played).
@@ -84,6 +86,8 @@ Coverage gaps arise from:
 safe_tar_read("vig_pinnacle_coverage_plot")
 ```
 
+*Pinnacle 1X2 odds coverage by league-season. X-axis: season (year). Y-axis: percentage of matches with complete Pinnacle home/draw/away closing odds (PSH, PSD, PSA). Colour = league code. Top-division leagues (E0, D1, I1, SP1, F1) achieve near-100% coverage from approximately 2016 onward. Division 2 leagues (E1, D2, I2, SP2, F2) show variable and often lower coverage, as Pinnacle may not offer markets for these competitions. Coverage of 0% indicates complete feed breaks or no Pinnacle market for that league-season. Source: [football-data.co.uk](https://www.football-data.co.uk/) Pinnacle feed. See [Glossary > Implied Probability](glossary.html) and [Glossary > Sharp Bookmaker](glossary.html).*
+
 ::: {.callout-note}
 **Key Finding:** Top divisions have near-100% coverage from ~2016 onward.
 Division 2 coverage is variable. 0% coverage indicates feed breaks or no
@@ -99,6 +103,8 @@ more frequently missing than core fields.
 ```{r vig-missing-data-by-column}
 safe_tar_read("vig_missing_data_heatmap")
 ```
+
+*Missing data heatmap by column and league. X-axis: column name (fthg, ftag, ftr, hs, as_, hst, ast, hc, ac, hf, af, hy, ay, hr, ar). Y-axis: league code. Cell colour intensity = percentage of missing values (darker = more missing). Core result fields (fthg, ftag, ftr) have near-zero missingness. Match statistics columns (shots, corners, cards) show higher missingness, especially in older seasons and Division 2 leagues where football-data.co.uk may not collect detailed statistics. This pattern informs which features are reliably available for modelling. Source: [football-data.co.uk](https://www.football-data.co.uk/) parsed data. See [Glossary > Match Statistics](glossary.html#match-statistics).*
 
 The table below provides detailed missing counts with variable descriptions.
 See [Glossary > Data Terminology](glossary.html#data-terminology) for full definitions.
@@ -119,6 +125,8 @@ if (is.data.frame(missing_data)) {
   missing_data
 }
 ```
+
+*Missing data counts by variable. Columns: variable name, description, number of missing values, percentage missing, leagues most affected. Core fields (match_date, home_team, away_team, fthg, ftag, ftr) are nearly always present. Match statistics (hs, hst, hc, hf, hy, hr and their away equivalents) have higher missingness, particularly in seasons before detailed statistics were collected. Pinnacle odds columns (psh, psd, psa) are missing for league-seasons without Pinnacle coverage. Source: [football-data.co.uk](https://www.football-data.co.uk/) parsed data. See [Glossary > Match Statistics](glossary.html#match-statistics) and [Glossary > Data Terminology](glossary.html#data-terminology).*
 
 ## Anomaly Detection
 
@@ -150,6 +158,8 @@ if (is.data.frame(anomalies) && nrow(anomalies) > 0) {
   anomalies
 }
 ```
+
+*Anomaly detection results table. Columns: match_id, league_code, season, match_date, home_team, away_team, fthg, ftag, anomaly_type (extreme_score / missing_date / future_date / missing_team). Each row is a flagged match requiring manual review. Extreme scorelines (>10 total goals) are rare but may indicate data entry errors. An empty table (green banner) means no anomalies were detected, confirming data integrity. Source: automated QC pipeline applied to [football-data.co.uk](https://www.football-data.co.uk/) data. See [Glossary > FTHG / FTAG](glossary.html#data-terminology).*
 
 ## QC Summary
 

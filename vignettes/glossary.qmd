@@ -15,7 +15,9 @@ This glossary defines betting and statistical terms used throughout the
 See the [Football Betting Analytics](football-analytics.html) article for
 worked examples using these concepts.
 
-## Odds Formats
+::: {.panel-tabset}
+
+## Odds & Markets
 
 ::: {.panel-tabset}
 
@@ -62,9 +64,9 @@ stake needed to win 100 units. Standard in the United States.
 
 :::
 
-## Market Types
+### Market Types
 
-### 1X2 (Match Result)
+#### 1X2 (Match Result)
 
 The most common football betting market:
 
@@ -72,30 +74,32 @@ The most common football betting market:
 - **X (D)**: Draw
 - **2 (A)**: Away win
 
-### Over/Under (O/U)
+#### Over/Under (O/U)
 
 Total goals in the match relative to a line, usually 2.5. "Over 2.5"
 requires 3+ goals; "Under 2.5" requires 0-2 goals.
 
-### Asian Handicap (AH)
+#### Asian Handicap (AH)
 
 Handicap applied to one team to eliminate the draw outcome. A -1.5 Asian
 handicap on the home team means they must win by 2+ goals. Half-goal
 handicaps ensure no push (void bet).
 
-### BTTS (Both Teams to Score)
+#### BTTS (Both Teams to Score)
 
 Whether both teams score at least one goal. Binary yes/no market.
 
-## Probability Concepts
+## Statistics
 
-### Implied Probability
+### Probability Concepts
+
+#### Implied Probability
 
 The probability implied by decimal odds: `1 / odds`. For odds of 2.50,
 the implied probability is 40%. Markets include overround, so implied
 probabilities sum to >100%.
 
-### Overround (Vig/Juice)
+#### Overround (Vig/Juice)
 
 The bookmaker's margin built into odds. Calculated as the sum of implied
 probabilities minus 100%. A 106% book has 6% overround.
@@ -105,7 +109,7 @@ probabilities minus 100%. A 106% book has 6% overround.
 - Implied: 50% + 28.6% + 25% = 103.6%
 - Overround: 3.6%
 
-### Fair Odds
+#### Fair Odds
 
 Odds after removing the overround, representing true probabilities.
 Several devigging methods exist:
@@ -114,14 +118,14 @@ Several devigging methods exist:
 - **Power:** Raise probabilities to a power that normalizes them
 - **Shin:** Models overround as protection against informed bettors
 
-### Closing Line Value (CLV)
+#### Closing Line Value (CLV)
 
 The difference between your bet odds and the closing odds. Positive CLV
 indicates you beat the market. Tracked via `closing_line_value()`.
 
-## Performance Metrics
+### Performance Metrics
 
-### Log Loss
+#### Log Loss
 
 Measures prediction quality for probabilistic forecasts. Lower is better.
 Heavily penalizes confident wrong predictions.
@@ -130,24 +134,24 @@ $$\text{Log Loss} = -\frac{1}{n} \sum \log(p_i)$$
 
 where $p_i$ is the predicted probability of the actual outcome.
 
-### Brier Score
+#### Brier Score
 
 Mean squared error for probability predictions. Ranges 0-2 for 1X2 markets.
 Lower is better. Less harsh than log loss on confident errors.
 
 $$\text{Brier} = \frac{1}{n} \sum (p_i - o_i)^2$$
 
-### Ranked Probability Score (RPS)
+#### Ranked Probability Score (RPS)
 
 Extension of Brier score for ordered outcomes. Better suited for 1X2
 because it considers that H > D > A forms an ordering by goal difference.
 
-### ROI (Return on Investment)
+#### ROI (Return on Investment)
 
 Total profit divided by total staked, expressed as percentage.
 +5% ROI means 5% profit on turnover.
 
-### Sharpe Ratio
+#### Sharpe Ratio
 
 Risk-adjusted return metric. Higher values indicate better returns
 relative to volatility. Computed via `betting_sharpe_ratio()`.
@@ -156,12 +160,12 @@ $$\text{Sharpe} = \frac{\text{Mean Return} - r_f}{\text{Std Dev Return}} \times 
 
 where $r_f$ is the risk-free rate and $n$ is periods per year.
 
-### Maximum Drawdown
+#### Maximum Drawdown
 
 Largest peak-to-trough decline in cumulative returns. Measures worst-case
 scenario during a betting sequence.
 
-## Statistical Models
+## Models
 
 ### Poisson Regression
 
@@ -191,7 +195,7 @@ Implemented in `compute_elo()` with COOPER/FiveThirtyEight enhancements:
 - **League reversion**: 28% regression toward league mean at season start
 - **Asymmetric wins**: underperformers get reduced Elo gain
 
-## Betting Strategy
+## Betting
 
 ### Kelly Criterion
 
@@ -225,7 +229,7 @@ publicly available proxy for true probabilities.
 Bookmaker with less accurate odds, slower to adjust. May offer temporary
 value but often limits winning accounts.
 
-## Data Terminology
+## Data
 
 ### FTR (Full Time Result)
 
@@ -250,7 +254,7 @@ Common abbreviations in football-data.co.uk files:
 - **HY/AY**: Home/Away Yellow Cards
 - **HR/AR**: Home/Away Red Cards
 
-## See Also
+## References
 
 **Package functions:**
 
@@ -268,3 +272,5 @@ Common abbreviations in football-data.co.uk files:
 - [Pinnacle](https://www.pinnacle.com/) --- Sharp bookmaker benchmark
 - [Dixon & Coles (1997)](https://doi.org/10.1111/1467-9876.00065) --- Correlation correction paper
 - [goalmodel package](https://cran.r-project.org/package=goalmodel) --- Dixon-Coles implementation
+
+:::
