@@ -103,6 +103,8 @@ of the "big five" European football countries.
 safe_tar_read("vig_pipeline_html")
 ```
 
+*Data pipeline flowchart showing the end-to-end processing stages. Nodes represent pipeline steps: CSV download, parsing via `parse_fd_csv()`, odds extraction via `parse_fd_odds()`, quality control, and model fitting. Red arrows indicate data flow direction. The pipeline is implemented as a targets DAG (directed acyclic graph) ensuring reproducibility and incremental builds. Source: [footbet](https://johngavin.github.io/footbet/) package architecture. See [Glossary > Data Terminology](glossary.html#data-terminology).*
+
 ## Data Coverage
 
 ```{r vig-data-source-summary}
@@ -120,6 +122,8 @@ if (is.data.frame(data_summary)) {
   data_summary
 }
 ```
+
+*Data coverage summary table. Columns: league code (e.g., E0 = English Premier League), country, division, number of seasons available, total matches parsed. The dataset covers 10 leagues across England, Germany, Italy, Spain, and France, with top two divisions each. Division 1 leagues typically span more seasons than Division 2 due to longer data availability on football-data.co.uk. Total match counts range from several thousand for well-covered leagues to fewer for recently added ones. Source: [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Data Terminology](glossary.html#data-terminology).*
 
 ## Coverage Grid
 
@@ -142,9 +146,13 @@ if (is.data.frame(grid)) {
 }
 ```
 
+*League-season coverage grid. Rows: league codes (E0, E1, D1, D2, I1, I2, SP1, SP2, F1, F2). Columns: season codes (e.g., 2324). Cell values: number of matches parsed for that league-season combination. Zero values indicate missing or empty CSV files. Division 1 leagues (E0, D1, I1, SP1, F1) have approximately 380 matches per season (20 teams, 38 rounds). Division 2 leagues have more matches (460-550) due to larger league sizes (24 teams). Coverage is most complete for recent seasons. Source: [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Data Terminology](glossary.html#data-terminology).*
+
 ```{r vig-matches-per-season-plot}
 safe_tar_read("vig_matches_per_season_plot")
 ```
+
+*Matches per season by league over time. X-axis: season (year). Y-axis: number of matches. Lines/bars: one per league, colour-coded by league code. Division 1 leagues show a stable ~380 matches per season. Division 2 leagues show higher counts (~460-550) reflecting larger league sizes. Gaps indicate seasons where data was unavailable. The plot confirms consistent data collection for recent seasons across all 10 leagues. Source: [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Data Terminology](glossary.html#data-terminology).*
 
 ::: {.callout-note}
 **Key Finding:** Division 1 leagues (E0, D1, I1, SP1, F1) have ~380
@@ -173,6 +181,8 @@ if (is.data.frame(odds_avail)) {
   odds_avail
 }
 ```
+
+*Pinnacle odds availability by league and season. Columns: league code, season, pct_1x2 (percentage of matches with complete home/draw/away Pinnacle closing odds), pct_over_under (percentage with over/under 2.5 goals odds). Top-division leagues achieve near-100% Pinnacle coverage from approximately 2016 onward. Division 2 leagues show variable coverage --- Pinnacle may not offer markets for lower divisions. Coverage gaps also arise from feed interruptions on football-data.co.uk. This coverage determines which matches can be used for model evaluation against the sharp-market benchmark. Source: [football-data.co.uk](https://www.football-data.co.uk/) Pinnacle feed. See [Glossary > Implied Probability](glossary.html) and [Glossary > Overround](glossary.html).*
 
 ## Column Schema
 
