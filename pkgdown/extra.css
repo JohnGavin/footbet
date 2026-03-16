@@ -175,3 +175,79 @@ caption, figcaption, .figure-caption, .dataTables_caption {
 table.dataTable tbody td {
   cursor: text;
 }
+
+/* =================================================================
+   DT TABLE DARK THEME TEXT COLORS
+   Fix invisible text (black on black) in DT::datatable widgets.
+   Forces light text on dark backgrounds for all DT elements.
+   ================================================================= */
+
+/* Table body text */
+table.dataTable tbody td, table.dataTable tbody th {
+  color: #cccccc !important;
+}
+
+/* Table header text */
+table.dataTable thead th, table.dataTable thead td {
+  color: #ffffff !important;
+}
+
+/* DT filter/search inputs */
+.dataTables_filter input, .dataTables_length select {
+  color: #cccccc !important;
+  background-color: #333333 !important;
+}
+
+/* DT info and pagination text */
+.dataTables_info, .dataTables_paginate {
+  color: #cccccc !important;
+}
+
+/* DT pagination buttons */
+.dataTables_paginate .paginate_button {
+  color: #cccccc !important;
+}
+
+/* DT caption text - ensure visible on dark backgrounds */
+.dataTables_wrapper caption, .dataTables_caption, caption {
+  color: #cccccc !important;
+}
+
+/* DT filter header inputs (column filters) */
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper select {
+  color: #cccccc !important;
+  background-color: #333333 !important;
+  border-color: #555555 !important;
+}
+
+/* DT "Show N entries" label text */
+.dataTables_wrapper .dataTables_length label,
+.dataTables_wrapper .dataTables_filter label {
+  color: #cccccc !important;
+}
+
+/* =================================================================
+   FIX BLANK VERTICAL SPACE AT BOTTOM OF VIGNETTES
+   Prevent excessive height on main content containers and body.
+   ================================================================= */
+
+/* Remove min-height that can cause blank space at bottom */
+main, article, .contents {
+  min-height: unset !important;
+}
+
+/* Prevent body from expanding beyond content */
+html, body {
+  overflow-x: hidden;
+}
+
+/* Fix pkgdown page wrapper creating extra space */
+.page-header, .page-body {
+  min-height: unset !important;
+}
+
+/* Ensure footer stays at bottom of content, not viewport */
+footer, .pkgdown-footer {
+  margin-top: auto;
+}
