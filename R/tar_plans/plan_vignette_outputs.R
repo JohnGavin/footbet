@@ -109,7 +109,12 @@ plan_vignette_outputs <- list(
         dplyr::count(league_code, season, name = "n_matches") |>
         add_league_metadata()
 
-      # Dotplot with text labels, reverse time y-axis, tier colors, no legend
+      # Add small y-jitter to avoid text overlap
+      set.seed(42)
+      plot_data$y_jitter <- as.numeric(factor(plot_data$season)) +
+        stats::runif(nrow(plot_data), -0.15, 0.15)
+
+      # Dotplot with text labels in tier color, reverse time y-axis, no legend
       plotly::plot_ly(
         plot_data,
         x = ~n_matches,
@@ -119,13 +124,12 @@ plan_vignette_outputs <- list(
         text = ~league_code,
         textposition = "right",
         type = "scatter",
-        mode = "markers+text",
-        marker = list(size = 8),
-        textfont = list(color = "white", size = 9),
+        mode = "text",
+        textfont = list(size = 9),
         hovertemplate = paste(
           "<b>%{text}</b><br>",
           "Season: %{y}<br>",
-          "Matches: %{x}<extra></extra>"
+          "Matches: %{x:.0f}<extra></extra>"
         )
       ) |>
         theme_dark_plotly(title = "Match Count by League and Season") |>
@@ -153,53 +157,38 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_completeness_plot,
     {
-      plot_data <- qc_match_completeness |>
+      comp_data <- qc_match_completeness |>
         add_league_metadata()
 
-      # Create horizontal white guide shapes for each season
-      seasons <- unique(plot_data$season)
-      guide_shapes <- lapply(seq_along(seasons), function(i) {
-        list(
-          type = "line", x0 = 0, x1 = 100, xref = "x",
-          y0 = i - 0.5, y1 = i - 0.5, yref = "y",
-          line = list(color = "rgba(255,255,255,0.2)", width = 1)
-        )
-      })
+      # Count of 100% complete league-seasons
+      n_complete <- sum(comp_data$pct_complete == 100, na.rm = TRUE)
+      n_total <- nrow(comp_data)
 
-      # Dotchart with reverse time y-axis, tier colors, no legend
-      plotly::plot_ly(
-        plot_data,
-        x = ~pct_complete,
-        y = ~season,
-        color = ~tier,
-        colors = TIER_COLORS,
-        symbol = ~league_code,
-        type = "scatter",
-        mode = "markers",
-        marker = list(size = 10),
-        hovertemplate = paste(
-          "<b>%{text}</b><br>",
-          "Season: %{y}<br>",
-          "Complete: %{x:.1f}%<extra></extra>"
+      # Detailed table of those below 100%
+      incomplete <- comp_data |>
+        dplyr::filter(pct_complete < 100) |>
+        dplyr::select(league_code, season, tier, country, pct_complete) |>
+        dplyr::arrange(pct_complete)
+
+      DT::datatable(
+        incomplete,
+        caption = htmltools::tags$caption(
+          style = "color: white; font-size: 14px;",
+          paste0("Incomplete league-seasons (", nrow(incomplete), " of ", n_total,
+                 "; ", n_complete, " are 100% complete)")
         ),
-        text = ~league_code
+        options = list(
+          pageLength = 20,
+          dom = "ftp",
+          initComplete = DT::JS(
+            "function(settings, json) {",
+            "  $(this.api().table().container()).css({'background-color': '#000', 'color': 'white'});",
+            "}"
+          )
+        ),
+        rownames = FALSE
       ) |>
-        theme_dark_plotly(title = "Match Result Completeness by League and Season") |>
-        plotly::layout(
-          showlegend = FALSE,
-          xaxis = list(title = "% Complete", range = c(80, 101)),
-          yaxis = list(
-            title = "Season",
-            autorange = "reversed",
-            categoryorder = "category descending"
-          ),
-          shapes = guide_shapes,
-          annotations = list(list(
-            x = 0.5, y = 1.05, xref = "paper", yref = "paper",
-            text = "Blue = Top 5 | Orange = 2nd Tier",
-            showarrow = FALSE, font = list(size = 10, color = "white")
-          ))
-        )
+        DT::formatRound("pct_complete", digits = 1)
     }
   ),
 
@@ -219,23 +208,22 @@ plan_vignette_outputs <- list(
         )
       })
 
-      # Dotchart with reverse time y-axis, tier colors, no legend
+      # Dotchart with text labels in tier color, reverse time y-axis, no legend
       plotly::plot_ly(
         plot_data,
         x = ~pct_pinnacle,
         y = ~season,
         color = ~tier,
         colors = TIER_COLORS,
-        symbol = ~league_code,
         type = "scatter",
-        mode = "markers",
-        marker = list(size = 10),
+        mode = "text",
+        text = ~league_code,
+        textfont = list(size = 9),
         hovertemplate = paste(
           "<b>%{text}</b><br>",
           "Season: %{y}<br>",
           "Pinnacle: %{x:.1f}%<extra></extra>"
-        ),
-        text = ~league_code
+        )
       ) |>
         theme_dark_plotly(title = "Pinnacle 1X2 Odds Coverage by League and Season") |>
         plotly::layout(
@@ -453,21 +441,21 @@ plan_vignette_outputs <- list(
           x = ~goals, y = ~density,
           name = "Home (Observed)",
           marker = list(color = "#3498db"),
-          hovertemplate = "Goals: %{x}<br>Density: %{y:.3f}<extra></extra>"
+          hovertemplate = "Goals: %{x:.0f}<br>Density: %{y:.3f}<extra></extra>"
         ) |>
         plotly::add_bars(
           data = dplyr::filter(plot_data, side == "Away"),
           x = ~goals, y = ~density,
           name = "Away (Observed)",
           marker = list(color = "#9b59b6"),
-          hovertemplate = "Goals: %{x}<br>Density: %{y:.3f}<extra></extra>"
+          hovertemplate = "Goals: %{x:.0f}<br>Density: %{y:.3f}<extra></extra>"
         ) |>
         plotly::add_lines(
           data = dplyr::filter(plot_data, side == "Home") |> dplyr::distinct(goals, .keep_all = TRUE),
           x = ~goals, y = ~poisson_density,
           name = paste0("Poisson (lambda=", round(mean_goals, 2), ")"),
           line = list(color = "#e67e22", width = 3, dash = "dash"),
-          hovertemplate = "Goals: %{x}<br>Poisson: %{y:.3f}<extra></extra>"
+          hovertemplate = "Goals: %{x:.0f}<br>Poisson: %{y:.3f}<extra></extra>"
         ) |>
         theme_dark_plotly(title = "Goal Distribution: Observed vs Poisson") |>
         plotly::layout(
@@ -508,7 +496,7 @@ plan_vignette_outputs <- list(
 
       colors <- c("Home Win" = "#3498db", "Draw (tied score)" = "#95a5a6", "Away Win" = "#e67e22")
 
-      # Dot chart ordered by home win %, no legend (color explained in annotation)
+      # Dot chart with text labels, ordered by home win %, no legend
       plotly::plot_ly(
         result_data,
         x = ~pct,
@@ -516,8 +504,9 @@ plan_vignette_outputs <- list(
         color = ~ftr_label,
         colors = colors,
         type = "scatter",
-        mode = "markers",
-        marker = list(size = 12),
+        mode = "text",
+        text = ~league_code,
+        textfont = list(size = 9),
         hovertemplate = paste(
           "<b>%{y}</b><br>",
           "%{fullData.name}: %{x:.1f}%<extra></extra>"
@@ -559,77 +548,48 @@ plan_vignette_outputs <- list(
 
       overall_mean <- mean(ha_data$home_win_pct)
 
-      # Split into Top 5 and 2nd Tier subplots, colored by country
-      p1 <- plotly::plot_ly(
-        ha_data |> dplyr::filter(tier == "Top 5"),
-        x = ~season,
-        y = ~home_win_pct,
-        color = ~country,
-        colors = COUNTRY_COLORS,
-        text = ~league_code,
-        type = "scatter",
-        mode = "lines+markers+text",
-        textposition = "top center",
-        textfont = list(color = "white", size = 8),
-        hovertemplate = paste(
-          "%{text}<br>",
-          "Season: %{x}<br>",
-          "Home Win: %{y:.1f}%<extra></extra>"
-        ),
-        showlegend = FALSE
-      ) |>
-        plotly::layout(
-          annotations = list(list(
-            x = 0.5, y = 1.1, xref = "paper", yref = "paper",
-            text = "Top 5 Leagues", showarrow = FALSE,
-            font = list(color = "white", size = 12)
-          ))
-        )
+      # Compute country order by mean home win %
+      country_order <- ha_data |>
+        dplyr::group_by(country) |>
+        dplyr::summarise(mean_ha = mean(home_win_pct, na.rm = TRUE)) |>
+        dplyr::arrange(dplyr::desc(mean_ha)) |>
+        dplyr::pull(country)
 
-      p2 <- plotly::plot_ly(
-        ha_data |> dplyr::filter(tier == "2nd Tier"),
-        x = ~season,
-        y = ~home_win_pct,
-        color = ~country,
-        colors = COUNTRY_COLORS,
-        text = ~league_code,
-        type = "scatter",
-        mode = "lines+markers+text",
-        textposition = "top center",
-        textfont = list(color = "white", size = 8),
-        hovertemplate = paste(
-          "%{text}<br>",
-          "Season: %{x}<br>",
-          "Home Win: %{y:.1f}%<extra></extra>"
-        ),
-        showlegend = FALSE
-      ) |>
-        plotly::layout(
-          annotations = list(list(
-            x = 0.5, y = 1.1, xref = "paper", yref = "paper",
-            text = "2nd Tier Leagues", showarrow = FALSE,
-            font = list(color = "white", size = 12)
-          ))
-        )
+      panels <- lapply(country_order, function(ctry) {
+        cdata <- dplyr::filter(ha_data, country == ctry)
+        # Loess trend
+        if (nrow(cdata) >= 4) {
+          loess_fit <- stats::loess(home_win_pct ~ as.numeric(factor(season)), data = cdata)
+          cdata$trend <- stats::predict(loess_fit)
+        } else {
+          cdata$trend <- cdata$home_win_pct
+        }
 
-      plotly::subplot(p1, p2, nrows = 2, shareX = TRUE, titleY = TRUE) |>
-        theme_dark_plotly(title = "Home Win % by League (Top 5 vs 2nd Tier)") |>
+        plotly::plot_ly(cdata, x = ~season, y = ~home_win_pct,
+          color = ~league_code, colors = COUNTRY_COLORS[ctry],
+          type = "scatter", mode = "markers+text",
+          text = ~league_code, textposition = "top center",
+          textfont = list(color = "white", size = 8),
+          hovertemplate = paste0(ctry, " %{text}<br>Season: %{x}<br>Home Win: %{y:.1f}%<extra></extra>"),
+          showlegend = FALSE
+        ) |>
+          plotly::add_lines(x = ~season, y = ~trend,
+            line = list(color = "rgba(255,255,255,0.5)", dash = "dash", width = 2),
+            showlegend = FALSE, hoverinfo = "skip") |>
+          plotly::layout(annotations = list(list(
+            x = 0.5, y = 1.08, xref = "paper", yref = "paper",
+            text = ctry, showarrow = FALSE, font = list(color = "white", size = 12)
+          )))
+      })
+
+      plotly::subplot(panels, nrows = 5, shareX = TRUE, titleY = TRUE) |>
+        theme_dark_plotly(title = "Home Win % by Country (ordered by average, with loess trend)") |>
         plotly::layout(
-          yaxis = list(title = "Home Win %"),
-          yaxis2 = list(title = "Home Win %"),
-          shapes = list(
-            list(type = "line", x0 = 0, x1 = 1, y0 = overall_mean, y1 = overall_mean,
-                 xref = "paper", yref = "y",
-                 line = list(color = "#e67e22", dash = "dash", width = 2)),
-            list(type = "line", x0 = 0, x1 = 1, y0 = overall_mean, y1 = overall_mean,
-                 xref = "paper", yref = "y2",
-                 line = list(color = "#e67e22", dash = "dash", width = 2))
-          ),
-          annotations = list(
-            list(x = 0.02, y = overall_mean, xref = "paper", yref = "y",
-                 text = paste0("Mean: ", round(overall_mean, 1), "%"),
-                 showarrow = FALSE, xanchor = "left", font = list(color = "#e67e22", size = 10))
-          )
+          yaxis = list(title = "Home Win %"), yaxis2 = list(title = ""),
+          yaxis3 = list(title = ""), yaxis4 = list(title = ""), yaxis5 = list(title = ""),
+          shapes = list(list(type = "line", x0 = 0, x1 = 1, y0 = overall_mean, y1 = overall_mean,
+            xref = "paper", yref = "y",
+            line = list(color = "#e67e22", dash = "dash", width = 1)))
         )
     }
   ),
@@ -681,77 +641,48 @@ plan_vignette_outputs <- list(
 
       overall_mean <- mean(trend_data$mean_goals)
 
-      # Split into Top 5 and 2nd Tier subplots, colored by country
-      p1 <- plotly::plot_ly(
-        trend_data |> dplyr::filter(tier == "Top 5"),
-        x = ~season,
-        y = ~mean_goals,
-        color = ~country,
-        colors = COUNTRY_COLORS,
-        text = ~league_code,
-        type = "scatter",
-        mode = "lines+markers+text",
-        textposition = "top center",
-        textfont = list(color = "white", size = 8),
-        hovertemplate = paste(
-          "%{text}<br>",
-          "Season: %{x}<br>",
-          "Goals/match: %{y:.2f}<extra></extra>"
-        ),
-        showlegend = FALSE
-      ) |>
-        plotly::layout(
-          annotations = list(list(
-            x = 0.5, y = 1.1, xref = "paper", yref = "paper",
-            text = "Top 5 Leagues", showarrow = FALSE,
-            font = list(color = "white", size = 12)
-          ))
-        )
+      # Compute country order by mean goals
+      country_order <- trend_data |>
+        dplyr::group_by(country) |>
+        dplyr::summarise(mean_g = mean(mean_goals, na.rm = TRUE)) |>
+        dplyr::arrange(dplyr::desc(mean_g)) |>
+        dplyr::pull(country)
 
-      p2 <- plotly::plot_ly(
-        trend_data |> dplyr::filter(tier == "2nd Tier"),
-        x = ~season,
-        y = ~mean_goals,
-        color = ~country,
-        colors = COUNTRY_COLORS,
-        text = ~league_code,
-        type = "scatter",
-        mode = "lines+markers+text",
-        textposition = "top center",
-        textfont = list(color = "white", size = 8),
-        hovertemplate = paste(
-          "%{text}<br>",
-          "Season: %{x}<br>",
-          "Goals/match: %{y:.2f}<extra></extra>"
-        ),
-        showlegend = FALSE
-      ) |>
-        plotly::layout(
-          annotations = list(list(
-            x = 0.5, y = 1.1, xref = "paper", yref = "paper",
-            text = "2nd Tier Leagues", showarrow = FALSE,
-            font = list(color = "white", size = 12)
-          ))
-        )
+      panels <- lapply(country_order, function(ctry) {
+        cdata <- dplyr::filter(trend_data, country == ctry)
+        # Loess trend
+        if (nrow(cdata) >= 4) {
+          loess_fit <- stats::loess(mean_goals ~ as.numeric(factor(season)), data = cdata)
+          cdata$trend <- stats::predict(loess_fit)
+        } else {
+          cdata$trend <- cdata$mean_goals
+        }
 
-      plotly::subplot(p1, p2, nrows = 2, shareX = TRUE, titleY = TRUE) |>
-        theme_dark_plotly(title = "Mean Goals Per Match (Top 5 vs 2nd Tier)") |>
+        plotly::plot_ly(cdata, x = ~season, y = ~mean_goals,
+          color = ~league_code, colors = COUNTRY_COLORS[ctry],
+          type = "scatter", mode = "markers+text",
+          text = ~league_code, textposition = "top center",
+          textfont = list(color = "white", size = 8),
+          hovertemplate = paste0(ctry, " %{text}<br>Season: %{x}<br>Goals/match: %{y:.2f}<extra></extra>"),
+          showlegend = FALSE
+        ) |>
+          plotly::add_lines(x = ~season, y = ~trend,
+            line = list(color = "rgba(255,255,255,0.5)", dash = "dash", width = 2),
+            showlegend = FALSE, hoverinfo = "skip") |>
+          plotly::layout(annotations = list(list(
+            x = 0.5, y = 1.08, xref = "paper", yref = "paper",
+            text = ctry, showarrow = FALSE, font = list(color = "white", size = 12)
+          )))
+      })
+
+      plotly::subplot(panels, nrows = 5, shareX = TRUE, titleY = TRUE) |>
+        theme_dark_plotly(title = "Mean Goals Per Match by Country (ordered by average, with loess trend)") |>
         plotly::layout(
-          yaxis = list(title = "Goals/Match"),
-          yaxis2 = list(title = "Goals/Match"),
-          shapes = list(
-            list(type = "line", x0 = 0, x1 = 1, y0 = overall_mean, y1 = overall_mean,
-                 xref = "paper", yref = "y",
-                 line = list(color = "#e67e22", dash = "dash", width = 2)),
-            list(type = "line", x0 = 0, x1 = 1, y0 = overall_mean, y1 = overall_mean,
-                 xref = "paper", yref = "y2",
-                 line = list(color = "#e67e22", dash = "dash", width = 2))
-          ),
-          annotations = list(
-            list(x = 0.02, y = overall_mean, xref = "paper", yref = "y",
-                 text = paste0("Mean: ", round(overall_mean, 2)),
-                 showarrow = FALSE, xanchor = "left", font = list(color = "#e67e22", size = 10))
-          )
+          yaxis = list(title = "Goals/Match"), yaxis2 = list(title = ""),
+          yaxis3 = list(title = ""), yaxis4 = list(title = ""), yaxis5 = list(title = ""),
+          shapes = list(list(type = "line", x0 = 0, x1 = 1, y0 = overall_mean, y1 = overall_mean,
+            xref = "paper", yref = "y",
+            line = list(color = "#e67e22", dash = "dash", width = 1)))
         )
     }
   ),
@@ -832,9 +763,9 @@ plan_vignette_outputs <- list(
           showarrow = TRUE,
           arrowhead = 0,
           arrowcolor = "white",
-          ax = 25,
-          ay = -20,
-          font = list(color = "white", size = 9)
+          ax = 45,
+          ay = -35,
+          font = list(color = "white", size = 12)
         )
       })
 
@@ -880,25 +811,68 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_elo_spread_plot,
     {
-      plotly::plot_ly(
-        elo_ratings,
-        x = ~elo,
-        y = ~league_code,
-        type = "box",
+      elo_with_meta <- elo_ratings |> add_league_metadata()
+
+      # Compute IQR per league for ordering
+      elo_iqr <- elo_with_meta |>
+        dplyr::group_by(league_code, tier) |>
+        dplyr::summarise(iqr = stats::IQR(elo, na.rm = TRUE), .groups = "drop")
+
+      # Mean IQR per tier for annotations
+      tier_iqr <- elo_iqr |>
+        dplyr::group_by(tier) |>
+        dplyr::summarise(mean_iqr = round(mean(iqr, na.rm = TRUE), 0), .groups = "drop")
+
+      # Order leagues within tier by IQR (widest first)
+      top5_order <- elo_iqr |>
+        dplyr::filter(tier == "Top 5") |>
+        dplyr::arrange(dplyr::desc(iqr)) |>
+        dplyr::pull(league_code)
+      tier2_order <- elo_iqr |>
+        dplyr::filter(tier == "2nd Tier") |>
+        dplyr::arrange(dplyr::desc(iqr)) |>
+        dplyr::pull(league_code)
+
+      p1 <- plotly::plot_ly(
+        elo_with_meta |>
+          dplyr::filter(tier == "Top 5") |>
+          dplyr::mutate(league_code = factor(league_code, levels = rev(top5_order))),
+        x = ~elo, y = ~league_code, type = "box",
         marker = list(color = "#3498db"),
         fillcolor = "rgba(52, 152, 219, 0.5)",
         line = list(color = "white"),
-        hovertemplate = paste(
-          "League: %{y}<br>",
-          "Elo: %{x:.0f}<extra></extra>"
-        )
+        hovertemplate = "League: %{y}<br>Elo: %{x:.0f}<extra></extra>"
       ) |>
-        theme_dark_plotly(title = "Elo Rating Distribution by League") |>
+        plotly::layout(annotations = list(list(
+          x = 0.5, y = 1.1, xref = "paper", yref = "paper",
+          text = paste0("Top 5 (mean IQR: ", tier_iqr$mean_iqr[tier_iqr$tier == "Top 5"], ")"),
+          showarrow = FALSE, font = list(color = "white", size = 12)
+        )))
+
+      p2 <- plotly::plot_ly(
+        elo_with_meta |>
+          dplyr::filter(tier == "2nd Tier") |>
+          dplyr::mutate(league_code = factor(league_code, levels = rev(tier2_order))),
+        x = ~elo, y = ~league_code, type = "box",
+        marker = list(color = "#e67e22"),
+        fillcolor = "rgba(230, 126, 34, 0.5)",
+        line = list(color = "white"),
+        hovertemplate = "League: %{y}<br>Elo: %{x:.0f}<extra></extra>"
+      ) |>
+        plotly::layout(annotations = list(list(
+          x = 0.5, y = 1.1, xref = "paper", yref = "paper",
+          text = paste0("2nd Tier (mean IQR: ", tier_iqr$mean_iqr[tier_iqr$tier == "2nd Tier"], ")"),
+          showarrow = FALSE, font = list(color = "white", size = 12)
+        )))
+
+      plotly::subplot(p1, p2, nrows = 2, shareX = TRUE, titleY = TRUE) |>
+        theme_dark_plotly(title = "Elo Rating Distribution by League (ordered by IQR within tier)") |>
         plotly::layout(
           xaxis = list(title = "Elo Rating"),
-          yaxis = list(title = ""),
+          yaxis = list(title = ""), yaxis2 = list(title = ""),
           shapes = list(
-            list(type = "line", x0 = 1500, x1 = 1500, y0 = -0.5, y1 = 9.5,
+            list(type = "line", x0 = 1500, x1 = 1500, y0 = -0.5, y1 = 1,
+                 yref = "paper",
                  line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
           annotations = list(
@@ -962,11 +936,18 @@ plan_vignette_outputs <- list(
             list(type = "line", x0 = 0, x1 = 0, y0 = -0.5, y1 = 9.5,
                  line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
-          annotations = list(list(
-            x = 0.5, y = 1.05, xref = "paper", yref = "paper",
-            text = "Blue = Top 5 | Orange = 2nd Tier | Lower = better for bettors",
-            showarrow = FALSE, font = list(size = 10, color = "white")
-          ))
+          annotations = list(
+            list(
+              x = 0.5, y = 1.05, xref = "paper", yref = "paper",
+              text = "Blue = Top 5 | Orange = 2nd Tier | Lower = better for bettors",
+              showarrow = FALSE, font = list(size = 10, color = "white")
+            ),
+            list(
+              x = 0.5, y = 1.12, xref = "paper", yref = "paper",
+              text = "Median overround 2-4% confirms Pinnacle as sharp benchmark",
+              showarrow = FALSE, font = list(size = 11, color = "#e67e22")
+            )
+          )
         )
     }
   ),
@@ -1038,7 +1019,7 @@ plan_vignette_outputs <- list(
         type = "scatter",
         mode = "lines+markers",
         hovertemplate = paste(
-          "Fold: %{x}<br>",
+          "Fold: %{x:.0f}<br>",
           "Score: %{y:.4f}<extra></extra>"
         )
       ) |>
@@ -1089,7 +1070,7 @@ plan_vignette_outputs <- list(
         mode = "lines",
         line = list(color = "#3498db", width = 2),
         hovertemplate = paste(
-          "Bet #: %{x}<br>",
+          "Bet #: %{x:.0f}<br>",
           "Bankroll: %{y:.0f}<extra></extra>"
         )
       ) |>
@@ -1131,7 +1112,7 @@ plan_vignette_outputs <- list(
         fillcolor = "rgba(231, 76, 60, 0.4)",
         line = list(color = "#e74c3c", width = 2),
         hovertemplate = paste(
-          "Bet #: %{x}<br>",
+          "Bet #: %{x:.0f}<br>",
           "Drawdown: %{y:.1f}%<extra></extra>"
         )
       ) |>
@@ -1188,7 +1169,7 @@ plan_vignette_outputs <- list(
         nbinsx = 30,
         hovertemplate = paste(
           "Edge: %{x:.1%}<br>",
-          "Count: %{y}<extra></extra>"
+          "Count: %{y:.0f}<extra></extra>"
         )
       ) |>
         theme_dark_plotly(title = "Distribution of Edge Values for Identified Value Bets") |>
@@ -1222,7 +1203,7 @@ plan_vignette_outputs <- list(
         nbinsx = 30,
         hovertemplate = paste(
           "Stake: %{x:.1%}<br>",
-          "Count: %{y}<extra></extra>"
+          "Count: %{y:.0f}<extra></extra>"
         )
       ) |>
         theme_dark_plotly(title = "Distribution of Quarter-Kelly Stake Sizes") |>
