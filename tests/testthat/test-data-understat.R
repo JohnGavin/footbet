@@ -19,6 +19,7 @@ test_that("fetch_understat_xg requires arguments", {
 # Note: Actual API tests should be skipped in CI
 test_that("fetch_understat_xg returns expected structure", {
   skip_if_not_installed("worldfootballR")
+  skip_if_not_installed("qdapRegex")  # worldfootballR transitive dep
   skip_on_cran()
   skip_on_ci()  # Skip network tests in CI
 

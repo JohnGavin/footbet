@@ -7,7 +7,8 @@
 setup_nix_libs()
 }
 \description{
-Workaround for nested nix-shell conflicts. Adds football project's
-nix packages to .libPaths() without spawning nested shell.
+Workaround for nested nix-shell conflicts. Reads Imports and Suggests
+from DESCRIPTION (single source of truth) and adds matching nix store
+paths to \code{.libPaths()}.
 }
 \keyword{internal}

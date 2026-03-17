@@ -2,6 +2,8 @@
 # Catches changes in data pipeline outputs that could break vignettes.
 # Review changes with: testthat::snapshot_review()
 
+skip_if(nzchar(Sys.getenv("_R_CHECK_PACKAGE_NAME_")), "skipping in R CMD check")
+
 rds_dir <- here::here("inst", "extdata", "vignettes")
 
 skip_if_no_targets <- function() {

@@ -4,6 +4,8 @@
 #
 # Guarded by skip_if_not — only run locally when targets store exists.
 
+skip_if(nzchar(Sys.getenv("_R_CHECK_PACKAGE_NAME_")), "skipping in R CMD check")
+
 store <- here::here("_targets")
 
 skip_if_not(
