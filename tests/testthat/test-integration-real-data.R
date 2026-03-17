@@ -11,10 +11,20 @@ skip_if_not(
  "targets store not available"
 )
 
+# Read targets without callr subprocess (avoids R crash in devtools::test)
+safe_read <- function(name) {
+  rds <- here::here("inst", "extdata", "vignettes", paste0(name, ".rds"))
+  if (file.exists(rds)) return(readRDS(rds))
+  tryCatch(
+    targets::tar_read_raw(name, store = store),
+    error = function(e) NULL
+  )
+}
+
 # ---- Elo on real match data ----
 
 test_that("compute_elo: runs on full E0 (Premier League) data", {
-  matches <- targets::tar_read(store = store,parsed_matches) |>
+  matches <- safe_read("parsed_matches") |>
     dplyr::filter(league_code == "E0")
 
   result <- compute_elo(
@@ -37,7 +47,7 @@ test_that("compute_elo: runs on full E0 (Premier League) data", {
 })
 
 test_that("compute_elo: Elo conserved on real data per league", {
-  matches <- targets::tar_read(store = store,parsed_matches)
+  matches <- safe_read("parsed_matches")
   leagues <- unique(matches$league_code)
 
   for (lc in leagues) {
@@ -57,7 +67,7 @@ test_that("compute_elo: Elo conserved on real data per league", {
 # ---- Rest days on real data ----
 
 test_that("compute_rest_days: runs on full dataset", {
-  matches <- targets::tar_read(store = store,parsed_matches) |>
+  matches <- safe_read("parsed_matches") |>
     dplyr::filter(league_code == "E0")
 
   result <- compute_rest_days(matches)
@@ -75,7 +85,7 @@ test_that("compute_rest_days: runs on full dataset", {
 # ---- Devig on real odds data ----
 
 test_that("devig_odds: runs on full odds dataset", {
-  odds <- targets::tar_read(store = store,parsed_odds)
+  odds <- safe_read("parsed_odds")
 
   result <- devig_odds(odds)
 
@@ -96,7 +106,7 @@ test_that("devig_odds: runs on full odds dataset", {
 # ---- Feature matrix assembly ----
 
 test_that("feature_matrix: has expected columns and no all-NA features", {
-  fm <- targets::tar_read(store = store,feature_matrix)
+  fm <- safe_read("feature_matrix")
 
   expected_cols <- c(
     "match_id", "league_code", "season", "match_date",
@@ -116,7 +126,7 @@ test_that("feature_matrix: has expected columns and no all-NA features", {
 })
 
 test_that("feature_matrix: rest days present and reasonable", {
-  fm <- targets::tar_read(store = store,feature_matrix)
+  fm <- safe_read("feature_matrix")
 
   if ("home_rest_days" %in% names(fm)) {
     valid <- fm$home_rest_days[!is.na(fm$home_rest_days)]
@@ -128,7 +138,7 @@ test_that("feature_matrix: rest days present and reasonable", {
 })
 
 test_that("feature_matrix: Pinnacle implied Elo present where odds exist", {
-  fm <- targets::tar_read(store = store,feature_matrix)
+  fm <- safe_read("feature_matrix")
 
   if ("pinnacle_home_elo" %in% names(fm)) {
     has_odds <- !is.na(fm$fair_h)
@@ -146,7 +156,7 @@ test_that("feature_matrix: Pinnacle implied Elo present where odds exist", {
 # ---- Elo ratings target shape ----
 
 test_that("elo_ratings target: has expected columns and sane range", {
-  elo <- targets::tar_read(store = store, elo_ratings)
+  elo <- safe_read("elo_ratings")
 
   expect_s3_class(elo, "tbl_df")
   expect_true(all(c("team", "elo", "league_code") %in% names(elo)))
@@ -157,22 +167,19 @@ test_that("elo_ratings target: has expected columns and sane range", {
 
 # ---- Vignette targets: none NULL ----
 
-test_that("all vig_* targets are non-NULL", {
-  # List targets from store metadata directly (no _targets.R needed)
-  store <- here::here("_targets")
-  meta <- targets::tar_meta(store = store)
-  vig_names <- grep("^vig_", meta$name, value = TRUE)
-  expect_true(length(vig_names) > 0, label = "found vig_* targets")
+test_that("all vig_* RDS files are non-NULL", {
+  rds_dir <- here::here("inst", "extdata", "vignettes")
+  skip_if_not(dir.exists(rds_dir), "RDS directory not found")
+
+  rds_files <- list.files(rds_dir, pattern = "^vig_.*\\.rds$")
+  expect_true(length(rds_files) > 0, label = "found vig_* RDS files")
 
   null_targets <- c()
-  for (name in vig_names) {
-    obj <- tryCatch(
-      targets::tar_read_raw(name, store = store),
-      error = function(e) "ERROR"
-    )
-    if (is.null(obj)) null_targets <- c(null_targets, name)
+  for (f in rds_files) {
+    obj <- readRDS(file.path(rds_dir, f))
+    if (is.null(obj)) null_targets <- c(null_targets, f)
   }
 
   expect_equal(length(null_targets), 0L,
-               label = paste("NULL targets:", paste(null_targets, collapse = ", ")))
+               label = paste("NULL RDS:", paste(null_targets, collapse = ", ")))
 })

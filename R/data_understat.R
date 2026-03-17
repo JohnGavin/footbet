@@ -17,11 +17,12 @@ NULL
 #' @family data
 #' @export
 fetch_understat_xg <- function(league, season) {
-  rlang::check_installed("understatr", reason = "to fetch Understat xG data")
+  rlang::check_installed("worldfootballR",
+    reason = "to fetch Understat xG data (via worldfootballR)")
   rlang::check_required(league)
   rlang::check_required(season)
 
-  valid_leagues <- c("EPL", "La_liga", "Bundesliga", "Serie_A", "Ligue_1", "RFPL")
+  valid_leagues <- c("EPL", "La Liga", "Bundesliga", "Serie A", "Ligue 1", "RFPL")
   if (!league %in% valid_leagues) {
     cli::cli_abort(c(
       "x" = "Invalid league: {.val {league}}",
@@ -31,9 +32,9 @@ fetch_understat_xg <- function(league, season) {
 
   cli::cli_alert_info("Fetching Understat xG for {league} {season}...")
 
-  # Fetch league results
+  # Fetch via worldfootballR (replaces archived understatr package)
   results <- tryCatch(
-    understatr::get_league_season(league, season),
+    worldfootballR::understat_league_match_results(league, season),
     error = function(e) {
       cli::cli_abort(c(
         "x" = "Failed to fetch Understat data",
@@ -42,10 +43,10 @@ fetch_understat_xg <- function(league, season) {
     }
   )
 
-  if (nrow(results) == 0L) {
+  if (is.null(results) || nrow(results) == 0L) {
     cli::cli_warn("No data found for {league} {season}")
     return(tibble::tibble(
-      match_id = integer(),
+      understat_id = integer(),
       match_date = as.Date(character()),
       home_team = character(),
       away_team = character(),
@@ -56,17 +57,17 @@ fetch_understat_xg <- function(league, season) {
     ))
   }
 
-  # Standardize column names
+  # Standardize column names (worldfootballR format)
   results |>
     dplyr::transmute(
-      understat_id = as.integer(.data$id),
+      understat_id = as.integer(.data$match_id),
       match_date = as.Date(.data$datetime),
-      home_team = .data$h,
-      away_team = .data$a,
-      home_xg = as.numeric(.data$xG_h),
-      away_xg = as.numeric(.data$xG_a),
-      home_goals = as.integer(.data$goals_h),
-      away_goals = as.integer(.data$goals_a),
+      home_team = .data$home_team,
+      away_team = .data$away_team,
+      home_xg = as.numeric(.data$home_xG),
+      away_xg = as.numeric(.data$away_xG),
+      home_goals = as.integer(.data$home_goals),
+      away_goals = as.integer(.data$away_goals),
       season = as.character(season)
     )
 }

@@ -3,10 +3,10 @@
 # ---- fetch_understat_xg ----
 
 test_that("fetch_understat_xg validates league argument", {
-  skip_if_not_installed("understatr")
+  skip_if_not_installed("worldfootballR")
 
   expect_error(
-    fetch_understat_xg("Invalid", 2023),
+    fetch_understat_xg("InvalidLeague", 2023),
     "Invalid league"
   )
 })
@@ -18,7 +18,7 @@ test_that("fetch_understat_xg requires arguments", {
 
 # Note: Actual API tests should be skipped in CI
 test_that("fetch_understat_xg returns expected structure", {
-  skip_if_not_installed("understatr")
+  skip_if_not_installed("worldfootballR")
   skip_on_cran()
   skip_on_ci()  # Skip network tests in CI
 

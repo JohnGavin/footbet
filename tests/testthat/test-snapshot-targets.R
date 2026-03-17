@@ -2,13 +2,17 @@
 # Catches changes in data pipeline outputs that could break vignettes.
 # Review changes with: testthat::snapshot_review()
 
-store <- here::here("_targets")
+rds_dir <- here::here("inst", "extdata", "vignettes")
 
 skip_if_no_targets <- function() {
-  skip_if_not(
-    file.exists(file.path(store, "meta", "meta")),
-    "targets store not found"
-  )
+  skip_if_not(dir.exists(rds_dir), "RDS vignette directory not found")
+}
+
+# Read from pre-computed RDS (avoids targets subprocess crash)
+read_vig <- function(name) {
+  rds <- file.path(rds_dir, paste0(name, ".rds"))
+  if (!file.exists(rds)) skip(paste0("RDS not found: ", name))
+  readRDS(rds)
 }
 
 # Helper to snapshot object structure
@@ -34,19 +38,19 @@ snapshot_structure <- function(obj, name) {
 
 test_that("vig_data_source_summary structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_data_source_summary, store = store)
+  obj <- read_vig("vig_data_source_summary")
   expect_snapshot(snapshot_structure(obj, "vig_data_source_summary"))
 })
 
 test_that("vig_league_season_grid structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_league_season_grid, store = store)
+  obj <- read_vig("vig_league_season_grid")
   expect_snapshot(snapshot_structure(obj, "vig_league_season_grid"))
 })
 
 test_that("vig_typical_match_stats structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_typical_match_stats, store = store)
+  obj <- read_vig("vig_typical_match_stats")
   expect_snapshot(snapshot_structure(obj, "vig_typical_match_stats"))
 })
 
@@ -54,37 +58,37 @@ test_that("vig_typical_match_stats structure", {
 
 test_that("vig_goals_distribution structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_goals_distribution, store = store)
+  obj <- read_vig("vig_goals_distribution")
   expect_snapshot(snapshot_structure(obj, "vig_goals_distribution"))
 })
 
 test_that("vig_result_proportions structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_result_proportions, store = store)
+  obj <- read_vig("vig_result_proportions")
   expect_snapshot(snapshot_structure(obj, "vig_result_proportions"))
 })
 
 test_that("vig_scoreline_heatmap structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_scoreline_heatmap, store = store)
+  obj <- read_vig("vig_scoreline_heatmap")
   expect_snapshot(snapshot_structure(obj, "vig_scoreline_heatmap"))
 })
 
 test_that("vig_home_advantage_by_league structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_home_advantage_by_league, store = store)
+  obj <- read_vig("vig_home_advantage_by_league")
   expect_snapshot(snapshot_structure(obj, "vig_home_advantage_by_league"))
 })
 
 test_that("vig_goals_per_season_trend structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_goals_per_season_trend, store = store)
+  obj <- read_vig("vig_goals_per_season_trend")
   expect_snapshot(snapshot_structure(obj, "vig_goals_per_season_trend"))
 })
 
 test_that("vig_matches_per_season_plot structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_matches_per_season_plot, store = store)
+  obj <- read_vig("vig_matches_per_season_plot")
   expect_snapshot(snapshot_structure(obj, "vig_matches_per_season_plot"))
 })
 
@@ -92,31 +96,31 @@ test_that("vig_matches_per_season_plot structure", {
 
 test_that("vig_missing_data_by_column structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_missing_data_by_column, store = store)
+  obj <- read_vig("vig_missing_data_by_column")
   expect_snapshot(snapshot_structure(obj, "vig_missing_data_by_column"))
 })
 
 test_that("vig_missing_data_heatmap structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_missing_data_heatmap, store = store)
+  obj <- read_vig("vig_missing_data_heatmap")
   expect_snapshot(snapshot_structure(obj, "vig_missing_data_heatmap"))
 })
 
 test_that("vig_anomalies_table structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_anomalies_table, store = store)
+  obj <- read_vig("vig_anomalies_table")
   expect_snapshot(snapshot_structure(obj, "vig_anomalies_table"))
 })
 
 test_that("vig_outlier_matches structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_outlier_matches, store = store)
+  obj <- read_vig("vig_outlier_matches")
   expect_snapshot(snapshot_structure(obj, "vig_outlier_matches"))
 })
 
 test_that("vig_completeness_plot structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_completeness_plot, store = store)
+  obj <- read_vig("vig_completeness_plot")
   expect_snapshot(snapshot_structure(obj, "vig_completeness_plot"))
 })
 
@@ -124,25 +128,25 @@ test_that("vig_completeness_plot structure", {
 
 test_that("vig_odds_columns_available structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_odds_columns_available, store = store)
+  obj <- read_vig("vig_odds_columns_available")
   expect_snapshot(snapshot_structure(obj, "vig_odds_columns_available"))
 })
 
 test_that("vig_odds_vs_result structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_odds_vs_result, store = store)
+  obj <- read_vig("vig_odds_vs_result")
   expect_snapshot(snapshot_structure(obj, "vig_odds_vs_result"))
 })
 
 test_that("vig_overround_by_league structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_overround_by_league, store = store)
+  obj <- read_vig("vig_overround_by_league")
   expect_snapshot(snapshot_structure(obj, "vig_overround_by_league"))
 })
 
 test_that("vig_pinnacle_coverage_plot structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_pinnacle_coverage_plot, store = store)
+  obj <- read_vig("vig_pinnacle_coverage_plot")
   expect_snapshot(snapshot_structure(obj, "vig_pinnacle_coverage_plot"))
 })
 
@@ -150,43 +154,43 @@ test_that("vig_pinnacle_coverage_plot structure", {
 
 test_that("vig_poisson_test structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_poisson_test, store = store)
+  obj <- read_vig("vig_poisson_test")
   expect_snapshot(snapshot_structure(obj, "vig_poisson_test"))
 })
 
 test_that("vig_elo_spread_plot structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_elo_spread_plot, store = store)
+  obj <- read_vig("vig_elo_spread_plot")
   expect_snapshot(snapshot_structure(obj, "vig_elo_spread_plot"))
 })
 
 test_that("vig_shrinkage_plot structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_shrinkage_plot, store = store)
+  obj <- read_vig("vig_shrinkage_plot")
   expect_snapshot(snapshot_structure(obj, "vig_shrinkage_plot"))
 })
 
 test_that("vig_pp_check_goals structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_pp_check_goals, store = store)
+  obj <- read_vig("vig_pp_check_goals")
   expect_snapshot(snapshot_structure(obj, "vig_pp_check_goals"))
 })
 
 test_that("vig_home_trend_test structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_home_trend_test, store = store)
+  obj <- read_vig("vig_home_trend_test")
   expect_snapshot(snapshot_structure(obj, "vig_home_trend_test"))
 })
 
 test_that("vig_model_comparison_table structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_model_comparison_table, store = store)
+  obj <- read_vig("vig_model_comparison_table")
   expect_snapshot(snapshot_structure(obj, "vig_model_comparison_table"))
 })
 
 test_that("vig_model_comparison_test structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_model_comparison_test, store = store)
+  obj <- read_vig("vig_model_comparison_test")
   expect_snapshot(snapshot_structure(obj, "vig_model_comparison_test"))
 })
 
@@ -194,13 +198,13 @@ test_that("vig_model_comparison_test structure", {
 
 test_that("vig_cv_metrics_plot structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_cv_metrics_plot, store = store)
+  obj <- read_vig("vig_cv_metrics_plot")
   expect_snapshot(snapshot_structure(obj, "vig_cv_metrics_plot"))
 })
 
 test_that("vig_cv_html structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_cv_html, store = store)
+  obj <- read_vig("vig_cv_html")
   expect_snapshot(snapshot_structure(obj, "vig_cv_html"))
 })
 
@@ -208,25 +212,25 @@ test_that("vig_cv_html structure", {
 
 test_that("vig_kelly_stake_distribution structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_kelly_stake_distribution, store = store)
+  obj <- read_vig("vig_kelly_stake_distribution")
   expect_snapshot(snapshot_structure(obj, "vig_kelly_stake_distribution"))
 })
 
 test_that("vig_kelly_html structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_kelly_html, store = store)
+  obj <- read_vig("vig_kelly_html")
   expect_snapshot(snapshot_structure(obj, "vig_kelly_html"))
 })
 
 test_that("vig_edge_distribution structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_edge_distribution, store = store)
+  obj <- read_vig("vig_edge_distribution")
   expect_snapshot(snapshot_structure(obj, "vig_edge_distribution"))
 })
 
 test_that("vig_value_bets_summary structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_value_bets_summary, store = store)
+  obj <- read_vig("vig_value_bets_summary")
   expect_snapshot(snapshot_structure(obj, "vig_value_bets_summary"))
 })
 
@@ -234,19 +238,19 @@ test_that("vig_value_bets_summary structure", {
 
 test_that("vig_pnl_curve structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_pnl_curve, store = store)
+  obj <- read_vig("vig_pnl_curve")
   expect_snapshot(snapshot_structure(obj, "vig_pnl_curve"))
 })
 
 test_that("vig_drawdown_plot structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_drawdown_plot, store = store)
+  obj <- read_vig("vig_drawdown_plot")
   expect_snapshot(snapshot_structure(obj, "vig_drawdown_plot"))
 })
 
 test_that("vig_pnl_summary_table structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_pnl_summary_table, store = store)
+  obj <- read_vig("vig_pnl_summary_table")
   expect_snapshot(snapshot_structure(obj, "vig_pnl_summary_table"))
 })
 
@@ -254,6 +258,6 @@ test_that("vig_pnl_summary_table structure", {
 
 test_that("vig_pipeline_html structure", {
   skip_if_no_targets()
-  obj <- targets::tar_read(vig_pipeline_html, store = store)
+  obj <- read_vig("vig_pipeline_html")
   expect_snapshot(snapshot_structure(obj, "vig_pipeline_html"))
 })
