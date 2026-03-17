@@ -187,35 +187,10 @@ plan_vignette_outputs <- list(
         pct_complete = 100
       )
 
-      display_data <- dplyr::bind_rows(imperfect, summary_row)
-
-      DT::datatable(
-        display_data,
-        colnames = c("League", "Season", "Tier", "% Complete"),
-        options = list(
-          pageLength = 25,
-          dom = "tip",
-          columnDefs = list(
-            list(className = "dt-center", targets = "_all")
-          ),
-          initComplete = DT::JS(
-            "function(settings, json) {",
-            "  $(this.api().table().header()).css({'background-color': '#000', 'color': '#fff'});",
-            "  $(this.api().table().body()).css({'background-color': '#111', 'color': '#fff'});",
-            "}"
-          )
-        ),
-        caption = htmltools::tags$caption(
-          style = "color: white; font-size: 14px;",
-          "Match Result Completeness: leagues/seasons below 100% shown in detail"
-        ),
-        rownames = FALSE
-      ) |>
-        DT::formatStyle(
-          "pct_complete",
-          backgroundColor = DT::styleInterval(c(95, 100), c("#e74c3c", "#e67e22", "#28a745")),
-          color = "white"
-        )
+      # Return plain data.frame — DT wrapping happens in vignette QMD
+      # (DT::datatable objects contain hardcoded nix store paths that
+      # break when loaded from RDS on a different machine)
+      dplyr::bind_rows(imperfect, summary_row)
     }
   ),
 
