@@ -19,8 +19,12 @@ Convert score matrix to 1X2 probabilities
 Other models: 
 \code{\link{brms_converged}()},
 \code{\link{brms_diagnostics}()},
+\code{\link{brms_loo}()},
+\code{\link{brms_r2}()},
+\code{\link{brms_waic}()},
 \code{\link{correct_score_value}()},
 \code{\link{cv_xgboost}()},
+\code{\link{edge_credible_interval}()},
 \code{\link{ensemble_predict}()},
 \code{\link{evaluate_brms}()},
 \code{\link{evaluate_dc}()},

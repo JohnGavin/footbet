@@ -42,8 +42,12 @@ Evaluate brms model via walk-forward cross-validation
 Other models: 
 \code{\link{brms_converged}()},
 \code{\link{brms_diagnostics}()},
+\code{\link{brms_loo}()},
+\code{\link{brms_r2}()},
+\code{\link{brms_waic}()},
 \code{\link{correct_score_value}()},
 \code{\link{cv_xgboost}()},
+\code{\link{edge_credible_interval}()},
 \code{\link{ensemble_predict}()},
 \code{\link{evaluate_dc}()},
 \code{\link{fit_brms_poisson}()},

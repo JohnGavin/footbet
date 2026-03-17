@@ -350,5 +350,50 @@ plan_models_brms <- list(
       dplyr::bind_rows(results)
     },
     cue = targets::tar_cue(mode = "never")
+  ),
+
+  # ====================================================================
+  # LOO-CV and WAIC Model Comparison (#62)
+  # ====================================================================
+
+  targets::tar_target(
+    vig_loo_comparison,
+    {
+      if (!requireNamespace("brms", quietly = TRUE) || is.null(brms_full_model)) {
+        return(tibble::tibble(
+          metric = c("ELPD (LOO)", "p_loo", "LOOIC", "ELPD (WAIC)", "p_waic"),
+          estimate = rep(NA_real_, 5),
+          se = rep(NA_real_, 5),
+          note = "brms model not available."
+        ))
+      }
+
+      loo_result <- brms_loo(brms_full_model)
+      waic_result <- brms_waic(brms_full_model)
+      r2_result <- brms_r2(brms_full_model)
+
+      tibble::tibble(
+        metric = c("ELPD (LOO)", "p_loo", "LOOIC",
+                    "ELPD (WAIC)", "p_waic",
+                    "Bayesian R²"),
+        estimate = round(c(
+          loo_result$estimates["elpd_loo", "Estimate"],
+          loo_result$estimates["p_loo", "Estimate"],
+          loo_result$estimates["looic", "Estimate"],
+          waic_result$estimates["elpd_waic", "Estimate"],
+          waic_result$estimates["p_waic", "Estimate"],
+          r2_result[1, "Estimate"]
+        ), 2),
+        se = round(c(
+          loo_result$estimates["elpd_loo", "SE"],
+          loo_result$estimates["p_loo", "SE"],
+          loo_result$estimates["looic", "SE"],
+          waic_result$estimates["elpd_waic", "SE"],
+          waic_result$estimates["p_waic", "SE"],
+          r2_result[1, "Est.Error"]
+        ), 2)
+      )
+    },
+    cue = targets::tar_cue(mode = "never")
   )
 )

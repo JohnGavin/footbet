@@ -117,6 +117,81 @@ brms_converged <- function(model) {
   all(diag$converged)
 }
 
+#' Compute LOO-CV for a brms model
+#'
+#' Uses Pareto-smoothed importance sampling leave-one-out cross-validation
+#' to estimate out-of-sample predictive accuracy without refitting.
+#'
+#' @param model A `brmsfit` object.
+#' @return A `loo` object with ELPD, p_loo, and LOOIC.
+#' @family models
+#' @export
+brms_loo <- function(model) {
+  rlang::check_installed("brms", reason = "to compute LOO-CV")
+  if (!inherits(model, "brmsfit")) {
+    cli::cli_abort("{.arg model} must be a {.cls brmsfit} object.")
+  }
+  brms::loo(model)
+}
+
+#' Compute WAIC for a brms model
+#'
+#' Widely Applicable Information Criterion — an alternative to LOO-CV
+#' for estimating out-of-sample predictive accuracy.
+#'
+#' @param model A `brmsfit` object.
+#' @return A `loo` object with ELPD (WAIC-based) and p_waic.
+#' @family models
+#' @export
+brms_waic <- function(model) {
+  rlang::check_installed("brms", reason = "to compute WAIC")
+  if (!inherits(model, "brmsfit")) {
+    cli::cli_abort("{.arg model} must be a {.cls brmsfit} object.")
+  }
+  brms::waic(model)
+}
+
+#' Compute Bayesian R-squared for a brms model
+#'
+#' Proportion of variance explained, with uncertainty from the posterior.
+#'
+#' @param model A `brmsfit` object.
+#' @return A numeric matrix with Estimate, Est.Error, Q2.5, Q97.5.
+#' @family models
+#' @export
+brms_r2 <- function(model) {
+  rlang::check_installed("brms", reason = "to compute Bayesian R²")
+  if (!inherits(model, "brmsfit")) {
+    cli::cli_abort("{.arg model} must be a {.cls brmsfit} object.")
+  }
+  brms::bayes_R2(model)
+}
+
+#' Compute credible interval on betting edge
+#'
+#' For each posterior draw, computes edge = model_prob - market_prob. Returns
+#' the median edge and 95% credible interval. A bet where the entire CI is
+#' positive is more reliable than one where it spans zero.
+#'
+#' @param prob_draws Numeric vector. Posterior draws of predicted probability.
+#' @param market_prob Numeric scalar. Market-implied probability (from devigged odds).
+#' @param probs Numeric vector. Quantiles for credible interval (default c(0.025, 0.975)).
+#' @return A tibble with columns `edge_median`, `edge_lower`, `edge_upper`, `pct_positive`.
+#' @family models
+#' @export
+edge_credible_interval <- function(prob_draws, market_prob, probs = c(0.025, 0.975)) {
+  rlang::check_required(prob_draws)
+  rlang::check_required(market_prob)
+
+  edges <- prob_draws - market_prob
+  tibble::tibble(
+    edge_median = round(stats::median(edges), 4),
+    edge_lower = round(stats::quantile(edges, probs[1]), 4),
+    edge_upper = round(stats::quantile(edges, probs[2]), 4),
+    pct_positive = round(mean(edges > 0) * 100, 1)
+  )
+}
+
 #' Predict match outcome probabilities from a brms Poisson model
 #'
 #' Uses posterior predictive distribution to compute 1X2, O/U, and AH probabilities.

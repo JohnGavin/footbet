@@ -22,8 +22,12 @@ Applies \code{\link[=predict_dc]{predict_dc()}} to each row and returns a tibble
 Other models: 
 \code{\link{brms_converged}()},
 \code{\link{brms_diagnostics}()},
+\code{\link{brms_loo}()},
+\code{\link{brms_r2}()},
+\code{\link{brms_waic}()},
 \code{\link{correct_score_value}()},
 \code{\link{cv_xgboost}()},
+\code{\link{edge_credible_interval}()},
 \code{\link{ensemble_predict}()},
 \code{\link{evaluate_brms}()},
 \code{\link{evaluate_dc}()},

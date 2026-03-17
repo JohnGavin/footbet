@@ -71,6 +71,57 @@ test_that("evaluate_brms requires arguments", {
   expect_error(evaluate_brms(long_df = tibble::tibble()), "matches_df")
 })
 
+# ---- edge_credible_interval ----
+
+test_that("edge_credible_interval computes correct CI", {
+  set.seed(42)
+  # Simulate posterior draws where edge is clearly positive
+  draws <- rnorm(1000, mean = 0.55, sd = 0.05)
+  result <- edge_credible_interval(draws, market_prob = 0.40)
+
+  expect_s3_class(result, "tbl_df")
+  expect_true(result$edge_median > 0.10)
+  expect_true(result$edge_lower > 0)  # Entire CI positive
+  expect_true(result$pct_positive > 95)
+})
+
+test_that("edge_credible_interval handles negative edge", {
+  set.seed(42)
+  draws <- rnorm(1000, mean = 0.35, sd = 0.05)
+  result <- edge_credible_interval(draws, market_prob = 0.40)
+
+  expect_true(result$edge_median < 0)
+  expect_true(result$pct_positive < 20)
+})
+
+test_that("edge_credible_interval handles uncertain edge", {
+  set.seed(42)
+  # Edge near zero — CI should span zero
+  draws <- rnorm(1000, mean = 0.41, sd = 0.08)
+  result <- edge_credible_interval(draws, market_prob = 0.40)
+
+  expect_true(result$edge_lower < 0)
+  expect_true(result$edge_upper > 0)
+  expect_true(result$pct_positive > 30 & result$pct_positive < 70)
+})
+
+# ---- brms_loo / brms_waic / brms_r2 input validation ----
+
+test_that("brms_loo requires brmsfit", {
+  skip_if_not_installed("brms")
+  expect_error(brms_loo("x"), "brmsfit")
+})
+
+test_that("brms_waic requires brmsfit", {
+  skip_if_not_installed("brms")
+  expect_error(brms_waic("x"), "brmsfit")
+})
+
+test_that("brms_r2 requires brmsfit", {
+  skip_if_not_installed("brms")
+  expect_error(brms_r2("x"), "brmsfit")
+})
+
 # ---- brms_diagnostics input validation ----
 
 test_that("brms_diagnostics requires brmsfit", {
