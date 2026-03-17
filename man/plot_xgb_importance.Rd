@@ -19,6 +19,8 @@ Creates a bar plot of feature importance from a fitted XGBoost model.
 }
 \seealso{
 Other models: 
+\code{\link{brms_converged}()},
+\code{\link{brms_diagnostics}()},
 \code{\link{correct_score_value}()},
 \code{\link{cv_xgboost}()},
 \code{\link{ensemble_predict}()},

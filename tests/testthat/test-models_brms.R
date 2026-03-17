@@ -71,6 +71,23 @@ test_that("evaluate_brms requires arguments", {
   expect_error(evaluate_brms(long_df = tibble::tibble()), "matches_df")
 })
 
+# ---- brms_diagnostics input validation ----
+
+test_that("brms_diagnostics requires brmsfit", {
+  skip_if_not_installed("brms")
+  expect_error(brms_diagnostics("not_a_model"), "brmsfit")
+})
+
+test_that("brms_diagnostics requires brms package", {
+  skip_if_not_installed("brms")
+  expect_error(brms_diagnostics(NULL), "brmsfit")
+})
+
+test_that("brms_converged requires brmsfit", {
+  skip_if_not_installed("brms")
+  expect_error(brms_converged("x"), "brmsfit")
+})
+
 # ---- Integration test (skipped if brms/Stan not fully available) ----
 
 test_that("fit_brms_poisson works with small dataset", {

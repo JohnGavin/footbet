@@ -20,6 +20,8 @@ to identify value bets.
 }
 \seealso{
 Other models: 
+\code{\link{brms_converged}()},
+\code{\link{brms_diagnostics}()},
 \code{\link{cv_xgboost}()},
 \code{\link{ensemble_predict}()},
 \code{\link{evaluate_brms}()},

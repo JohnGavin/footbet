@@ -19,6 +19,8 @@ Convert score matrix to over/under 2.5 goals probabilities
 }
 \seealso{
 Other models: 
+\code{\link{brms_converged}()},
+\code{\link{brms_diagnostics}()},
 \code{\link{correct_score_value}()},
 \code{\link{cv_xgboost}()},
 \code{\link{ensemble_predict}()},

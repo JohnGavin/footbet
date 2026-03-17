@@ -264,5 +264,91 @@ plan_models_brms <- list(
         ggplot2::theme_minimal(base_size = 11) +
         ggplot2::theme(axis.text.y = ggplot2::element_text(size = 6))
     }
+  ),
+
+  # ====================================================================
+  # MCMC Diagnostics (#60)
+  # ====================================================================
+
+  targets::tar_target(
+    vig_mcmc_diagnostics,
+    {
+      if (!requireNamespace("brms", quietly = TRUE) || is.null(brms_full_model)) {
+        return(tibble::tibble(
+          parameter = "N/A",
+          rhat = NA_real_,
+          ess_bulk = NA_integer_,
+          converged = NA,
+          note = "brms model not available. Install brms + rstan to see diagnostics."
+        ))
+      }
+
+      diag <- brms_diagnostics(brms_full_model)
+
+      # Summary row
+      summary_row <- tibble::tibble(
+        parameter = paste0("SUMMARY (", nrow(diag), " parameters)"),
+        rhat = max(diag$rhat, na.rm = TRUE),
+        ess_bulk = min(diag$ess_bulk, na.rm = TRUE),
+        converged = all(diag$converged)
+      )
+
+      dplyr::bind_rows(diag, summary_row)
+    }
+  ),
+
+  # ====================================================================
+  # Prior Sensitivity Analysis (#61)
+  # ====================================================================
+
+  targets::tar_target(
+    vig_prior_sensitivity,
+    {
+      if (!requireNamespace("brms", quietly = TRUE)) {
+        return(tibble::tibble(
+          prior_width = c("narrow", "default", "wide"),
+          fixed_sd = c(0.2, 0.5, 2.0),
+          random_sd = c(0.1, 0.3, 1.0),
+          note = "brms not available. These are the planned prior widths."
+        ))
+      }
+
+      # Subset data for speed
+      long_sub <- matches_long |>
+        dplyr::left_join(
+          dplyr::select(parsed_matches, match_id, match_date),
+          by = "match_id"
+        ) |>
+        dplyr::filter(match_date >= max(match_date, na.rm = TRUE) - 365)
+
+      # Three prior widths
+      priors <- list(
+        narrow = brms::prior(normal(0, 0.2), class = "b") +
+                 brms::prior(normal(0, 0.1), class = "sd"),
+        default = brms::prior(normal(0, 0.5), class = "b") +
+                  brms::prior(normal(0, 0.3), class = "sd"),
+        wide = brms::prior(normal(0, 2.0), class = "b") +
+               brms::prior(normal(0, 1.0), class = "sd")
+      )
+
+      results <- lapply(names(priors), function(pw) {
+        fit <- fit_brms_poisson(
+          long_sub, prior = priors[[pw]],
+          iter = 1000L, warmup = 500L, chains = 2L, cores = 2L
+        )
+        home_coef <- brms::fixef(fit)["home", ]
+        tibble::tibble(
+          prior_width = pw,
+          fixed_sd = c(0.2, 0.5, 2.0)[match(pw, c("narrow", "default", "wide"))],
+          home_estimate = round(home_coef["Estimate"], 3),
+          home_lower = round(home_coef["Q2.5"], 3),
+          home_upper = round(home_coef["Q97.5"], 3),
+          home_se = round(home_coef["Est.Error"], 3)
+        )
+      })
+
+      dplyr::bind_rows(results)
+    },
+    cue = targets::tar_cue(mode = "never")
   )
 )

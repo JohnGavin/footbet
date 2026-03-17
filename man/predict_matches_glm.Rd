@@ -20,6 +20,8 @@ Applies \code{\link[=predict_glm]{predict_glm()}} to each row and returns a tibb
 }
 \seealso{
 Other models: 
+\code{\link{brms_converged}()},
+\code{\link{brms_diagnostics}()},
 \code{\link{correct_score_value}()},
 \code{\link{cv_xgboost}()},
 \code{\link{ensemble_predict}()},

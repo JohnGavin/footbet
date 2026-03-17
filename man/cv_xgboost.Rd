@@ -37,6 +37,8 @@ Performs k-fold cross-validation for XGBoost hyperparameter tuning.
 }
 \seealso{
 Other models: 
+\code{\link{brms_converged}()},
+\code{\link{brms_diagnostics}()},
 \code{\link{correct_score_value}()},
 \code{\link{ensemble_predict}()},
 \code{\link{evaluate_brms}()},

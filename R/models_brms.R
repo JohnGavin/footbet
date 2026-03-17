@@ -71,6 +71,52 @@ fit_brms_poisson <- function(long_df,
   fit
 }
 
+#' Extract MCMC diagnostics from a brms model
+#'
+#' Summarises convergence diagnostics for all parameters: Rhat, bulk ESS,
+#' tail ESS, and a converged flag. Rhat < 1.01 and ESS > 400 indicate
+#' reliable inference.
+#'
+#' @param model A `brmsfit` object from [fit_brms_poisson()].
+#' @return A tibble with columns `parameter`, `rhat`, `ess_bulk`, `ess_tail`,
+#'   `converged`.
+#' @family models
+#' @export
+brms_diagnostics <- function(model) {
+  rlang::check_installed("brms", reason = "to extract MCMC diagnostics")
+  if (!inherits(model, "brmsfit")) {
+    cli::cli_abort("{.arg model} must be a {.cls brmsfit} object.")
+  }
+
+  # Extract summary which contains Rhat and ESS
+  summ <- brms::posterior_summary(model, probs = c(0.025, 0.975))
+  rhat_vals <- brms::rhat(model)
+  neff_vals <- brms::neff_ratio(model)
+
+  params <- names(rhat_vals)
+  n_samples <- nrow(brms::as_draws_df(model))
+
+  tibble::tibble(
+    parameter = params,
+    rhat = as.numeric(rhat_vals),
+    ess_bulk = round(as.numeric(neff_vals) * n_samples),
+    converged = rhat < 1.01 & ess_bulk > 400L
+  )
+}
+
+#' Check if a brms model has converged
+#'
+#' Returns TRUE if all parameters have Rhat < 1.01 and ESS > 400.
+#'
+#' @param model A `brmsfit` object.
+#' @return Logical scalar.
+#' @family models
+#' @export
+brms_converged <- function(model) {
+  diag <- brms_diagnostics(model)
+  all(diag$converged)
+}
+
 #' Predict match outcome probabilities from a brms Poisson model
 #'
 #' Uses posterior predictive distribution to compute 1X2, O/U, and AH probabilities.

@@ -22,6 +22,8 @@ Weights can be equal, inverse log-loss weighted, or custom.
 }
 \seealso{
 Other models: 
+\code{\link{brms_converged}()},
+\code{\link{brms_diagnostics}()},
 \code{\link{correct_score_value}()},
 \code{\link{cv_xgboost}()},
 \code{\link{evaluate_brms}()},
