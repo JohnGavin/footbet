@@ -48,13 +48,19 @@ safe_tar_read <- function(name) {
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <style>
 table.dataTable tbody td, table.dataTable tbody th,
-.table tbody td, .table tbody th { color: #cccccc !important; }
+.table tbody td, .table tbody th,
+table td, table th { color: #ffffff !important; }
 table.dataTable thead th, table.dataTable thead td,
-.table thead th, .table thead td { color: #ffffff !important; }
+.table thead th, .table thead td,
+table thead th { color: #ffffff !important; font-weight: bold !important; }
 .dataTables_info, .dataTables_paginate, .dataTables_length,
-.dataTables_filter label { color: #cccccc !important; }
+.dataTables_filter label, .dataTables_wrapper { color: #ffffff !important; }
 .dataTables_filter input, .dataTables_length select {
-  color: #cccccc !important; background-color: #333 !important; }
+  color: #ffffff !important; background-color: #333 !important; }
+caption, .dataTables_wrapper caption { color: #cccccc !important; }
+table.dataTable, .table, table { background-color: #1a1a1a !important; }
+table.dataTable tbody tr, .table tbody tr { background-color: #1a1a1a !important; }
+table.dataTable tbody tr:hover { background-color: #333 !important; }
 </style>
 ```
 

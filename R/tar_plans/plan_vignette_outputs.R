@@ -50,12 +50,17 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_league_season_grid,
     {
-      parsed_matches |>
+      wide <- parsed_matches |>
         dplyr::count(league_code, season, name = "n_matches") |>
         tidyr::pivot_wider(
           names_from = season, values_from = n_matches, values_fill = 0L
-        ) |>
-        dplyr::arrange(league_code)
+        )
+      # Order rows by average matches (highest first)
+      season_cols <- setdiff(names(wide), "league_code")
+      wide$avg <- rowMeans(wide[, season_cols], na.rm = TRUE)
+      wide <- wide |> dplyr::arrange(dplyr::desc(avg)) |> dplyr::select(-avg)
+      # Reverse column order (most recent season first)
+      wide |> dplyr::select(league_code, dplyr::all_of(rev(sort(season_cols))))
     }
   ),
 
@@ -77,7 +82,7 @@ plan_vignette_outputs <- list(
         dplyr::left_join(league_info, by = "league_code") |>
         dplyr::select(country, league_code, division, n_seasons, n_matches,
                        first_date, last_date) |>
-        dplyr::arrange(country, division)
+        dplyr::arrange(dplyr::desc(n_matches))
     }
   ),
 
@@ -94,11 +99,11 @@ plan_vignette_outputs <- list(
         dplyr::group_by(league_code, season) |>
         dplyr::summarise(
           n_matches       = dplyr::n(),
-          pct_1x2         = 100 * mean(!is.na(psh) & !is.na(psd) & !is.na(psa)),
-          pct_over_under  = 100 * mean(!is.na(p_over25) | !is.na(p_under25)),
+          pct_1x2         = round(100 * mean(!is.na(psh) & !is.na(psd) & !is.na(psa)), 1),
+          pct_over_under  = round(100 * mean(!is.na(p_over25) | !is.na(p_under25)), 1),
           .groups = "drop"
         ) |>
-        dplyr::arrange(league_code, season)
+        dplyr::arrange(dplyr::desc(season), league_code)
     }
   ),
 
