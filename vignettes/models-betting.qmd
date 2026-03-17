@@ -62,6 +62,19 @@ safe_tar_read <- function(name) {
 }
 ```
 
+```{=html}
+<style>
+table.dataTable tbody td, table.dataTable tbody th,
+.table tbody td, .table tbody th { color: #cccccc !important; }
+table.dataTable thead th, table.dataTable thead td,
+.table thead th, .table thead td { color: #ffffff !important; }
+.dataTables_info, .dataTables_paginate, .dataTables_length,
+.dataTables_filter label { color: #cccccc !important; }
+.dataTables_filter input, .dataTables_length select {
+  color: #cccccc !important; background-color: #333 !important; }
+</style>
+```
+
 Part 4 of the [footbet](https://johngavin.github.io/footbet/) analytics guide.
 See also: [Data Sources](data-sources.html) |
 [Data Cleaning](data-cleaning.html) | [EDA](eda.html) |
