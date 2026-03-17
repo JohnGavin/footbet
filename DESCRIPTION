@@ -33,6 +33,7 @@ Imports:
     tidyr
 Suggests:
     arrow,
+    bayesplot,
     brms,
     covr,
     crew,
