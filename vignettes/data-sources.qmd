@@ -75,6 +75,8 @@ safe_tar_read <- function(name) {
 ```
 
 ```{=html}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <style>
 table.dataTable tbody td, table.dataTable tbody th,
 .table tbody td, .table tbody th { color: #cccccc !important; }
