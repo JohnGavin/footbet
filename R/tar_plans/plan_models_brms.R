@@ -1,6 +1,7 @@
 # plan_models_brms.R
 # Hierarchical Bayesian Poisson model with partial pooling using brms.
-# NOTE: MCMC is slow. These targets are set to cue = "never" by default.
+# NOTE: MCMC is slow but targets invalidate normally (cue = "thorough").
+# To skip brms targets: tar_make(names = !starts_with("brms_"))
 
 plan_models_brms <- list(
 
@@ -29,7 +30,7 @@ plan_models_brms <- list(
       )
     },
     # Only rebuild if explicitly requested (expensive)
-    cue = targets::tar_cue(mode = "never")
+    cue = targets::tar_cue(mode = "thorough")
   ),
 
   # Walk-forward cross-validation for brms model
@@ -59,7 +60,7 @@ plan_models_brms <- list(
         cores = 2L
       )
     },
-    cue = targets::tar_cue(mode = "never")
+    cue = targets::tar_cue(mode = "thorough")
   ),
 
   # Summary of brms CV results
@@ -349,7 +350,7 @@ plan_models_brms <- list(
 
       dplyr::bind_rows(results)
     },
-    cue = targets::tar_cue(mode = "never")
+    cue = targets::tar_cue(mode = "thorough")
   ),
 
   # ====================================================================
@@ -394,6 +395,6 @@ plan_models_brms <- list(
         ), 2)
       )
     },
-    cue = targets::tar_cue(mode = "never")
+    cue = targets::tar_cue(mode = "thorough")
   )
 )
