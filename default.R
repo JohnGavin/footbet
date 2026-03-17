@@ -12,9 +12,11 @@ parse_field <- function(field) {
 # Extract dependencies from Imports and Suggests
 desc_deps <- unique(c(parse_field("Imports"), parse_field("Suggests")))
 
-# Packages not available in rstats-on-nix nixpkgs — install from GitHub
-git_only <- c("goalmodel")
-desc_deps <- setdiff(desc_deps, git_only)
+# Packages not available in rstats-on-nix nixpkgs — exclude from nix build
+# goalmodel: installed from GitHub via post-processing below
+# understatr, xgboost, mockery: not in rstats-on-nix package set
+not_in_nix <- c("goalmodel", "understatr", "xgboost", "mockery")
+desc_deps <- setdiff(desc_deps, not_in_nix)
 
 # Add development tools not in DESCRIPTION
 dev_extras <- c(

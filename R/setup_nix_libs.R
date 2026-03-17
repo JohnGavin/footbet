@@ -14,11 +14,15 @@ setup_nix_libs <- function() {
   
   # Additional packages to search for dynamically
   project_pkgs <- c(
-    "engsoccerdata",
-    "targets",
-    "tarchetypes", 
+    "brms",
     "crew",
-    "worldfootballR"
+    "engsoccerdata",
+    "mockery",
+    "targets",
+    "tarchetypes",
+    "understatr",
+    "worldfootballR",
+    "xgboost"
   )
   
   nix_paths <- known_paths
