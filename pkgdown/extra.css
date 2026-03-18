@@ -251,3 +251,63 @@ html, body {
 footer, .pkgdown-footer {
   margin-top: auto;
 }
+
+/* =================================================================
+   FORCE DARK BACKGROUND ON ALL PAGE ELEMENTS
+   pkgdown ignores Quarto YAML theme settings — we must force dark
+   via CSS in extra.css which pkgdown DOES load.
+   ================================================================= */
+
+html, body, main, article, .contents, .page-body, .container, .container-fluid {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* All text white */
+p, li, h1, h2, h3, h4, h5, h6, span, em, strong, label, code, pre {
+  color: #ffffff !important;
+}
+a { color: #66b3ff !important; }
+a:hover { color: #99ccff !important; }
+code { background-color: #222 !important; }
+
+/* Tables: black bg, white text, horizontal scroll */
+table, .table, table.dataTable {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+table td, table th, .table td, .table th {
+  color: #ffffff !important;
+  background-color: #000000 !important;
+  border-color: #333 !important;
+}
+table thead th, .table thead th {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  background-color: #111111 !important;
+  border-color: #333 !important;
+}
+table tbody tr:hover td {
+  background-color: #222222 !important;
+}
+.dataTables_wrapper, .cell-output-display {
+  overflow-x: auto !important;
+}
+table { white-space: nowrap; }
+
+/* Callout boxes */
+.callout, .callout-note, .callout-warning, .callout-tip {
+  background-color: #111 !important;
+  border-color: #333 !important;
+  color: #ffffff !important;
+}
+
+/* Navbar and footer dark */
+.navbar, .pkgdown-footer, footer {
+  background-color: #000000 !important;
+}
+
+/* Sidebar / TOC dark */
+.sidebar, #toc, .pkgdown-toc {
+  background-color: #000000 !important;
+}
