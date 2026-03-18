@@ -3,14 +3,16 @@ title: "Data Cleaning & QC"
 subtitle: "Automated quality control pipeline"
 format:
   html:
-    theme:
-      light: flatly
-      dark: darkly
+    theme: darkly
     toc: true
     toc-location: right
     toc-depth: 3
     page-layout: full
     code-fold: true
+    include-in-header:
+      text: |
+        <script>document.documentElement.setAttribute('data-bs-theme','dark');</script>
+        <style>html,body{background:#000!important;color:#fff!important;}</style>
 vignette: >
   %\VignetteIndexEntry{Data Cleaning & QC}
   %\VignetteEngine{quarto::html}
