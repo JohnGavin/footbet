@@ -65,19 +65,23 @@ safe_tar_read <- function(name) {
 ```{=html}
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+<script>document.documentElement.setAttribute('data-bs-theme', 'dark');</script>
 <style>
-/* Dark tables: black bg, white text, horizontal scroll */
+body, .page-body, main, article, .contents { background-color: #000000 !important; color: #ffffff !important; }
 table, .table, table.dataTable { background-color: #000000 !important; color: #ffffff !important; }
-table td, table th, .table td, .table th { color: #ffffff !important; background-color: #000000 !important; }
-table thead th, .table thead th { color: #ffffff !important; font-weight: bold !important; background-color: #111 !important; }
+table td, table th, .table td, .table th { color: #ffffff !important; background-color: #000000 !important; border-color: #333 !important; }
+table thead th, .table thead th { color: #ffffff !important; font-weight: bold !important; background-color: #111 !important; border-color: #333 !important; }
 table tbody tr:hover td { background-color: #222 !important; }
 .dataTables_info, .dataTables_paginate, .dataTables_length,
 .dataTables_filter label, .dataTables_wrapper { color: #ffffff !important; }
-.dataTables_filter input, .dataTables_length select {
-  color: #ffffff !important; background-color: #333 !important; }
+.dataTables_filter input, .dataTables_length select { color: #ffffff !important; background-color: #333 !important; border-color: #555 !important; }
 caption, .dataTables_wrapper caption { color: #cccccc !important; }
 .dataTables_wrapper, .cell-output-display { overflow-x: auto !important; }
 table { white-space: nowrap; }
+p, li, h1, h2, h3, h4, h5, h6, span, em, strong, a, code { color: #ffffff !important; }
+a:hover { color: #66b3ff !important; }
+code { background-color: #222 !important; }
+.callout { background-color: #111 !important; border-color: #333 !important; }
 </style>
 ```
 
@@ -192,7 +196,7 @@ if (is.data.frame(vb_summary)) {
         "Value bet summary by outcome and league. Edge = model prob - market prob."
       ),
 
-      options = list(pageLength = 15, dom = "Bfrtip")
+      options = list(pageLength = 15, dom = "tip", scrollX = TRUE)
     )
 } else {
   vb_summary
