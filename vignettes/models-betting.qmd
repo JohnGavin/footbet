@@ -66,20 +66,18 @@ safe_tar_read <- function(name) {
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <style>
-table.dataTable tbody td, table.dataTable tbody th,
-.table tbody td, .table tbody th,
-table td, table th { color: #ffffff !important; }
-table.dataTable thead th, table.dataTable thead td,
-.table thead th, .table thead td,
-table thead th { color: #ffffff !important; font-weight: bold !important; }
+/* Dark tables: black bg, white text, horizontal scroll */
+table, .table, table.dataTable { background-color: #000000 !important; color: #ffffff !important; }
+table td, table th, .table td, .table th { color: #ffffff !important; background-color: #000000 !important; }
+table thead th, .table thead th { color: #ffffff !important; font-weight: bold !important; background-color: #111 !important; }
+table tbody tr:hover td { background-color: #222 !important; }
 .dataTables_info, .dataTables_paginate, .dataTables_length,
 .dataTables_filter label, .dataTables_wrapper { color: #ffffff !important; }
 .dataTables_filter input, .dataTables_length select {
   color: #ffffff !important; background-color: #333 !important; }
 caption, .dataTables_wrapper caption { color: #cccccc !important; }
-table.dataTable, .table, table { background-color: #1a1a1a !important; }
-table.dataTable tbody tr, .table tbody tr { background-color: #1a1a1a !important; }
-table.dataTable tbody tr:hover { background-color: #333 !important; }
+.dataTables_wrapper, .cell-output-display { overflow-x: auto !important; }
+table { white-space: nowrap; }
 </style>
 ```
 
@@ -193,7 +191,7 @@ if (is.data.frame(vb_summary)) {
         style = "caption-side: bottom; text-align: left;",
         "Value bet summary by outcome and league. Edge = model prob - market prob."
       ),
-      filter = "top",
+
       options = list(pageLength = 15, dom = "Bfrtip")
     )
 } else {
