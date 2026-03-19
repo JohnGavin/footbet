@@ -189,15 +189,26 @@ find_value_bets <- function(preds,
 
 #' Simulate betting P&L from a series of value bets
 #'
-#' Processes bets in chronological order, applying Kelly staking with
-#' drawdown guardrails. Returns the full P&L time series.
+#' Processes bets in chronological order with configurable staking strategy.
+#' Supports Kelly compounding, flat stakes, or tiered staking by predicted edge.
 #'
 #' @param bets A tibble of value bets with `match_id`, `outcome`,
-#'   `decimal_odds`, `kelly_stake`. Must also include `ftr` (actual result)
-#'   and `match_date`.
+#'   `decimal_odds`, `kelly_stake`, `edge`. Must also include `ftr` (actual
+#'   result) and `match_date`.
 #' @param initial_bankroll Numeric. Starting bankroll (default 1000).
 #' @param drawdown_threshold Numeric. Drawdown to trigger halving (default 0.20).
 #' @param max_stake Numeric. Max stake fraction (default 0.03).
+#' @param transaction_cost Numeric 0-1. Cost per bet as fraction of stake (default 0).
+#' @param max_bankroll Numeric. Cap effective bankroll for stake calc (default Inf).
+#' @param slippage Numeric 0-1. Reduce odds by this fraction (default 0).
+#' @param stake_mode Character. `"kelly"` (compounding), `"flat"` (fixed amount),
+#'   or `"tiered"` (variable stake by predicted edge).
+#' @param flat_stake Numeric. Fixed stake per bet in flat mode (default 10).
+#' @param edge_tiers Numeric vector. Edge breakpoints for tiered mode
+#'   (default `c(0.03, 0.05, 0.08, 0.12)`). Bets with edge < 0.03 get the
+#'   lowest tier, edge 0.03-0.05 the next, etc.
+#' @param tier_stakes Numeric vector. Stake per tier (default `c(5, 10, 15, 20, 25)`).
+#'   Must be one element longer than `edge_tiers`.
 #' @return A tibble with one row per bet: `match_id`, `match_date`, `outcome`,
 #'   `decimal_odds`, `stake_frac`, `stake_amount`, `pnl`, `bankroll`,
 #'   `peak_bankroll`, `drawdown`.
@@ -210,8 +221,10 @@ simulate_pnl <- function(bets,
                          transaction_cost = 0,
                          max_bankroll = Inf,
                          slippage = 0,
-                         stake_mode = c("kelly", "flat"),
-                         flat_stake = 10) {
+                         stake_mode = c("kelly", "flat", "tiered"),
+                         flat_stake = 10,
+                         edge_tiers = c(0.03, 0.05, 0.08, 0.12),
+                         tier_stakes = c(5, 10, 15, 20, 25)) {
   stake_mode <- match.arg(stake_mode)
   rlang::check_required(bets)
   if (!is.data.frame(bets)) {
@@ -255,6 +268,16 @@ simulate_pnl <- function(bets,
         )
       )
       stake_amount <- effective_bankroll * stake_frac
+    } else if (stake_mode == "tiered") {
+      # Tiered staking: larger stakes for higher predicted edge
+      # edge_tiers = c(0.03, 0.05, 0.08, 0.12) defines breakpoints
+      # tier_stakes = c(5, 10, 15, 20, 25) defines stake per tier
+      bet_edge <- bet$edge
+      tier_idx <- findInterval(bet_edge, edge_tiers) + 1L
+      tier_idx <- min(tier_idx, length(tier_stakes))
+      tier_amount <- tier_stakes[tier_idx]
+      stake_frac <- tier_amount / effective_bankroll
+      stake_amount <- min(tier_amount, effective_bankroll * 0.5)
     } else {
       # Flat stakes — fixed amount per bet
       stake_frac <- flat_stake / effective_bankroll

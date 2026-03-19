@@ -253,6 +253,27 @@ test_that("simulate_pnl: slippage reduces effective odds", {
   expect_true(with_slip$pnl[1] < no_slip$pnl[1])
 })
 
+test_that("simulate_pnl: tiered staking varies by edge", {
+  bets <- tibble::tibble(
+    match_id = paste0("m", 1:4),
+    match_date = as.Date("2024-01-01") + 0:3,
+    outcome = rep("H", 4),
+    decimal_odds = rep(2.0, 4),
+    kelly_stake = rep(0.02, 4),
+    edge = c(0.02, 0.04, 0.07, 0.15),  # Different edges
+    ftr = rep("H", 4)
+  )
+  result <- simulate_pnl(bets, initial_bankroll = 1000,
+                          stake_mode = "tiered",
+                          edge_tiers = c(0.03, 0.05, 0.08, 0.12),
+                          tier_stakes = c(5, 10, 15, 20, 25))
+  # Stakes should increase with edge
+  expect_equal(result$stake_amount[1], 5)   # edge 0.02 < 0.03 → tier 1 (£5)
+  expect_equal(result$stake_amount[2], 10)  # edge 0.04 in [0.03, 0.05) → tier 2 (£10)
+  expect_equal(result$stake_amount[3], 15)  # edge 0.07 in [0.05, 0.08) → tier 3 (£15)
+  expect_equal(result$stake_amount[4], 25)  # edge 0.15 > 0.12 → tier 5 (£25)
+})
+
 # ---- summarise_pnl ----
 
 test_that("summarise_pnl: NULL input errors", {

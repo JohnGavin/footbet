@@ -248,7 +248,7 @@ GLM value bets, staked with quarter Kelly and drawdown guardrails.
 safe_tar_read("vig_pnl_curve_realistic")
 ```
 
-*Bankroll comparison: optimistic vs realistic. Blue dotted line = optimistic (no transaction costs, quarter-Kelly compounding). Orange solid line = realistic (2% transaction cost per bet, 1% odds slippage, flat £10 stakes). Y-axis: log scale. The optimistic scenario shows compound growth from 1,000 to millions — this is a backtest artefact, not achievable in practice. The realistic scenario shows the actual expected trajectory after accounting for the bookmaker's spread and practical stake limits. Source: GLM value bets on [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Kelly Criterion](glossary.html) and [issue #66](https://github.com/JohnGavin/footbet/issues/66) for assumptions.*
+*Bankroll comparison: optimistic vs realistic. Blue dotted line = optimistic (no transaction costs, quarter-Kelly compounding). Orange solid line = realistic (2% transaction cost, 1% odds slippage, tiered stakes £5-25 based on predicted edge). Edge tiers: <3% → £5, 3-5% → £10, 5-8% → £15, 8-12% → £20, >12% → £25. Y-axis: log scale. The optimistic scenario shows compound growth from 1,000 to millions — a backtest artefact. The realistic scenario accounts for the bookmaker's spread and uses edge-proportional staking: higher-confidence bets get larger stakes. Source: GLM value bets on [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Kelly Criterion](glossary.html) and [issue #66](https://github.com/JohnGavin/footbet/issues/66).*
 
 ### Drawdown
 

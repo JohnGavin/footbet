@@ -57,7 +57,7 @@ plan_decisions <- list(
     summarise_pnl(pnl_glm, initial_bankroll = 1000)
   ),
 
-  # Realistic P&L: 2% transaction cost, 1% slippage, flat £10 stakes
+  # Realistic P&L: 2% transaction cost, 1% slippage, tiered stakes by edge
   targets::tar_target(
     pnl_glm_realistic,
     {
@@ -74,8 +74,9 @@ plan_decisions <- list(
         max_stake = 0.03,
         transaction_cost = 0.02,
         slippage = 0.01,
-        stake_mode = "flat",
-        flat_stake = 10
+        stake_mode = "tiered",
+        edge_tiers = c(0.03, 0.05, 0.08, 0.12),
+        tier_stakes = c(5, 10, 15, 20, 25)
       )
     }
   ),
