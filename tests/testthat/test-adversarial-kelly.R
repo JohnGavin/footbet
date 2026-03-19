@@ -194,6 +194,65 @@ test_that("simulate_pnl: all wins grow bankroll", {
   expect_true(result$bankroll[5] > 1000)
 })
 
+test_that("simulate_pnl: transaction_cost reduces profit", {
+  bets <- tibble::tibble(
+    match_id = paste0("m", 1:5),
+    match_date = as.Date("2024-01-01") + 0:4,
+    outcome = rep("H", 5),
+    decimal_odds = rep(2.0, 5),
+    kelly_stake = rep(0.02, 5),
+    ftr = rep("H", 5)
+  )
+  no_cost <- simulate_pnl(bets, initial_bankroll = 1000, transaction_cost = 0)
+  with_cost <- simulate_pnl(bets, initial_bankroll = 1000, transaction_cost = 0.02)
+  expect_true(with_cost$bankroll[5] < no_cost$bankroll[5])
+})
+
+test_that("simulate_pnl: flat stake mode uses fixed amount", {
+  bets <- tibble::tibble(
+    match_id = paste0("m", 1:3),
+    match_date = as.Date("2024-01-01") + 0:2,
+    outcome = rep("H", 3),
+    decimal_odds = rep(2.0, 3),
+    kelly_stake = rep(0.10, 3),
+    ftr = rep("H", 3)
+  )
+  result <- simulate_pnl(bets, initial_bankroll = 1000,
+                          stake_mode = "flat", flat_stake = 10)
+  # All stakes should be 10 (not 10% of bankroll)
+  expect_equal(result$stake_amount[1], 10)
+})
+
+test_that("simulate_pnl: max_bankroll caps stake calculation", {
+  bets <- tibble::tibble(
+    match_id = paste0("m", 1:20),
+    match_date = as.Date("2024-01-01") + 0:19,
+    outcome = rep("H", 20),
+    decimal_odds = rep(3.0, 20),
+    kelly_stake = rep(0.10, 20),  # Large Kelly to amplify compounding
+    ftr = rep("H", 20)
+  )
+  uncapped <- simulate_pnl(bets, initial_bankroll = 1000, max_stake = 0.10)
+  capped <- simulate_pnl(bets, initial_bankroll = 1000, max_stake = 0.10,
+                          max_bankroll = 1500)
+  # With many wins and large Kelly, capping effective bankroll slows growth
+  expect_true(capped$bankroll[20] < uncapped$bankroll[20])
+})
+
+test_that("simulate_pnl: slippage reduces effective odds", {
+  bets <- tibble::tibble(
+    match_id = "m1",
+    match_date = as.Date("2024-01-01"),
+    outcome = "H",
+    decimal_odds = 2.0,
+    kelly_stake = 0.02,
+    ftr = "H"
+  )
+  no_slip <- simulate_pnl(bets, initial_bankroll = 1000, slippage = 0)
+  with_slip <- simulate_pnl(bets, initial_bankroll = 1000, slippage = 0.05)
+  expect_true(with_slip$pnl[1] < no_slip$pnl[1])
+})
+
 # ---- summarise_pnl ----
 
 test_that("summarise_pnl: NULL input errors", {

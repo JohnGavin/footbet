@@ -206,7 +206,13 @@ find_value_bets <- function(preds,
 simulate_pnl <- function(bets,
                          initial_bankroll = 1000,
                          drawdown_threshold = 0.20,
-                         max_stake = 0.03) {
+                         max_stake = 0.03,
+                         transaction_cost = 0,
+                         max_bankroll = Inf,
+                         slippage = 0,
+                         stake_mode = c("kelly", "flat"),
+                         flat_stake = 10) {
+  stake_mode <- match.arg(stake_mode)
   rlang::check_required(bets)
   if (!is.data.frame(bets)) {
     cli::cli_abort("{.arg bets} must be a data frame, not {.cls {class(bets)}}.")
@@ -234,30 +240,46 @@ simulate_pnl <- function(bets,
   for (i in seq_len(n)) {
     bet <- bets[i, ]
 
-    # Apply guardrails (suppress warning messages during simulation)
-    stake_frac <- suppressMessages(
-      apply_guardrails(
-        stake = bet$kelly_stake,
-        current_bankroll = bankroll,
-        peak_bankroll = peak,
-        drawdown_threshold = drawdown_threshold,
-        max_stake = max_stake
-      )
-    )
+    # Cap bankroll for compounding (prevents runaway growth)
+    effective_bankroll <- min(bankroll, max_bankroll)
 
-    stake_amount <- bankroll * stake_frac
+    if (stake_mode == "kelly") {
+      # Apply guardrails (suppress warning messages during simulation)
+      stake_frac <- suppressMessages(
+        apply_guardrails(
+          stake = bet$kelly_stake,
+          current_bankroll = effective_bankroll,
+          peak_bankroll = peak,
+          drawdown_threshold = drawdown_threshold,
+          max_stake = max_stake
+        )
+      )
+      stake_amount <- effective_bankroll * stake_frac
+    } else {
+      # Flat stakes — fixed amount per bet
+      stake_frac <- flat_stake / effective_bankroll
+      stake_amount <- min(flat_stake, effective_bankroll * 0.5)
+    }
+
+    # Apply slippage (reduce odds by slippage %)
+    effective_odds <- bet$decimal_odds * (1 - slippage)
 
     # Determine if bet won
     won <- !is.na(bet$ftr) && bet$outcome == bet$ftr
-    pnl <- if (won) {
-      stake_amount * (bet$decimal_odds - 1)
+    gross_pnl <- if (won) {
+      stake_amount * (effective_odds - 1)
     } else {
       -stake_amount
     }
 
+    # Deduct transaction cost (applied to stake, win or lose)
+    cost <- stake_amount * transaction_cost
+    pnl <- gross_pnl - cost
+
     bankroll <- bankroll + pnl
+    if (bankroll <= 0) bankroll <- 0  # Bust
     peak <- max(peak, bankroll)
-    dd <- if (peak > 0) 1 - bankroll / peak else 0
+    dd <- if (peak > 0) 1 - bankroll / peak else 1
 
     results[[i]] <- tibble::tibble(
       match_id = bet$match_id,

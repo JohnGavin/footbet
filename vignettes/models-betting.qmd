@@ -244,11 +244,11 @@ safe_tar_read("vig_kelly_stake_distribution")
 The bankroll curve below shows the simulated profit & loss trajectory for all
 GLM value bets, staked with quarter Kelly and drawdown guardrails.
 
-```{r vig-pnl-curve}
-safe_tar_read("vig_pnl_curve")
+```{r vig-pnl-curve-comparison}
+safe_tar_read("vig_pnl_curve_realistic")
 ```
 
-*Cumulative profit & loss trajectory over time. X-axis: date (match timeline). Y-axis: bankroll value (units, starting at 100). The line tracks the running bankroll after each settled bet. Upward slopes indicate profitable periods; downward slopes are drawdown periods. The trajectory depends on model accuracy and the variance inherent in sports betting. Key risk metric is the maximum peak-to-trough decline. Source: quarter-Kelly simulation on [football-data.co.uk](https://www.football-data.co.uk/) value bets. See [Glossary > ROI](glossary.html) and [Glossary > Maximum Drawdown](glossary.html).*
+*Bankroll comparison: optimistic vs realistic. Blue dotted line = optimistic (no transaction costs, quarter-Kelly compounding). Orange solid line = realistic (2% transaction cost per bet, 1% odds slippage, flat £10 stakes). Y-axis: log scale. The optimistic scenario shows compound growth from 1,000 to millions — this is a backtest artefact, not achievable in practice. The realistic scenario shows the actual expected trajectory after accounting for the bookmaker's spread and practical stake limits. Source: GLM value bets on [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Kelly Criterion](glossary.html) and [issue #66](https://github.com/JohnGavin/footbet/issues/66) for assumptions.*
 
 ### Drawdown
 
@@ -256,11 +256,13 @@ safe_tar_read("vig_pnl_curve")
 safe_tar_read("vig_drawdown_plot")
 ```
 
-*Drawdown plot showing peak-to-trough declines over time. X-axis: date (match timeline). Y-axis: drawdown percentage (0% = at peak, negative = below peak). Red shading indicates drawdown depth. The deepest trough represents the maximum drawdown --- the worst-case loss from peak bankroll. Extended drawdown periods test bankroll management discipline. Source: quarter-Kelly P&L simulation using [football-data.co.uk](https://www.football-data.co.uk/) data. See [Glossary > Maximum Drawdown](glossary.html).*
+*Drawdown over time. X-axis: date. Y-axis: drawdown percentage (0% = at peak, negative = below peak). Red shading = drawdown depth. The deepest trough represents the maximum drawdown — worst-case loss from peak bankroll. Source: quarter-Kelly P&L simulation on [football-data.co.uk](https://www.football-data.co.uk/) data. See [Glossary > Maximum Drawdown](glossary.html).*
 
-::: {.callout-note}
-**Key Finding:** Trajectory depends on model accuracy and market conditions.
-Maximum drawdown is the key risk metric.
+::: {.callout-warning}
+**Caveat:** The optimistic scenario (no costs, Kelly compounding) produces
+unrealistic returns. Real-world constraints include: 2-4% transaction costs
+(Pinnacle spread), account limits on profitable bettors, odds slippage, and
+backtesting bias. See [issue #66](https://github.com/JohnGavin/footbet/issues/66).
 :::
 
 ### Summary
@@ -272,13 +274,13 @@ if (is.data.frame(pnl_summary)) {
     DT::datatable(
       caption = htmltools::tags$caption(
         style = "caption-side: bottom; text-align: left;",
-        "P&L summary. ROI = total profit / total staked. Sharpe = risk-adjusted return."
+        "P&L comparison: optimistic (no costs) vs realistic (2% cost, 1% slippage, flat £10 stakes)."
       ),
-      options = list(pageLength = 10, dom = "t")
+      options = list(pageLength = 10, dom = "t", scrollX = TRUE)
     )
 } else {
   pnl_summary
 }
 ```
 
-*P&L summary statistics table. Columns: total bets, total staked (units), total profit (units), ROI (%), Sharpe ratio, maximum drawdown (%), win rate (%). ROI measures overall profitability; the Sharpe ratio adjusts returns for volatility. Maximum drawdown quantifies worst-case risk exposure. A Sharpe above 1.0 suggests strong risk-adjusted performance. Source: end-to-end simulation on [football-data.co.uk](https://www.football-data.co.uk/) value bets with quarter-Kelly staking. See [Glossary > ROI](glossary.html), [Glossary > Sharpe Ratio](glossary.html), and [Glossary > Maximum Drawdown](glossary.html).*
+*P&L comparison table. Two scenarios: **Optimistic** (no transaction costs, quarter-Kelly compounding) shows astronomical returns that are not achievable in practice. **Realistic** (2% transaction cost, 1% slippage, flat £10 stakes) shows the expected return after accounting for the bookmaker's edge. The difference demonstrates why backtesting without costs is misleading. Source: [football-data.co.uk](https://www.football-data.co.uk/) value bets. See [Glossary > ROI](glossary.html) and [issue #66](https://github.com/JohnGavin/footbet/issues/66).*
