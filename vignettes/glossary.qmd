@@ -2,8 +2,13 @@
 title: "Glossary"
 format:
   html:
+    theme: darkly
     code-fold: true
     code-summary: "Show code"
+    include-in-header:
+      text: |
+        <script>document.documentElement.setAttribute('data-bs-theme','dark');</script>
+        <style>html,body{background:#000!important;color:#fff!important;}</style>
 ---
 
 ```{r setup, include=FALSE}
@@ -12,46 +17,17 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
 This glossary defines betting and statistical terms used throughout the
 [footbet](https://johngavin.github.io/footbet/) package.
-See the [Football Betting Analytics](football-analytics.html) article for
-worked examples using these concepts.
+See also: [Data Sources](data-sources.html) |
+[Data Cleaning](data-cleaning.html) | [EDA](eda.html) |
+[Models & Betting](models-betting.html)
 
-::: {.panel-tabset}
+## Odds Formats
 
-## Odds & Markets
+**Decimal:** Total payout per unit staked (e.g., 2.50 = 1.50 profit + 1.00 stake). Standard in Europe.
 
-::: {.panel-tabset}
+**Fractional:** Profit relative to stake (e.g., 3/2 = 3 units profit per 2 staked). UK format.
 
-### Decimal
-
-The total payout per unit staked, including the original stake. A decimal
-odds of 2.50 means a 1 unit stake returns 2.50 units if the bet wins
-(1 unit profit + 1 unit stake). Standard in Europe and Australia.
-
-**Example:** Decimal 2.50 on a 10 unit stake pays 25 units (15 profit).
-
-### Fractional
-
-Expresses profit relative to stake as a fraction. Traditional UK format.
-"3/2" (read "three to two") means 3 units profit for every 2 units staked.
-
-**Conversion:** Decimal = (numerator / denominator) + 1
-
-**Example:** 3/2 fractional = 2.50 decimal
-
-### American
-
-Positive numbers show profit on a 100 unit stake; negative numbers show
-stake needed to win 100 units. Standard in the United States.
-
-- +150 means bet 100 to win 150 profit
-- -200 means bet 200 to win 100 profit
-
-**Conversion:**
-
-- Positive: Decimal = (American / 100) + 1
-- Negative: Decimal = (100 / |American|) + 1
-
-### Conversion Table
+**American:** Positive = profit on 100 stake (+150 = 150 profit). Negative = stake to win 100 (-200 = bet 200 to win 100).
 
 | Format | Example | Implied Probability |
 |--------|---------|---------------------|
@@ -60,217 +36,60 @@ stake needed to win 100 units. Standard in the United States.
 | American +150 | Win 150 per 100 staked | 40% (100/(100+150)) |
 | American -200 | Stake 200 to win 100 | 66.7% (200/(200+100)) |
 
-: Odds format conversions and implied probabilities. All examples show the same 40% implied probability. {.striped}
+## Market Types
 
-:::
+- **1X2 (Match Result):** Home win (H), Draw (D), Away win (A)
+- **Over/Under (O/U):** Total goals vs a line (usually 2.5)
+- **Asian Handicap (AH):** Handicap eliminating the draw outcome
+- **BTTS:** Both teams to score (yes/no)
 
-### Market Types
+## Probability Concepts
 
-#### 1X2 (Match Result)
+- **Implied Probability:** `1 / odds`. For 2.50 odds = 40%.
+- **Overround (Vig):** Bookmaker margin. Sum of implied probs minus 100%.
+- **Fair Odds:** After removing overround. Methods: multiplicative, power, Shin.
+- **Closing Line Value (CLV):** Your odds vs closing odds. See `closing_line_value()`.
 
-The most common football betting market:
+## Performance Metrics
 
-- **1 (H)**: Home win
-- **X (D)**: Draw
-- **2 (A)**: Away win
+- **Log Loss:** $-\frac{1}{n} \sum \log(p_i)$ — penalizes confident wrong predictions
+- **Brier Score:** $\frac{1}{n} \sum (p_i - o_i)^2$ — MSE for probabilities
+- **RPS:** Ranked probability score for ordered outcomes (H > D > A)
+- **ROI:** Total profit / total staked (%)
+- **Sharpe Ratio:** Risk-adjusted return. See `betting_sharpe_ratio()`.
+- **Maximum Drawdown:** Largest peak-to-trough decline
 
-#### Over/Under (O/U)
+## Statistical Models
 
-Total goals in the match relative to a line, usually 2.5. "Over 2.5"
-requires 3+ goals; "Under 2.5" requires 0-2 goals.
+- **Poisson Regression:** Goals ~ Poisson(lambda) with team attack/defense parameters
+- **Dixon-Coles:** Poisson + correlation correction for low-scoring outcomes + time decay
+- **Expected Goals (xG):** Shot-level goal probability, better predictor than actual goals
+- **Elo Rating:** Match-by-match team strength. See `compute_elo()` with COOPER enhancements (dynamic K, margin weighting, league reversion, asymmetric wins)
 
-#### Asian Handicap (AH)
+## Betting Strategy
 
-Handicap applied to one team to eliminate the draw outcome. A -1.5 Asian
-handicap on the home team means they must win by 2+ goals. Half-goal
-handicaps ensure no push (void bet).
+- **Kelly Criterion:** $f^* = \frac{p \cdot b - q}{b}$ — optimal bet sizing
+- **Value Bet:** Model probability exceeds market implied probability
+- **Edge:** $p \times (o-1) - (1-p)$ — expected profit per unit staked
+- **Sharp Bookmaker:** Accurate odds (Pinnacle). **Soft Bookmaker:** Less accurate, slower to adjust.
 
-#### BTTS (Both Teams to Score)
+## Data Terminology {#data-terminology}
 
-Whether both teams score at least one goal. Binary yes/no market.
-
-## Statistics
-
-### Probability Concepts
-
-#### Implied Probability
-
-The probability implied by decimal odds: `1 / odds`. For odds of 2.50,
-the implied probability is 40%. Markets include overround, so implied
-probabilities sum to >100%.
-
-#### Overround (Vig/Juice)
-
-The bookmaker's margin built into odds. Calculated as the sum of implied
-probabilities minus 100%. A 106% book has 6% overround.
-
-**Example:** Home 2.00, Draw 3.50, Away 4.00
-
-- Implied: 50% + 28.6% + 25% = 103.6%
-- Overround: 3.6%
-
-#### Fair Odds
-
-Odds after removing the overround, representing true probabilities.
-Several devigging methods exist:
-
-- **Multiplicative:** Divide each probability by the overround
-- **Power:** Raise probabilities to a power that normalizes them
-- **Shin:** Models overround as protection against informed bettors
-
-#### Closing Line Value (CLV)
-
-The difference between your bet odds and the closing odds. Positive CLV
-indicates you beat the market. Tracked via `closing_line_value()`.
-
-### Performance Metrics
-
-#### Log Loss
-
-Measures prediction quality for probabilistic forecasts. Lower is better.
-Heavily penalizes confident wrong predictions.
-
-$$\text{Log Loss} = -\frac{1}{n} \sum \log(p_i)$$
-
-where $p_i$ is the predicted probability of the actual outcome.
-
-#### Brier Score
-
-Mean squared error for probability predictions. Ranges 0-2 for 1X2 markets.
-Lower is better. Less harsh than log loss on confident errors.
-
-$$\text{Brier} = \frac{1}{n} \sum (p_i - o_i)^2$$
-
-#### Ranked Probability Score (RPS)
-
-Extension of Brier score for ordered outcomes. Better suited for 1X2
-because it considers that H > D > A forms an ordering by goal difference.
-
-#### ROI (Return on Investment)
-
-Total profit divided by total staked, expressed as percentage.
-+5% ROI means 5% profit on turnover.
-
-#### Sharpe Ratio
-
-Risk-adjusted return metric. Higher values indicate better returns
-relative to volatility. Computed via `betting_sharpe_ratio()`.
-
-$$\text{Sharpe} = \frac{\text{Mean Return} - r_f}{\text{Std Dev Return}} \times \sqrt{n}$$
-
-where $r_f$ is the risk-free rate and $n$ is periods per year.
-
-#### Maximum Drawdown
-
-Largest peak-to-trough decline in cumulative returns. Measures worst-case
-scenario during a betting sequence.
-
-## Models
-
-### Poisson Regression
-
-Assumes goal counts follow Poisson distributions with team-specific
-attack and defence parameters. Foundation of most football prediction models.
-
-### Dixon-Coles Model
-
-Extension of Poisson that corrects for under-prediction of 0-0, 1-0, 0-1,
-and 1-1 scorelines. Adds a "rho" correlation parameter. Implemented in
-`fit_dixon_coles()`.
-
-### Expected Goals (xG)
-
-Probability that a shot results in a goal, based on shot characteristics
-(location, body part, game state). Summed across shots to get match xG.
-Better predictor of future performance than actual goals.
-
-### Elo Rating
-
-Rating system that updates after each match based on result versus
-expectation. Higher-rated teams are expected to beat lower-rated teams.
-Implemented in `compute_elo()` with COOPER/FiveThirtyEight enhancements:
-
-- **Dynamic K-factor**: higher volatility early season (`seasonal_k()`)
-- **Margin weighting**: blowouts downweighted (`margin_k_factor()`)
-- **League reversion**: 28% regression toward league mean at season start
-- **Asymmetric wins**: underperformers get reduced Elo gain
-
-## Betting
-
-### Kelly Criterion
-
-Optimal bet sizing formula that maximizes log wealth growth:
-
-$$f^* = \frac{p \cdot b - q}{b}$$
-
-where $p$ is win probability, $q = 1-p$, and $b$ is net odds (decimal - 1).
-
-### Value Bet
-
-A bet where your estimated probability exceeds the implied probability.
-If you estimate 50% win chance and odds imply 40%, that's a value bet.
-
-### Edge
-
-The expected profit per unit staked. For a value bet:
-
-$$\text{Edge} = p \times (o - 1) - (1 - p)$$
-
-where $p$ is true probability and $o$ is decimal odds.
-
-### Sharp Bookmaker
-
-Bookmaker with accurate odds that quickly incorporate new information.
-Pinnacle is considered the sharpest. Their closing line is the best
-publicly available proxy for true probabilities.
-
-### Soft Bookmaker
-
-Bookmaker with less accurate odds, slower to adjust. May offer temporary
-value but often limits winning accounts.
-
-## Data
-
-### FTR (Full Time Result)
-
-Match outcome: H (home win), D (draw), A (away win).
-
-### FTHG / FTAG
-
-Full Time Home Goals / Full Time Away Goals.
-
-### HTHG / HTAG / HTR
-
-Half Time Home Goals / Half Time Away Goals / Half Time Result.
+- **FTR:** Full Time Result (H/D/A)
+- **FTHG / FTAG:** Full Time Home/Away Goals
+- **HTHG / HTAG / HTR:** Half Time Home/Away Goals / Result
 
 ### Match Statistics {#match-statistics}
 
-Common abbreviations in football-data.co.uk files:
-
-- **HS/AS**: Home/Away Shots
-- **HST/AST**: Home/Away Shots on Target
-- **HC/AC**: Home/Away Corners
-- **HF/AF**: Home/Away Fouls
-- **HY/AY**: Home/Away Yellow Cards
-- **HR/AR**: Home/Away Red Cards
+- **HS/AS:** Home/Away Shots
+- **HST/AST:** Home/Away Shots on Target
+- **HC/AC:** Home/Away Corners
+- **HF/AF:** Home/Away Fouls
+- **HY/AY:** Home/Away Yellow Cards
+- **HR/AR:** Home/Away Red Cards
 
 ## References
 
-**Package functions:**
+**Package functions:** `?target_leagues`, `?parse_fd_csv`, `?devig_shin`, `?fit_dixon_coles`, `?kelly_stake`, `?closing_line_value`, `?betting_sharpe_ratio`
 
-- `?target_leagues` --- List of supported leagues
-- `?parse_fd_csv` --- Parse football-data.co.uk CSV files
-- `?devig_shin` --- Remove bookmaker margin using Shin method
-- `?fit_dixon_coles` --- Fit Dixon-Coles goal model
-- `?kelly_stake` --- Calculate Kelly criterion stake
-- `?closing_line_value` --- Track CLV performance
-- `?betting_sharpe_ratio` --- Risk-adjusted returns
-
-**External resources:**
-
-- [football-data.co.uk](https://www.football-data.co.uk/) --- Data source
-- [Pinnacle](https://www.pinnacle.com/) --- Sharp bookmaker benchmark
-- [Dixon & Coles (1997)](https://doi.org/10.1111/1467-9876.00065) --- Correlation correction paper
-- [goalmodel package](https://cran.r-project.org/package=goalmodel) --- Dixon-Coles implementation
-
-:::
+**External:** [football-data.co.uk](https://www.football-data.co.uk/) | [Pinnacle](https://www.pinnacle.com/) | [Dixon & Coles (1997)](https://doi.org/10.1111/1467-9876.00065) | [goalmodel](https://cran.r-project.org/package=goalmodel)
