@@ -66,6 +66,28 @@ See also: [Data Sources](data-sources.html) |
 - **Expected Goals (xG):** Shot-level goal probability, better predictor than actual goals
 - **Elo Rating:** Match-by-match team strength. See `compute_elo()` with COOPER enhancements (dynamic K, margin weighting, league reversion, asymmetric wins)
 
+### Copula Models {#copula}
+
+A [copula](https://en.wikipedia.org/wiki/Copula_(probability_theory)) models the dependence structure between home and away goals separately from their marginal distributions. This is important because:
+
+1. **Independent Poisson underpredicts 0-0 draws.** The observed frequency of 0-0 is ~7%, but independent Poisson(1.5) × Poisson(1.2) predicts ~5%. This excess clustering at (0,0) indicates positive lower-tail dependence.
+
+2. **Home advantage creates asymmetry.** More mass below the diagonal (home > away) than above, violating exchangeability assumed by symmetric copulas.
+
+**Candidate copulas for football scorelines:**
+
+- **[Frank copula](https://en.wikipedia.org/wiki/Copula_(probability_theory)#Most_important_Archimedean_copulas):** Single parameter $\theta$ controlling concordance. Symmetric dependence, captures the general positive association between low-scoring outcomes. $\theta > 0$ means low home goals tend to coincide with low away goals.
+
+- **[Clayton copula](https://en.wikipedia.org/wiki/Clayton_copula):** Parameter $\alpha > 0$ gives strong lower-tail dependence — high probability of both teams scoring zero or one goal simultaneously. This directly models the excess 0-0 and 1-1 scorelines that Dixon-Coles corrects via its $\rho$ parameter.
+
+**Parameterisation for football data:**
+
+$$C(u, v; \theta) = \left(u^{-\theta} + v^{-\theta} - 1\right)^{-1/\theta}$$
+
+where $u = F_H(h)$ and $v = F_A(a)$ are the marginal Poisson CDFs for home and away goals, and $\theta$ is estimated from the observed scoreline frequencies. The Dixon-Coles $\rho$ parameter is effectively a discrete approximation to this copula at the (0,0), (1,0), (0,1), (1,1) cells.
+
+See [issue #43](https://github.com/JohnGavin/footbet/issues/43) for the planned copula investigation and [McHale & Scarf (2011)](https://doi.org/10.1111/j.1467-9876.2011.00782.x) for copula-based football models.
+
 ## Betting Strategy
 
 - **Kelly Criterion:** $f^* = \frac{p \cdot b - q}{b}$ — optimal bet sizing
