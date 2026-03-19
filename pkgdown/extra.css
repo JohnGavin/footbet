@@ -324,3 +324,29 @@ table { white-space: nowrap; }
 .sidebar, #toc, .pkgdown-toc {
   background-color: #000000 !important;
 }
+
+/* Plotly widget containers — force black background */
+.plotly, .js-plotly-plot, .plot-container,
+.html-widget, .html-fill-item,
+.cell-output-display, .cell {
+  background-color: #000000 !important;
+}
+
+/* Tab pane content (from panel-tabset) */
+.tab-pane, .tab-content, .nav-tabs {
+  background-color: #000000 !important;
+  border-color: #333 !important;
+}
+.nav-tabs .nav-link {
+  color: #ffffff !important;
+}
+.nav-tabs .nav-link.active {
+  background-color: #222 !important;
+  border-color: #333 !important;
+  color: #ffffff !important;
+}
+
+/* DT container and wrapper */
+.dataTables_wrapper {
+  background-color: #000000 !important;
+}

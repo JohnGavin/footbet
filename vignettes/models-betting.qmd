@@ -90,11 +90,7 @@ See also: [Data Sources](data-sources.html) |
 [Data Cleaning](data-cleaning.html) | [EDA](eda.html) |
 [Glossary](glossary.html)
 
-::: {.panel-tabset}
-
-## Models
-
-### Cross-Validation
+## Cross-Validation
 
 Football data is time-ordered, so standard k-fold CV would leak future
 information. The pipeline uses **walk-forward** (expanding window) splits:
@@ -286,5 +282,3 @@ if (is.data.frame(pnl_summary)) {
 ```
 
 *P&L summary statistics table. Columns: total bets, total staked (units), total profit (units), ROI (%), Sharpe ratio, maximum drawdown (%), win rate (%). ROI measures overall profitability; the Sharpe ratio adjusts returns for volatility. Maximum drawdown quantifies worst-case risk exposure. A Sharpe above 1.0 suggests strong risk-adjusted performance. Source: end-to-end simulation on [football-data.co.uk](https://www.football-data.co.uk/) value bets with quarter-Kelly staking. See [Glossary > ROI](glossary.html), [Glossary > Sharpe Ratio](glossary.html), and [Glossary > Maximum Drawdown](glossary.html).*
-
-:::
