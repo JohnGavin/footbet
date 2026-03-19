@@ -543,7 +543,7 @@ plan_vignette_outputs <- list(
           name = lbl,
           type = "scatter",
           mode = "text",
-          textfont = list(color = colors[[lbl]], size = 9),
+          textfont = list(color = colors[[lbl]], size = 14),
           hovertemplate = paste(
             "<b>%{y}</b><br>",
             lbl, ": %{x:.1f}%<extra></extra>"
@@ -638,16 +638,31 @@ plan_vignette_outputs <- list(
           }
         }
 
+        # Add mean annotation for each league in this country
+        means <- cty_data |>
+          dplyr::group_by(league_code) |>
+          dplyr::summarise(mean_hw = round(mean(home_win_pct), 1), .groups = "drop")
+
+        mean_annotations <- lapply(seq_len(nrow(means)), function(j) {
+          list(x = 1, y = means$mean_hw[j], xref = "paper", yref = "y",
+               text = paste0(means$league_code[j], " ", means$mean_hw[j], "%"),
+               showarrow = FALSE, xanchor = "left",
+               font = list(color = cty_color, size = 13))
+        })
+
         p |> plotly::layout(
-          annotations = list(list(
-            x = 0.5, y = 1.12, xref = "paper", yref = "paper",
-            text = cty, showarrow = FALSE,
-            font = list(color = cty_color, size = 12)
-          ))
+          annotations = c(
+            list(list(
+              x = 0.5, y = 1.15, xref = "paper", yref = "paper",
+              text = cty, showarrow = FALSE,
+              font = list(color = cty_color, size = 16, family = "bold")
+            )),
+            mean_annotations
+          )
         )
       })
 
-      plotly::subplot(panels, nrows = 5, shareX = TRUE, titleY = TRUE) |>
+      plotly::subplot(panels, nrows = 5, shareX = TRUE, shareY = TRUE, titleY = TRUE) |>
         theme_dark_plotly(title = "Home Win % by Country (ordered by avg home win %)") |>
         plotly::layout(
           yaxis  = list(title = "Home Win %"),
@@ -768,12 +783,27 @@ plan_vignette_outputs <- list(
           }
         }
 
+        # Mean annotation per league
+        means <- cty_data |>
+          dplyr::group_by(league_code) |>
+          dplyr::summarise(mean_g = round(mean(mean_goals), 2), .groups = "drop")
+
+        mean_annotations <- lapply(seq_len(nrow(means)), function(j) {
+          list(x = 1, y = means$mean_g[j], xref = "paper", yref = "y",
+               text = paste0(means$league_code[j], " ", means$mean_g[j]),
+               showarrow = FALSE, xanchor = "left",
+               font = list(color = cty_color, size = 13))
+        })
+
         p |> plotly::layout(
-          annotations = list(list(
-            x = 0.5, y = 1.12, xref = "paper", yref = "paper",
-            text = cty, showarrow = FALSE,
-            font = list(color = cty_color, size = 12)
-          ))
+          annotations = c(
+            list(list(
+              x = 0.5, y = 1.15, xref = "paper", yref = "paper",
+              text = cty, showarrow = FALSE,
+              font = list(color = cty_color, size = 16, family = "bold")
+            )),
+            mean_annotations
+          )
         )
       })
 
@@ -1389,23 +1419,40 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_poisson_test,
     {
-      # Simple Poisson fit summary without chi-square test
-      goals <- c(parsed_matches[["fthg"]], parsed_matches[["ftag"]])
-      goals <- goals[!is.na(goals)]
-      lambda <- mean(goals)
-      variance <- stats::var(goals)
+      home_goals <- parsed_matches[["fthg"]][!is.na(parsed_matches[["fthg"]])]
+      away_goals <- parsed_matches[["ftag"]][!is.na(parsed_matches[["ftag"]])]
+      all_goals <- c(home_goals, away_goals)
+
+      lambda_all <- mean(all_goals)
+      lambda_home <- mean(home_goals)
+      lambda_away <- mean(away_goals)
+
+      # LR test: single lambda vs separate home/away lambdas
+      ll_single <- sum(stats::dpois(all_goals, lambda_all, log = TRUE))
+      ll_separate <- sum(stats::dpois(home_goals, lambda_home, log = TRUE)) +
+                     sum(stats::dpois(away_goals, lambda_away, log = TRUE))
+      lr_stat <- 2 * (ll_separate - ll_single)
+      lr_pvalue <- stats::pchisq(lr_stat, df = 1, lower.tail = FALSE)
+
+      variance <- stats::var(all_goals)
 
       tibble::tibble(
         test = "Poisson Fit Summary",
-        mean_goals = round(lambda, 3),
+        mean_home = round(lambda_home, 3),
+        mean_away = round(lambda_away, 3),
+        mean_all = round(lambda_all, 3),
         variance = round(variance, 3),
-        dispersion_ratio = round(variance / lambda, 3),
-        n_goals = length(goals),
-        conclusion = if (variance / lambda > 1.1) {
-          "Overdispersion present (variance > mean)"
-        } else {
-          "Poisson assumption reasonable"
-        }
+        dispersion_ratio = round(variance / lambda_all, 3),
+        lr_statistic = round(lr_stat, 1),
+        lr_pvalue = format.pval(lr_pvalue, digits = 3),
+        n_goals = length(all_goals),
+        conclusion = paste0(
+          if (variance / lambda_all > 1.1) "Overdispersion present. " else "Near-Poisson. ",
+          "Home (", round(lambda_home, 2), ") vs Away (", round(lambda_away, 2),
+          "): LR test p", if (lr_pvalue < 0.001) "<0.001" else paste0("=", round(lr_pvalue, 4)),
+          " — separate home/away models ",
+          if (lr_pvalue < 0.05) "justified." else "not justified."
+        )
       )
     }
   ),

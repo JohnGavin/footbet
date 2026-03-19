@@ -252,6 +252,19 @@ footer, .pkgdown-footer {
   margin-top: auto;
 }
 
+/* Hide empty TOC sidebar that causes blank vertical space */
+aside.col-md-3, aside.col-md-3 nav {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Remove Quarto after-body script spacer */
+#quarto-html-after-body {
+  display: none !important;
+}
+
 /* =================================================================
    FORCE DARK BACKGROUND ON ALL PAGE ELEMENTS
    pkgdown ignores Quarto YAML theme settings — we must force dark

@@ -93,7 +93,7 @@ safe_tar_read("vig_goals_distribution")
 safe_tar_read("vig_poisson_test")
 ```
 
-*Goodness-of-fit test for the Poisson assumption. Columns: test statistic, p-value, conclusion. A chi-squared test compares observed goal frequencies against Poisson-expected frequencies. A significant p-value indicates the Poisson distribution is an imperfect fit, motivating the Dixon-Coles correction for low-scoring outcomes. Despite the statistical rejection, the Poisson remains a useful baseline model for practical prediction. Source: aggregated goal counts from [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Poisson Regression](glossary.html) and [Glossary > Dixon-Coles Model](glossary.html).*
+*Poisson fit summary with home/away likelihood ratio test. Columns: mean home goals, mean away goals, overall mean, variance, dispersion ratio, LR test statistic, p-value. The LR test compares a single-lambda Poisson (all goals pooled) against separate home and away lambdas. A significant p-value (p<0.05) confirms that home and away goal distributions differ, justifying separate Poisson parameters in prediction models. Overdispersion (variance/mean > 1.1) motivates the Dixon-Coles correction. Source: aggregated goal counts from [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Poisson Regression](glossary.html) and [Glossary > Dixon-Coles Model](glossary.html).*
 
 ::: {.callout-note}
 **Key Finding:** Home teams score slightly more than away teams (home
@@ -149,7 +149,7 @@ goals). Hover over cells to see exact percentages.
 safe_tar_read("vig_scoreline_heatmap")
 ```
 
-*Scoreline frequency heatmap. X-axis: away goals (0-6+). Y-axis: home goals (0-6+). Cell colour intensity = proportion of matches with that scoreline (darker = more frequent). The most common scorelines are 1-0 (~12%), 1-1 (~11%), and 2-1 (~10%). The 0-0 scoreline accounts for ~7% of matches. Scorelines above 4-4 are extremely rare (<0.5% combined). The heatmap is asymmetric, with higher frequencies below the diagonal reflecting home advantage. Source: all parsed matches from [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > FTHG / FTAG](glossary.html#data-terminology) and [Glossary > Dixon-Coles Model](glossary.html).*
+*Scoreline frequency heatmap. X-axis: away goals (0-6+). Y-axis: home goals (0-6+). Cell colour intensity = proportion of matches with that scoreline (darker = more frequent). The most common scorelines are 1-0 (~12%), 1-1 (~11%), and 2-1 (~10%). The 0-0 scoreline accounts for ~7% of matches — higher than independent Poisson would predict. The heatmap asymmetry (more mass below the diagonal) reflects home advantage. The excess probability at (0,0) and along the diagonal suggests positive lower-tail dependence between home and away goals, consistent with a Frank or Clayton copula structure. This motivates the Dixon-Coles rho correction and the copula investigation in [issue #43](https://github.com/JohnGavin/footbet/issues/43). Source: all parsed matches from [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > FTHG / FTAG](glossary.html#data-terminology) and [Glossary > Dixon-Coles Model](glossary.html).*
 
 ::: {.callout-note}
 **Key Finding:** 1-0 (~12%), 1-1 (~11%), 2-1 (~10%) are most common.
