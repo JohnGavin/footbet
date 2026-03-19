@@ -361,7 +361,9 @@ wrap_mermaid_html <- function(mermaid_code, caption = NULL) {
     "'tertiaryColor': '#333333'",
     "}}}%%"
   )
-  themed_code <- paste0(theme_init, "\n", mermaid_code)
+  # Append thick red arrow styling
+  link_style <- "\nlinkStyle default stroke:#CC0000,stroke-width:3px"
+  themed_code <- paste0(theme_init, "\n", mermaid_code, link_style)
   diagram <- paste0('<div class="mermaid">\n', themed_code, '\n</div>')
   if (!is.null(caption)) {
     html <- paste0(

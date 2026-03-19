@@ -135,7 +135,7 @@ plan_vignette_outputs <- list(
           name = t,
           type = "scatter",
           mode = "text",
-          textfont = list(color = TIER_COLORS[[t]], size = 10),
+          textfont = list(color = TIER_COLORS[[t]], size = 13),
           hovertemplate = paste(
             "<b>%{text}</b><br>",
             "Season: %{y}<br>",
@@ -227,7 +227,7 @@ plan_vignette_outputs <- list(
           name = t,
           type = "scatter",
           mode = "text",
-          textfont = list(color = TIER_COLORS[[t]], size = 10),
+          textfont = list(color = TIER_COLORS[[t]], size = 13),
           hovertemplate = paste(
             "<b>%{text}</b><br>",
             "Season: %{y}<br>",
@@ -777,7 +777,7 @@ plan_vignette_outputs <- list(
         )
       })
 
-      plotly::subplot(panels, nrows = 5, shareX = TRUE, titleY = TRUE) |>
+      plotly::subplot(panels, nrows = 5, shareX = TRUE, shareY = TRUE, titleY = TRUE) |>
         theme_dark_plotly(title = "Mean Goals Per Match by Country (ordered by avg goals)") |>
         plotly::layout(
           yaxis  = list(title = "Goals/Match"),
@@ -896,13 +896,14 @@ plan_vignette_outputs <- list(
         color = ~outcome,
         colors = colors,
         size = ~n,
+        customdata = ~as.integer(n),
         type = "scatter",
         mode = "markers",
         hovertemplate = paste(
           "%{fullData.name}<br>",
           "Implied: %{x:.1%}<br>",
           "Actual: %{y:.1%}<br>",
-          "N: %{marker.size}<extra></extra>"
+          "N: %{customdata}<extra></extra>"
         )
       ) |>
         theme_dark_plotly(title = "Pinnacle Calibration: Implied vs Actual (size = sample count)") |>
