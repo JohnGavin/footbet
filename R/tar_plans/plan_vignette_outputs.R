@@ -1239,34 +1239,33 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_pnl_curve,
     {
-      pnl_data <- pnl_glm |>
-        dplyr::mutate(bet_num = dplyr::row_number())
+      pnl_data <- pnl_glm
 
       plotly::plot_ly(
         pnl_data,
-        x = ~bet_num,
+        x = ~match_date,
         y = ~bankroll,
         type = "scatter",
         mode = "lines",
         line = list(color = "#3498db", width = 2),
         hovertemplate = paste(
-          "Bet #: %{x:.0f}<br>",
-          "Bankroll: %{y:.0f}<extra></extra>"
+          "Date: %{x}<br>",
+          "Bankroll: %{y:,.0f}<extra></extra>"
         )
       ) |>
-        theme_dark_plotly(title = "Simulated Bankroll Evolution (GLM Value Bets, Quarter Kelly)") |>
+        theme_dark_plotly(title = "Simulated Bankroll (log scale, GLM Quarter Kelly)") |>
         add_time_slider() |>
         plotly::layout(
-          xaxis = list(title = "Bet Number"),
-          yaxis = list(title = "Bankroll"),
+          xaxis = list(title = "Date"),
+          yaxis = list(title = "Bankroll (log scale)", type = "log"),
           shapes = list(
             list(type = "line", x0 = 0, x1 = 1, y0 = 1000, y1 = 1000,
                  xref = "paper",
                  line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
           annotations = list(
-            list(x = 0.02, y = 1000, xref = "paper", yref = "y",
-                 text = "Starting: 1000",
+            list(x = 0.02, y = log10(1000), xref = "paper", yref = "y",
+                 text = "Starting: 1,000",
                  showarrow = FALSE, yanchor = "bottom", font = list(color = "#e67e22"))
           )
         )
@@ -1277,14 +1276,11 @@ plan_vignette_outputs <- list(
     vig_drawdown_plot,
     {
       dd_data <- pnl_glm |>
-        dplyr::mutate(
-          bet_num = dplyr::row_number(),
-          drawdown_pct = 100 * drawdown
-        )
+        dplyr::mutate(drawdown_pct = 100 * drawdown)
 
       plotly::plot_ly(
         dd_data,
-        x = ~bet_num,
+        x = ~match_date,
         y = ~drawdown_pct,
         type = "scatter",
         mode = "lines",
@@ -1292,13 +1288,13 @@ plan_vignette_outputs <- list(
         fillcolor = "rgba(231, 76, 60, 0.4)",
         line = list(color = "#e74c3c", width = 2),
         hovertemplate = paste(
-          "Bet #: %{x:.0f}<br>",
+          "Date: %{x}<br>",
           "Drawdown: %{y:.1f}%<extra></extra>"
         )
       ) |>
         theme_dark_plotly(title = "Drawdown Over Time (GLM Value Bets)") |>
         plotly::layout(
-          xaxis = list(title = "Bet Number"),
+          xaxis = list(title = "Date"),
           yaxis = list(title = "Drawdown (%)"),
           shapes = list(
             list(type = "line", x0 = 0, x1 = 1, y0 = -20, y1 = -20,
