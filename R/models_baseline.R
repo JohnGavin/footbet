@@ -427,3 +427,30 @@ correct_score_value <- function(model_prob, odds) {
     expected_value = model_prob * (odds - 1) - (1 - model_prob)
   )
 }
+
+#' Split matches into train/validate/test periods
+#'
+#' Creates a temporal split for out-of-sample evaluation. The test period
+#' must be evaluated ONCE — no parameter tuning after seeing test results.
+#'
+#' @param matches_df A tibble with `season` column (e.g., "1516", "2324").
+#' @param train_end Character. Last season in training period (default "1920").
+#' @param validate_end Character. Last season in validation period (default "2223").
+#' @return A list with `train`, `validate`, `test` tibbles.
+#' @family models
+#' @export
+temporal_split <- function(matches_df,
+                           train_end = "1920",
+                           validate_end = "2223") {
+  rlang::check_required(matches_df)
+  if (!"season" %in% names(matches_df)) {
+    cli::cli_abort("{.arg matches_df} must have a {.field season} column.")
+  }
+
+  list(
+    train = dplyr::filter(matches_df, .data$season <= train_end),
+    validate = dplyr::filter(matches_df, .data$season > train_end,
+                              .data$season <= validate_end),
+    test = dplyr::filter(matches_df, .data$season > validate_end)
+  )
+}

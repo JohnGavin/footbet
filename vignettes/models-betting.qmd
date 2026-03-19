@@ -283,4 +283,32 @@ if (is.data.frame(pnl_summary)) {
 }
 ```
 
-*P&L comparison table. Two scenarios: **Optimistic** (no transaction costs, quarter-Kelly compounding) shows astronomical returns that are not achievable in practice. **Realistic** (2% transaction cost, 1% slippage, flat £10 stakes) shows the expected return after accounting for the bookmaker's edge. The difference demonstrates why backtesting without costs is misleading. Source: [football-data.co.uk](https://www.football-data.co.uk/) value bets. See [Glossary > ROI](glossary.html) and [issue #66](https://github.com/JohnGavin/footbet/issues/66).*
+*P&L comparison table. See [issue #66](https://github.com/JohnGavin/footbet/issues/66) for assumptions.*
+
+## Out-of-Sample Evaluation
+
+The in-sample results above are misleading because the model was developed
+by looking at the full dataset. A true test requires fitting the model on
+PAST data only and evaluating on FUTURE data it has never seen.
+
+**Design:** Train on 2015-2020 (5 seasons), evaluate on 2021-2023 (validate period).
+The test period (2024-2026) is reserved for a final one-shot evaluation
+([issue #67](https://github.com/JohnGavin/footbet/issues/67)).
+
+```{r vig-oos-comparison}
+oos <- safe_tar_read("vig_oos_comparison")
+if (is.data.frame(oos)) {
+  oos |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "In-sample vs out-of-sample P&L. Realistic = 2% cost, 1% slippage, tiered stakes £5-25."
+      ),
+      options = list(pageLength = 10, dom = "t", scrollX = TRUE)
+    )
+} else {
+  oos
+}
+```
+
+*Out-of-sample comparison. The model trained on 2015-2020 produces a **bust (-100% ROI)** when evaluated on 2021-2023 with realistic costs. The 10.2% win rate (vs 32.2% in-sample) shows the model's edge disappears on unseen data. This is consistent with the academic literature: most football prediction models cannot beat sharp bookmakers after transaction costs (Kaunitz et al. 2017). The honest conclusion is that the model is useful for **understanding football patterns** but not for **profitable betting**. See [issue #67](https://github.com/JohnGavin/footbet/issues/67) for the final test-period evaluation.*

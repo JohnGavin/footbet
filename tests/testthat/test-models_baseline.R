@@ -180,3 +180,46 @@ test_that("predict_matches_glm handles empty input", {
   preds <- predict_matches_glm(model, empty)
   expect_equal(nrow(preds), 0L)
 })
+
+# ---- temporal_split ----
+
+test_that("temporal_split creates three non-overlapping periods", {
+  matches <- tibble::tibble(
+    season = c("1516", "1617", "1718", "1819", "1920",
+               "2021", "2122", "2223",
+               "2324", "2425", "2526"),
+    n = 1:11
+  )
+
+  split <- temporal_split(matches)
+  expect_equal(nrow(split$train), 5)
+  expect_equal(nrow(split$validate), 3)
+  expect_equal(nrow(split$test), 3)
+
+  # No overlap
+  expect_equal(nrow(dplyr::intersect(split$train, split$validate)), 0)
+  expect_equal(nrow(dplyr::intersect(split$validate, split$test)), 0)
+  expect_equal(nrow(dplyr::intersect(split$train, split$test)), 0)
+
+  # Union = original
+  expect_equal(
+    nrow(dplyr::bind_rows(split$train, split$validate, split$test)),
+    nrow(matches)
+  )
+})
+
+test_that("temporal_split requires season column", {
+  expect_error(temporal_split(tibble::tibble(x = 1)), "season")
+})
+
+test_that("temporal_split custom boundaries work", {
+  matches <- tibble::tibble(
+    season = c("1516", "1617", "1718", "1819", "1920",
+               "2021", "2122", "2223", "2324", "2425")
+  )
+
+  split <- temporal_split(matches, train_end = "1718", validate_end = "2122")
+  expect_equal(nrow(split$train), 3)   # 1516, 1617, 1718
+  expect_equal(nrow(split$validate), 4) # 1819, 1920, 2021, 2122
+  expect_equal(nrow(split$test), 3)    # 2223, 2324, 2425
+})

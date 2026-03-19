@@ -32,5 +32,6 @@ c(
   plan_decisions,
   plan_transfers,
   plan_doc_examples,
+  plan_oos,
   plan_vignette_outputs
 )
