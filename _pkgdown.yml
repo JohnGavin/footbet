@@ -9,6 +9,17 @@ template:
     in_header: |
       <script>localStorage.setItem('theme','dark');document.documentElement.setAttribute('data-bs-theme','dark');</script>
       <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap" rel="stylesheet">
+    after_body: |
+      <script>
+        fetch(window.location.href, {method: 'HEAD'}).then(function(r) {
+          var lm = r.headers.get('Last-Modified');
+          if (lm) {
+            document.querySelectorAll('.pkgdown-footer-left p').forEach(function(el) {
+              el.textContent = 'Deployed: ' + lm;
+            });
+          }
+        });
+      </script>
 
 navbar:
   structure:
