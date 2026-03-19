@@ -56,8 +56,9 @@ setup_nix_libs <- function() {
   invisible(.libPaths())
 }
 
-# Auto-run if sourced directly (NOT in R CMD check subprocesses)
-if (Sys.getenv("AUTO_SETUP_NIX_LIBS") == "1" ||
-    (!interactive() && !nzchar(Sys.getenv("_R_CHECK_PACKAGE_NAME_")))) {
+# Auto-run ONLY when explicitly requested via env var.
+# Do NOT auto-run in nix-shell --pure (paths are already correct)
+# or in R CMD check (subprocess crashes).
+if (Sys.getenv("AUTO_SETUP_NIX_LIBS") == "1") {
   setup_nix_libs()
 }
