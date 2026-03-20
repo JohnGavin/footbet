@@ -104,6 +104,107 @@ plan_oos <- list(
   ),
 
   # ====================================================================
+  # Dixon-Coles per-league (#70)
+  # ====================================================================
+
+  # Fit DC separately per league on train period
+  targets::tar_target(
+    oos_dc_per_league,
+    {
+      if (!requireNamespace("goalmodel", quietly = TRUE)) {
+        cli::cli_warn("goalmodel not available. Skipping DC per-league.")
+        return(NULL)
+      }
+
+      train <- oos_split$train |>
+        dplyr::filter(!is.na(fthg), !is.na(ftag))
+      leagues <- unique(train$league_code)
+
+      models <- list()
+      for (lc in leagues) {
+        league_data <- dplyr::filter(train, league_code == lc)
+        models[[lc]] <- tryCatch(
+          fit_dixon_coles(league_data),
+          error = function(e) {
+            cli::cli_warn("DC failed for {lc}: {e$message}")
+            NULL
+          }
+        )
+      }
+      models
+    }
+  ),
+
+  # Predict validate period using per-league DC models
+  targets::tar_target(
+    oos_validate_predictions_dc,
+    {
+      if (is.null(oos_dc_per_league)) {
+        return(oos_validate_predictions)  # fallback to GLM
+      }
+
+      validate <- oos_split$validate
+      leagues <- unique(validate$league_code)
+      all_preds <- list()
+
+      for (lc in leagues) {
+        model <- oos_dc_per_league[[lc]]
+        if (is.null(model)) next
+        league_matches <- dplyr::filter(validate, league_code == lc)
+        preds <- tryCatch(
+          predict_matches_dc(model, league_matches),
+          error = function(e) NULL
+        )
+        if (!is.null(preds)) all_preds <- c(all_preds, list(preds))
+      }
+
+      if (length(all_preds) == 0) return(oos_validate_predictions)
+      dplyr::bind_rows(all_preds)
+    }
+  ),
+
+  # Value bets using DC predictions
+  targets::tar_target(
+    oos_validate_bets_dc,
+    {
+      validate_odds_raw <- parsed_odds |>
+        dplyr::semi_join(oos_split$validate, by = "match_id")
+
+      find_value_bets(
+        preds = oos_validate_predictions_dc,
+        devigged = oos_validate_odds,
+        odds = validate_odds_raw,
+        min_edge = 0.03, min_odds = 1.50, max_odds = 10.0
+      )
+    }
+  ),
+
+  # DC OOS summary (flat-stake)
+  targets::tar_target(
+    oos_validate_summary_dc,
+    {
+      bets <- dplyr::inner_join(
+        oos_validate_bets_dc,
+        dplyr::select(parsed_matches, match_id, ftr, match_date),
+        by = "match_id"
+      ) |>
+        dplyr::mutate(
+          won = outcome == ftr,
+          net = dplyr::if_else(won,
+            10 * (decimal_odds * 0.99 - 1), -10) - 10 * 0.02
+        )
+
+      tibble::tibble(
+        scenario = "OOS Dixon-Coles per-league",
+        n_bets = nrow(bets),
+        roi_pct = round(sum(bets$net) / (nrow(bets) * 10) * 100, 1),
+        win_rate = round(mean(bets$won, na.rm = TRUE) * 100, 1),
+        avg_odds = round(mean(bets$decimal_odds), 2)
+      )
+    }
+  ),
+
+  # ====================================================================
   # Calibration (#68): isotonic + Platt on train predictions
   # ====================================================================
 
@@ -298,13 +399,33 @@ plan_oos <- list(
   targets::tar_target(
     vig_oos_comparison,
     {
+      # Flat-stake ROI helper
+      flat_roi <- function(bets_name, label) {
+        bets <- tryCatch(
+          dplyr::inner_join(
+            targets::tar_read_raw(bets_name),
+            dplyr::select(parsed_matches, match_id, ftr, match_date),
+            by = "match_id"
+          ) |> dplyr::mutate(
+            won = outcome == ftr,
+            net = dplyr::if_else(won, 10 * (decimal_odds * 0.99 - 1), -10) - 10 * 0.02
+          ),
+          error = function(e) NULL
+        )
+        if (is.null(bets) || nrow(bets) == 0) return(NULL)
+        tibble::tibble(
+          scenario = label,
+          n_bets = nrow(bets),
+          roi_pct = round(sum(bets$net) / (nrow(bets) * 10) * 100, 1),
+          win_rate = round(mean(bets$won, na.rm = TRUE) * 100, 1),
+          avg_odds = round(mean(bets$decimal_odds), 2)
+        )
+      }
+
       scenarios <- list(
-        oos_validate_summary |>
-          dplyr::mutate(scenario = "OOS static GLM (tiered + costs)", .before = 1),
-        oos_validate_summary_calibrated |>
-          dplyr::mutate(scenario = "OOS static + isotonic calibration", .before = 1),
-        oos_validate_summary_rolling |>
-          dplyr::mutate(scenario = "OOS rolling refit (24m window)", .before = 1)
+        flat_roi("oos_validate_bets", "OOS static GLM"),
+        flat_roi("oos_validate_bets_calibrated", "OOS GLM + isotonic"),
+        oos_validate_summary_dc
       )
 
       dplyr::bind_rows(scenarios) |>
