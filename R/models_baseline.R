@@ -454,3 +454,78 @@ temporal_split <- function(matches_df,
     test = dplyr::filter(matches_df, .data$season > validate_end)
   )
 }
+
+#' Blend model predictions with market probabilities
+#'
+#' Creates a weighted average of model-predicted and market-implied
+#' probabilities. The optimal weight is found by minimising log-loss
+#' on a calibration set.
+#'
+#' @param model_probs A tibble with `match_id`, `pred_h`, `pred_d`, `pred_a`.
+#' @param market_probs A tibble with `match_id`, `fair_h`, `fair_d`, `fair_a`.
+#' @param actuals A tibble with `match_id`, `ftr`.
+#' @param weights Numeric vector of blend weights to try (default seq(0, 1, 0.05)).
+#' @return A list with `best_weight` and `blended` tibble.
+#' @family models
+#' @export
+blend_with_market <- function(model_probs, market_probs, actuals,
+                               weights = seq(0, 1, by = 0.05)) {
+  rlang::check_required(model_probs)
+  rlang::check_required(market_probs)
+  rlang::check_required(actuals)
+
+  combined <- dplyr::inner_join(model_probs, market_probs, by = "match_id") |>
+    dplyr::inner_join(actuals, by = "match_id") |>
+    dplyr::filter(!is.na(pred_h), !is.na(fair_h), !is.na(ftr))
+
+  if (nrow(combined) == 0) {
+    cli::cli_abort("No matches with both model and market probabilities.")
+  }
+
+  # Find optimal blend weight by minimising log-loss
+  best_w <- 0.5
+  best_ll <- Inf
+
+  for (w in weights) {
+    blend_h <- w * combined$pred_h + (1 - w) * combined$fair_h
+    blend_d <- w * combined$pred_d + (1 - w) * combined$fair_d
+    blend_a <- w * combined$pred_a + (1 - w) * combined$fair_a
+
+    # Normalise
+    total <- blend_h + blend_d + blend_a
+    blend_h <- blend_h / total
+    blend_d <- blend_d / total
+    blend_a <- blend_a / total
+
+    # Log-loss
+    prob_actual <- dplyr::case_when(
+      combined$ftr == "H" ~ blend_h,
+      combined$ftr == "D" ~ blend_d,
+      combined$ftr == "A" ~ blend_a
+    )
+    prob_actual <- pmax(prob_actual, 1e-10)
+    ll <- -mean(log(prob_actual))
+
+    if (ll < best_ll) {
+      best_ll <- ll
+      best_w <- w
+    }
+  }
+
+  cli::cli_alert_info("Optimal blend: {round(best_w * 100)}% model + {round((1 - best_w) * 100)}% market (log-loss: {round(best_ll, 4)})")
+
+  # Apply best blend
+  blended <- combined |>
+    dplyr::mutate(
+      pred_h = (best_w * pred_h + (1 - best_w) * fair_h),
+      pred_d = (best_w * pred_d + (1 - best_w) * fair_d),
+      pred_a = (best_w * pred_a + (1 - best_w) * fair_a),
+      total = pred_h + pred_d + pred_a,
+      pred_h = pred_h / total,
+      pred_d = pred_d / total,
+      pred_a = pred_a / total
+    ) |>
+    dplyr::select(match_id, pred_h, pred_d, pred_a)
+
+  list(best_weight = best_w, log_loss = best_ll, blended = blended)
+}

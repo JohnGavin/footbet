@@ -205,6 +205,165 @@ plan_oos <- list(
   ),
 
   # ====================================================================
+  # Market-implied blend (#44)
+  # ====================================================================
+
+  # Blend GLM predictions with Pinnacle market probabilities
+  # Optimal weight found on TRAIN data, applied to VALIDATE
+  targets::tar_target(
+    oos_blend_result,
+    {
+      train_preds <- oos_train_predictions
+      train_market <- devigged_odds |>
+        dplyr::semi_join(oos_split$train, by = "match_id")
+      train_actuals <- oos_split$train |>
+        dplyr::select(match_id, ftr) |>
+        dplyr::filter(!is.na(ftr))
+
+      blend_with_market(train_preds, train_market, train_actuals)
+    }
+  ),
+
+  # Apply best blend weight to validate predictions
+  targets::tar_target(
+    oos_validate_blended,
+    {
+      w <- oos_blend_result$best_weight
+      combined <- dplyr::inner_join(
+        oos_validate_predictions, oos_validate_odds, by = "match_id"
+      ) |> dplyr::filter(!is.na(pred_h), !is.na(fair_h))
+
+      combined |>
+        dplyr::mutate(
+          pred_h = (w * pred_h + (1 - w) * fair_h),
+          pred_d = (w * pred_d + (1 - w) * fair_d),
+          pred_a = (w * pred_a + (1 - w) * fair_a),
+          total = pred_h + pred_d + pred_a,
+          pred_h = pred_h / total,
+          pred_d = pred_d / total,
+          pred_a = pred_a / total
+        ) |>
+        dplyr::select(match_id, pred_h, pred_d, pred_a)
+    }
+  ),
+
+  # Value bets from blended predictions
+  targets::tar_target(
+    oos_validate_bets_blended,
+    {
+      validate_odds_raw <- parsed_odds |>
+        dplyr::semi_join(oos_split$validate, by = "match_id")
+
+      find_value_bets(
+        preds = oos_validate_blended,
+        devigged = oos_validate_odds,
+        odds = validate_odds_raw,
+        min_edge = 0.03, min_odds = 1.50, max_odds = 10.0
+      )
+    }
+  ),
+
+  # Blended OOS summary (flat-stake)
+  targets::tar_target(
+    oos_validate_summary_blended,
+    {
+      bets <- dplyr::inner_join(
+        oos_validate_bets_blended,
+        dplyr::select(parsed_matches, match_id, ftr, match_date),
+        by = "match_id"
+      ) |> dplyr::mutate(
+        won = outcome == ftr,
+        net = dplyr::if_else(won, 10 * (decimal_odds * 0.99 - 1), -10) - 10 * 0.02
+      )
+      tibble::tibble(
+        scenario = paste0("OOS GLM+market blend (",
+                          round(oos_blend_result$best_weight * 100), "% model)"),
+        n_bets = nrow(bets),
+        roi_pct = round(sum(bets$net) / (nrow(bets) * 10) * 100, 1),
+        win_rate = round(mean(bets$won, na.rm = TRUE) * 100, 1),
+        avg_odds = round(mean(bets$decimal_odds), 2)
+      )
+    }
+  ),
+
+  # ====================================================================
+  # XGBoost (#37 / Constantinou 2019)
+  # ====================================================================
+
+  targets::tar_target(
+    oos_validate_summary_xgb,
+    {
+      if (!requireNamespace("xgboost", quietly = TRUE)) {
+        return(tibble::tibble(
+          scenario = "OOS XGBoost (not available)",
+          n_bets = NA_integer_, roi_pct = NA_real_,
+          win_rate = NA_real_, avg_odds = NA_real_
+        ))
+      }
+
+      # Use feature matrix with temporal split
+      fm <- feature_matrix
+      train_fm <- fm |> dplyr::filter(season <= "1920") |>
+        dplyr::filter(!is.na(ftr), !is.na(home_elo), !is.na(fair_h))
+      validate_fm <- fm |> dplyr::filter(season > "1920", season <= "2223") |>
+        dplyr::filter(!is.na(ftr), !is.na(home_elo), !is.na(fair_h))
+
+      feature_cols <- c("home_elo", "away_elo", "elo_diff",
+                         "home_roll_gf", "home_roll_ga", "home_roll_gd",
+                         "away_roll_gf", "away_roll_ga", "away_roll_gd",
+                         "fair_h", "fair_d", "fair_a")
+      available <- intersect(feature_cols, names(train_fm))
+
+      xgb_model <- fit_xgboost(
+        matches = train_fm,
+        features = available,
+        target = "ftr",
+        objective = "multi:softprob",
+        nrounds = 100,
+        early_stopping_rounds = 10
+      )
+
+      # Predict validate
+      preds <- predict_xgboost(xgb_model, validate_fm, features = available)
+
+      pred_df <- tibble::tibble(
+        match_id = validate_fm$match_id,
+        pred_h = preds[, 1],
+        pred_d = preds[, 2],
+        pred_a = preds[, 3]
+      )
+
+      # Find value bets
+      validate_odds_raw <- parsed_odds |>
+        dplyr::semi_join(validate_fm, by = "match_id")
+      validate_odds_dev <- devig_odds(validate_odds_raw)
+
+      xgb_bets <- find_value_bets(
+        preds = pred_df, devigged = validate_odds_dev,
+        odds = validate_odds_raw,
+        min_edge = 0.03, min_odds = 1.50, max_odds = 10.0
+      )
+
+      # Flat-stake ROI
+      bets <- dplyr::inner_join(xgb_bets,
+        dplyr::select(parsed_matches, match_id, ftr, match_date),
+        by = "match_id"
+      ) |> dplyr::mutate(
+        won = outcome == ftr,
+        net = dplyr::if_else(won, 10 * (decimal_odds * 0.99 - 1), -10) - 10 * 0.02
+      )
+
+      tibble::tibble(
+        scenario = "OOS XGBoost",
+        n_bets = nrow(bets),
+        roi_pct = round(sum(bets$net) / (nrow(bets) * 10) * 100, 1),
+        win_rate = round(mean(bets$won, na.rm = TRUE) * 100, 1),
+        avg_odds = round(mean(bets$decimal_odds), 2)
+      )
+    }
+  ),
+
+  # ====================================================================
   # Calibration (#68): isotonic + Platt on train predictions
   # ====================================================================
 
@@ -425,7 +584,9 @@ plan_oos <- list(
       scenarios <- list(
         flat_roi("oos_validate_bets", "OOS static GLM"),
         flat_roi("oos_validate_bets_calibrated", "OOS GLM + isotonic"),
-        oos_validate_summary_dc
+        oos_validate_summary_dc,
+        oos_validate_summary_blended,
+        oos_validate_summary_xgb
       )
 
       dplyr::bind_rows(scenarios) |>
