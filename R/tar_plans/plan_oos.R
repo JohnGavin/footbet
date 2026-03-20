@@ -121,7 +121,9 @@ plan_oos <- list(
         oos_train_predictions,
         dplyr::select(oos_split$train, match_id, ftr),
         by = "match_id"
-      )
+      ) |>
+        dplyr::filter(!is.na(pred_h), !is.na(ftr))
+
       # Calibrate home win probability
       fit_isotonic_regression(
         predicted = train_with_results$pred_h,
