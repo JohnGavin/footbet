@@ -209,15 +209,18 @@ plan_oos <- list(
       all_matches <- parsed_matches |>
         dplyr::filter(!is.na(fthg), !is.na(ftag))
 
-      # Get unique months in validate period
-      validate_months <- unique(format(validate$match_date, "%Y-%m"))
+      # Refit quarterly (every 3 months) to reduce CPU: ~12 fits, not 36
+      all_months <- sort(unique(format(validate$match_date, "%Y-%m")))
+      validate_months <- all_months[seq(1, length(all_months), by = 3)]
 
       all_bets <- list()
 
       for (mo in validate_months) {
-        # Current month matches
+        # Current quarter matches (this month + next 2)
+        mo_idx <- which(all_months == mo)
+        quarter_months <- all_months[mo_idx:min(mo_idx + 2, length(all_months))]
         month_matches <- validate |>
-          dplyr::filter(format(match_date, "%Y-%m") == mo)
+          dplyr::filter(format(match_date, "%Y-%m") %in% quarter_months)
         if (nrow(month_matches) == 0) next
 
         # Train on preceding 24 months
@@ -235,11 +238,12 @@ plan_oos <- list(
         )
         if (is.null(glm_fit)) next
 
-        # Predict current month
+        # Predict current month then discard model (180MB each)
         preds <- tryCatch(
           predict_matches_glm(glm_fit, month_matches),
           error = function(e) NULL
         )
+        rm(glm_fit, train_long); gc(verbose = FALSE)
         if (is.null(preds)) next
 
         # Devig odds for this month
