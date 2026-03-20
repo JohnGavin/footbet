@@ -311,4 +311,24 @@ if (is.data.frame(oos)) {
 }
 ```
 
-*Out-of-sample comparison. The model trained on 2015-2020 produces a **bust (-100% ROI)** when evaluated on 2021-2023 with realistic costs. The 10.2% win rate (vs 32.2% in-sample) shows the model's edge disappears on unseen data. This is consistent with the academic literature: most football prediction models cannot beat sharp bookmakers after transaction costs (Kaunitz et al. 2017). The honest conclusion is that the model is useful for **understanding football patterns** but not for **profitable betting**. See [issue #67](https://github.com/JohnGavin/footbet/issues/67) for the final test-period evaluation.*
+*Out-of-sample comparison using flat £10 stakes with 2% transaction cost and 1% slippage. The model finds value bets at 30% win rate (similar to in-sample), but the ROI is -9.3% out-of-sample vs +422% in-sample. The edge from the model (~5-10%) is consumed by the bookmaker's margin (~2-4%) plus slippage.*
+
+### Out-of-Sample by League
+
+```{r vig-oos-by-league}
+oos_league <- safe_tar_read("vig_oos_by_league")
+if (is.data.frame(oos_league)) {
+  oos_league |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: bottom; text-align: left;",
+        "OOS ROI by league. Flat £10, 2% cost, 1% slippage. No league is profitable."
+      ),
+      options = list(pageLength = 10, dom = "t", scrollX = TRUE)
+    )
+} else {
+  oos_league
+}
+```
+
+*Out-of-sample ROI by league. E0 (Premier League) is closest to breakeven at -2.1%, while I2 (Serie B) is worst at -20.1%. No league is profitable after costs. Top 5 and 2nd Tier leagues show similar patterns. The variation in ROI across leagues suggests league-specific models or features might improve performance, but the fundamental barrier is the Pinnacle spread. See [issue #67](https://github.com/JohnGavin/footbet/issues/67) for the test-period evaluation and [issue #43](https://github.com/JohnGavin/footbet/issues/43) for copula model investigation.*
