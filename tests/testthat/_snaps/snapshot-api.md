@@ -691,6 +691,23 @@
     Code
       args(accumulator_probability)
     Output
-      function (matches, correlation = 0.1, n_sims = 10000L) 
+      function (matches, correlation = 0.1, n_sims = 10000L)
+      NULL
+
+# blend_with_market API is stable
+
+    Code
+      args(blend_with_market)
+    Output
+      function (model_probs, market_probs, actuals, weights = seq(0,
+          1, by = 0.05))
+      NULL
+
+# temporal_split API is stable
+
+    Code
+      args(temporal_split)
+    Output
+      function (matches_df, train_end = "1920", validate_end = "2223")
       NULL
 
