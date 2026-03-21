@@ -361,3 +361,11 @@ test_that("joint_outcome_probability API is stable", {
 test_that("accumulator_probability API is stable", {
   expect_snapshot(args(accumulator_probability))
 })
+
+test_that("blend_with_market API is stable", {
+  expect_snapshot(args(blend_with_market))
+})
+
+test_that("temporal_split API is stable", {
+  expect_snapshot(args(temporal_split))
+})
