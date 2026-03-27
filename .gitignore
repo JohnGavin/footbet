@@ -37,3 +37,7 @@ covr_report/
 
 # Quarto
 /.quarto/
+
+# Claude Code ephemeral files
+.claude/CURRENT_WORK.md
+.claude/worktrees/
