@@ -1,0 +1,18 @@
+agent = "claude-code"
+review_context_count = 3
+excluded_commit_patterns = ["[skip review]", "docs: rebuild pkgdown", "chore: gitignore"]
+review_reasoning = "standard"
+fix_reasoning = "standard"
+refine_reasoning = "standard"
+fix_min_severity = "medium"
+refine_min_severity = "medium"
+review_guidelines = """
+R package (footbet) — football match prediction models. Review for:
+- suppressWarnings(as.*) anti-pattern
+- DBI::dbGetQuery (use duckplyr instead)
+- Missing cli::cli_abort (use instead of stop())
+- Hardcoded values in vignettes (must use tar_read)
+- Model evaluation: always report effect sizes with CIs, not just p-values
+- set.seed() required for any randomised operation
+- Numerical stability: use all.equal() not == for doubles
+"""
