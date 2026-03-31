@@ -15,4 +15,5 @@ R package (footbet) — football match prediction models. Review for:
 - Model evaluation: always report effect sizes with CIs, not just p-values
 - set.seed() required for any randomised operation
 - Numerical stability: use all.equal() not == for doubles
+- Diffs are structural (difftastic/tree-sitter) — formatting changes are invisible, focus on semantic changes only
 """
