@@ -15,13 +15,14 @@ sharpest bookmaker but paying the vig.
 
 | # | Model | ROI % | Bets | Period | Subset | Issue |
 |---|-------|------:|-----:|--------|--------|-------|
-| 1 | W/D/L pattern: fade bounce | -0.6% | 1,307 | 22-25 | All | — |
-| 2 | OAGD home only | -2.2% | ~3,400 | 22-25 | Home | #77 |
+| 1 | W/D/L pattern: fade bounce | -0.6% | 1,307 | 22-25 | All (validation) | — |
+| 2 | OAGD 1-param home only | -2.2% | ~3,400 | 22-25 | Home (validation) | #77 |
 | 3 | W/D/L pattern: pair trade Tier1 | -2.1% | 114 | 22-25 | Home (tiny N) | — |
-| 4 | W/D/L pattern: home slip | -3.9% | 2,283 | 22-25 | All | — |
-| 5 | OAGD no draws | -5.4% | ~7,000 | 22-25 | H+A | #77 |
-| 6 | OAGD all bets | -6.1% | 7,544 | 22-25 | All | #77 |
-| 7 | OOS static GLM | -7.9%* | — | 20-23 | All | — |
+| 4 | W/D/L pattern: home slip | -3.9% | 2,283 | 22-25 | All (validation) | — |
+| 5 | OAGD 1-param no draws | -5.4% | ~7,000 | 22-25 | H+A (validation) | #77 |
+| 6 | OAGD 1-param all bets | -6.1% | 7,544 | 22-25 | All (validation) | #77 |
+| 7 | OOS static GLM | -7.9%* | — | 20-23 | All (validation) | — |
+| — | **OAGD v2 attack/defence (HOLDOUT)** | **-13.5%** | **5,629** | **23-26** | **H+A, with costs** | **#67** |
 | 8 | OOS Dixon-Coles per-league | — | — | 20-23 | All | #70 |
 | 9 | OOS GLM + market blend | — | — | 20-23 | All | #44 |
 | 10 | OOS XGBoost | — | — | 20-23 | All | #37 |

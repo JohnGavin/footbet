@@ -5,8 +5,26 @@ Cumulative lab notes. Track completed work, **failed approaches**, accuracy chec
 ## 2026-04-03
 
 ### Completed
-- docs: MODEL_CATALOGUE.md — all 11 models with results, lessons, leaderboard, structured for incremental additions
-- docs: CLAUDE.md — added Key Documents section linking catalogue, plans, CHANGELOG
+- feat: OAGD v2 — attack/defence split (two Poisson GLMMs), transaction costs, draw exclusion (#78 #79 #80 #66)
+- feat: Holdout test targets and execution (#67) — 2324-2526, one-shot
+- docs: MODEL_CATALOGUE.md — all 11+ models with results, leaderboard
+- docs: CLAUDE.md — added Key Documents section
+- Closed: #66, #78, #79, #80
+
+### Holdout Result (OAGD v2, attack/defence split)
+- **ROI: -13.5%** on 5,629 bets (2324-2526, H+A only, 2% costs + 1% slippage)
+- Home: -11.8%, Away: -15.1%
+- Tier 1: -17.0%, Tier 2: -10.2%
+- Only 4/30 league-season cells positive (all small N except E0 2526)
+- **Worse than validation** (-6.1% for 1-param, -5.4% no draws) — overfitting confirmed
+- The attack/defence split did NOT improve results vs the simpler 1-param model
+
+### Key Lessons
+- **Validation ROI was optimistic**: -6.1% validation → -13.5% holdout. Grid-searched params overfit.
+- **Attack/defence split added complexity without edge**: two GLMMs give noisier estimates than one LMM on GD
+- **Transaction costs + slippage add ~3pp** drag vs raw odds backtesting
+- **The model beats nothing**: even the naive W/D/L patterns (-0.6% to -3.9%) outperform OAGD on validation
+- **Pinnacle closing odds are efficient**: no publicly-available form/strength signal we've tested creates positive EV
 - Filed #78 (Skellam draw bias), #79 (attack/defence split), #80 (Sharpe NA bug)
 - Updated #77 with grid search results
 
