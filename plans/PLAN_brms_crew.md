@@ -1,7 +1,7 @@
 # PLAN: brms + crew parallelisation on laptop
 
 **Tracks:** [#59](https://github.com/JohnGavin/footbet/issues/59) | Related: #77 (OAGD)
-**Status:** Draft
+**Status:** Step 1 complete — brms verified in Nix (28.5s, 0 divergences)
 **Created:** 2026-04-03
 
 ## Context
@@ -165,13 +165,16 @@ Add brms results to the leaderboard. Update #59.
 
 | Scenario | Fits | Per fit | Workers | Wall time |
 |----------|-----:|--------:|--------:|----------:|
-| Sequential (current) | 40 | 30 min | 1 | ~20 hours |
-| crew 4 workers | 40 | 30 min | 4 | ~5 hours |
-| crew 4, reduced iter | 40 | 10 min | 4 | ~1.5 hours |
-| Reduced iter + 10 leagues parallel | 10 | 10 min | 4 | ~25 min |
+| Sequential (current) | 40 | ~3 min* | 1 | ~2 hours |
+| crew 4 workers | 40 | ~3 min | 4 | ~30 min |
+| crew 4, reduced iter (1000) | 40 | ~1.5 min | 4 | ~15 min |
+| Per-league parallel (10 leagues) | 10 | ~3 min | 4 | ~8 min |
 
-**Recommended:** Start with `iter = 1000` (half default) to halve fit time.
-If results are promising, increase to 2000 for final evaluation.
+*Revised: Step 1 smoke test showed 28.5s for 500 iter on 100 obs. Real data
+(~380 matches, 20 teams, 2000 iter) estimated ~2-5 min per fit. Stan compilation
+is one-time (~28s), cached for subsequent fits with same model structure.
+
+**Recommended:** Start with default `iter = 2000` — compute is manageable.
 
 ## Risks
 
