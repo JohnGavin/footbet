@@ -29,40 +29,37 @@ dskellam <- function(k, lambda1, lambda2) {
 
 #' Predict match outcome probabilities from OAGD model
 #'
-#' Given team strengths, home advantage, and form signals, computes
-#' the expected GD and converts to P(H), P(D), P(A) via the Skellam
-#' distribution.
+#' Given team attack/defence strengths, intercepts, and form signals,
+#' computes expected goals via log-link Poisson and converts to
+#' P(H), P(D), P(A) via the Skellam distribution.
 #'
-#' @param alpha_home Numeric. Home team combined strength (alpha).
-#' @param alpha_away Numeric. Away team combined strength (alpha).
-#' @param eta Numeric. Home advantage intercept.
+#' @param attack_home Numeric. Home team attack strength.
+#' @param defence_home Numeric. Home team defence (higher = leaks more).
+#' @param attack_away Numeric. Away team attack strength.
+#' @param defence_away Numeric. Away team defence.
+#' @param eta_home Numeric. Home goals intercept (log-scale).
+#' @param eta_away Numeric. Away goals intercept (log-scale).
 #' @param form_home Numeric. Home team form signal (default 0).
 #' @param form_away Numeric. Away team form signal (default 0).
-#' @param beta Numeric. Weight on form difference (default 0.3).
-#' @param avg_total_goals Numeric. Average total goals per match
-#'   in this league (default 2.7). Used to anchor lambda sum.
+#' @param beta Numeric. Weight on form (default 0.3).
 #' @return A list with `mu` (expected GD), `lambda_home`,
 #'   `lambda_away`, `prob_h`, `prob_d`, `prob_a`, and
 #'   `gd_dist` (tibble of GD probabilities from -8 to +8).
 #' @family models
 #' @export
-oagd_predict_match <- function(alpha_home,
-                               alpha_away,
-                               eta,
+oagd_predict_match <- function(attack_home = 0,
+                               defence_home = 0,
+                               attack_away = 0,
+                               defence_away = 0,
+                               eta_home = 0.3,
+                               eta_away = 0.1,
                                form_home = 0,
                                form_away = 0,
-                               beta = 0.3,
-                               avg_total_goals = 2.7) {
-  # Expected GD = eta + alpha_home - alpha_away + beta * (form_h - form_a)
-
-  mu <- eta + alpha_home - alpha_away + beta * (form_home - form_away)
-
-  # Constrain lambdas: sum = avg_total_goals, difference = mu
-
-  # lambda_home = (avg_total_goals + mu) / 2
-  # lambda_away = (avg_total_goals - mu) / 2
-  lambda_home <- max(0.15, (avg_total_goals + mu) / 2)
-  lambda_away <- max(0.15, (avg_total_goals - mu) / 2)
+                               beta = 0.3) {
+  # Log-link Poisson: lambda = exp(intercept + attack - defence + form)
+  lambda_home <- max(0.15, exp(eta_home + attack_home + defence_away + beta * form_home))
+  lambda_away <- max(0.15, exp(eta_away + attack_away + defence_home + beta * form_away))
+  mu <- lambda_home - lambda_away
 
   # Skellam GD distribution
   gd_range <- -8L:8L
@@ -121,19 +118,26 @@ oagd_predict_all <- function(data, fits, form_tbl,
           }
 
           s <- f$strengths
-          ah <- s$alpha[s$team == ht]
-          aa <- s$alpha[s$team == at]
-          if (length(ah) == 0L) ah <- 0
-          if (length(aa) == 0L) aa <- 0
+          lookup <- function(col, team) {
+            v <- s[[col]][s$team == team]
+            if (length(v) == 0L) 0 else v[[1L]]
+          }
+          att_h <- lookup("attack", ht)
+          def_h <- lookup("defence", ht)
+          att_a <- lookup("attack", at)
+          def_a <- lookup("defence", at)
 
           fh <- form_tbl$form[form_tbl$team == ht & form_tbl$matchday == md]
           fa <- form_tbl$form[form_tbl$team == at & form_tbl$matchday == md]
-          # Take first value: a team can appear twice in a matchday when
-          # fixtures are rearranged (e.g., rescheduled games same round)
           fh <- if (length(fh) == 0L) 0 else fh[[1L]]
           fa <- if (length(fa) == 0L) 0 else fa[[1L]]
 
-          oagd_predict_match(ah, aa, f$eta, fh, fa, beta, avg_total_goals)
+          oagd_predict_match(
+            attack_home = att_h, defence_home = def_h,
+            attack_away = att_a, defence_away = def_a,
+            eta_home = f$eta_home, eta_away = f$eta_away,
+            form_home = fh, form_away = fa, beta = beta
+          )
         }
       )
     ) |>

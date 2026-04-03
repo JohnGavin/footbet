@@ -43,11 +43,18 @@ oagd_stake <- function(edge, tau_min = 0.05, tau_double = 0.10) {
 #' @param stake Integer. Units staked (0, 1, or 2).
 #' @param odds Numeric. Decimal odds for the outcome bet on.
 #' @param won Logical. Whether the outcome occurred.
-#' @return Numeric. Profit/loss.
+#' @param transaction_cost Numeric. Proportional cost on stake
+#'   (default 0, e.g. 0.02 = 2% commission).
+#' @param slippage Numeric. Proportional reduction in effective odds
+#'   (default 0, e.g. 0.01 = 1% worse than quoted).
+#' @return Numeric. Profit/loss after costs.
 #' @family decisions
 #' @export
-oagd_pnl <- function(stake, odds, won) {
-  dplyr::if_else(won, stake * (odds - 1), -stake)
+oagd_pnl <- function(stake, odds, won,
+                     transaction_cost = 0, slippage = 0) {
+  effective_odds <- odds * (1 - slippage)
+  gross <- dplyr::if_else(won, stake * (effective_odds - 1), -stake)
+  gross - stake * transaction_cost
 }
 
 #' Run OAGD backtest for one league-season
@@ -63,6 +70,10 @@ oagd_pnl <- function(stake, odds, won) {
 #' @param beta Numeric. Form weight (default 0.3).
 #' @param tau_min Numeric. Min edge to bet (default 0.05).
 #' @param tau_double Numeric. Edge for double stake (default 0.10).
+#' @param exclude_draws Logical. If `TRUE`, skip draw bets entirely
+#'   (default `TRUE` — Skellam overestimates draws, see #78).
+#' @param transaction_cost Numeric. Proportional cost on stake (default 0.02).
+#' @param slippage Numeric. Proportional odds reduction (default 0.01).
 #' @return A tibble of bets placed, with columns: `match_id`,
 #'   `season`, `league_code`, `matchday`, `outcome_bet` (H/D/A),
 #'   `model_prob`, `implied_prob`, `edge`, `stake`, `odds`, `won`, `pnl`.
@@ -75,7 +86,10 @@ oagd_backtest_league <- function(data,
                                  half_life = 2,
                                  beta = 0.3,
                                  tau_min = 0.05,
-                                 tau_double = 0.10) {
+                                 tau_double = 0.10,
+                                 exclude_draws = TRUE,
+                                 transaction_cost = 0.02,
+                                 slippage = 0.01) {
   rlang::check_required(data)
   rlang::check_required(odds_data)
 
@@ -169,11 +183,13 @@ oagd_backtest_league <- function(data,
       )
     )
 
-  all_bets <- dplyr::bind_rows(bets_h, bets_d, bets_a) |>
+  bet_list <- if (exclude_draws) list(bets_h, bets_a) else list(bets_h, bets_d, bets_a)
+  all_bets <- dplyr::bind_rows(bet_list) |>
     dplyr::mutate(
       stake = oagd_stake(.data$edge, tau_min, tau_double),
       won = .data$outcome_bet == .data$actual_result,
-      pnl = oagd_pnl(.data$stake, .data$odds, .data$won)
+      pnl = oagd_pnl(.data$stake, .data$odds, .data$won,
+                      transaction_cost, slippage)
     ) |>
     dplyr::filter(.data$stake > 0L)
 
@@ -200,10 +216,10 @@ oagd_backtest_summary <- function(bets, ...) {
       total_staked = sum(.data$stake),
       total_pnl = round(sum(.data$pnl), 2),
       roi_pct = round(100 * sum(.data$pnl) / sum(.data$stake), 1),
-      sharpe = if (dplyr::n() >= 2L) {
-        round(mean(.data$pnl) / stats::sd(.data$pnl), 3)
-      } else {
-        NA_real_
+      sharpe = {
+        n <- dplyr::n()
+        s <- if (n >= 2L) stats::sd(.data$pnl) else NA_real_
+        dplyr::if_else(!is.na(s) & s > 0, round(mean(.data$pnl) / s, 3), NA_real_)
       },
       max_drawdown = round(min(cumsum(.data$pnl)), 2),
       .groups = "drop"

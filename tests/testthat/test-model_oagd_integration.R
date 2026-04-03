@@ -62,20 +62,21 @@ test_that("oagd_fit_window produces shrunk estimates", {
   fit <- oagd_fit_window(data, target_matchday = 10L, window = 10L)
 
   expect_type(fit, "list")
-  expect_true("eta" %in% names(fit))
-  expect_true("strengths" %in% names(fit))
+  expect_true(all(c("eta_home", "eta_away", "strengths") %in% names(fit)))
 
-  # Home advantage should be positive
-  expect_true(fit$eta > 0)
+  # Home goals intercept should be >= away goals intercept (home advantage)
+  expect_true(fit$eta_home >= fit$eta_away)
 
-  # Strengths should be shrunk compared to raw GD
+  # Strengths should have attack and defence columns
+  expect_true(all(c("team", "attack", "defence") %in% names(fit$strengths)))
+
+  # Shrinkage: max attack RE should be smaller than max raw goals scored
   raw <- data |>
     dplyr::filter(matchday <= 10L) |>
     dplyr::group_by(home_team) |>
-    dplyr::summarise(mean_gd = mean(gd_home), .groups = "drop")
+    dplyr::summarise(mean_goals = mean(fthg), .groups = "drop")
 
-  # Max random effect should be smaller than max raw GD (shrinkage)
-  expect_true(max(abs(fit$strengths$alpha)) < max(abs(raw$mean_gd)))
+  expect_true(max(abs(fit$strengths$attack)) < max(abs(raw$mean_goals)))
 })
 
 test_that("oagd_roll_fits converges for most matchdays", {
@@ -114,7 +115,7 @@ test_that("snapshot: oagd_fit_window strengths for E0 2425 matchday 10", {
 
   snap <- fit$strengths |>
     dplyr::mutate(dplyr::across(dplyr::where(is.numeric), \(x) round(x, 3))) |>
-    dplyr::arrange(dplyr::desc(alpha))
+    dplyr::arrange(dplyr::desc(attack))
 
   expect_snapshot(snap)
 })

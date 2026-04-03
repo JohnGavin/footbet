@@ -52,12 +52,12 @@
       snap
     Output
              metric  value
-      1          mu 1.1500
-      2 lambda_home 1.9250
-      3 lambda_away 0.7750
-      4      prob_h 0.6451
-      5      prob_d 0.2117
-      6      prob_a 0.1432
+      1          mu 1.4348
+      2 lambda_home 2.3396
+      3 lambda_away 0.9048
+      4      prob_h 0.6939
+      5      prob_d 0.1770
+      6      prob_a 0.1290
 
 # snapshot: predict_match with form signal
 
@@ -65,12 +65,12 @@
       snap
     Output
              metric  value
-      1          mu 0.9000
-      2 lambda_home 1.7500
-      3 lambda_away 0.8500
-      4      prob_h 0.5871
-      5      prob_d 0.2333
-      6      prob_a 0.1796
+      1          mu 1.1089
+      2 lambda_home 2.0138
+      3 lambda_away 0.9048
+      4      prob_h 0.6315
+      5      prob_d 0.2075
+      6      prob_a 0.1611
 
 # snapshot: predict_match GD distribution
 
@@ -82,21 +82,21 @@
          <int>   <dbl>
        1    -8 0      
        2    -7 0.00003
-       3    -6 0.00021
-       4    -5 0.0012 
-       5    -4 0.00577
-       6    -3 0.0227 
-       7    -2 0.0704 
-       8    -1 0.161  
-       9     0 0.249  
-      10     1 0.234  
-      11     2 0.149  
-      12     3 0.0700 
-      13     4 0.0258 
-      14     5 0.00783
-      15     6 0.00201
-      16     7 0.00044
-      17     8 0.00009
+       3    -6 0.00018
+       4    -5 0.00102
+       5    -4 0.00492
+       6    -3 0.0195 
+       7    -2 0.0610 
+       8    -1 0.142  
+       9     0 0.229  
+      10     1 0.235  
+      11     2 0.166  
+      12     3 0.0873 
+      13     4 0.0363 
+      14     5 0.0124 
+      15     6 0.00361
+      16     7 0.00091
+      17     8 0.0002 
 
 # snapshot: staking across edge range
 

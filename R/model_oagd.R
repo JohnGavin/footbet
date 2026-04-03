@@ -47,8 +47,7 @@ oagd_match_data <- function(con,
           (dplyr::n_distinct(c(.data$home_team, .data$away_team)) / 2L)
       )
     ) |>
-    dplyr::ungroup() |>
-    dplyr::select(-"fthg", -"ftag")
+    dplyr::ungroup()
 }
 
 #' Add Pinnacle closing odds to match data
@@ -94,16 +93,17 @@ oagd_add_odds <- function(matches, con) {
 
 #' Fit OAGD model on a single matchday window
 #'
-#' Fits `lmer(gd_home ~ 1 + (1|home_team) + (1|away_team))` on
-#' matches within `[matchday - window + 1, matchday]`. The intercept
-#' estimates home advantage; random effects estimate team strengths.
+#' Fits two Poisson GLMMs — one for home goals, one for away goals —
+#' to separate attack and defence strengths (Dixon-Coles style).
+#' Uses `lme4::glmer()` with Poisson family.
 #'
 #' @param data Tibble from [oagd_match_data()], filtered to one league-season.
+#'   Must contain `fthg` and `ftag` columns.
 #' @param target_matchday Integer. The matchday to fit up to.
 #' @param window Integer. Number of matchdays in the rolling window.
-#' @return A list with `fit` (lmerMod), `eta` (home advantage),
-#'   `strengths` (tibble of team random effects), `matchday`, `window`.
-#'   Returns `NULL` if the fit fails to converge.
+#' @return A list with `eta_home` (home goals intercept), `eta_away`
+#'   (away goals intercept), `strengths` (tibble with `team`, `attack`,
+#'   `defence`), `matchday`, `window`. Returns `NULL` if fit fails.
 #' @family models
 #' @export
 oagd_fit_window <- function(data, target_matchday, window = 8L) {
@@ -114,58 +114,77 @@ oagd_fit_window <- function(data, target_matchday, window = 8L) {
   window_data <- data |>
     dplyr::filter(.data$matchday >= min_md, .data$matchday <= target_matchday)
 
-  if (nrow(window_data) < 10L) {
-    return(NULL)
-  }
-
-  # Need at least 3 distinct teams on each side
+  if (nrow(window_data) < 10L) return(NULL)
 
   n_home <- dplyr::n_distinct(window_data$home_team)
   n_away <- dplyr::n_distinct(window_data$away_team)
-  if (n_home < 3L || n_away < 3L) {
+  if (n_home < 3L || n_away < 3L) return(NULL)
+
+  ctrl <- lme4::glmerControl(optimizer = "bobyqa", calc.derivs = FALSE)
+
+  # Model 1: home goals ~ (1|home_team) + (1|away_team)
+  # home_team RE = attack strength, away_team RE = defence weakness
+  fit_h <- tryCatch(
+    lme4::glmer(fthg ~ 1 + (1 | home_team) + (1 | away_team),
+                data = window_data, family = "poisson", control = ctrl),
+    error = function(e) NULL
+  )
+
+  # Model 2: away goals ~ (1|away_team) + (1|home_team)
+  # away_team RE = attack strength, home_team RE = defence weakness
+  fit_a <- tryCatch(
+    lme4::glmer(ftag ~ 1 + (1 | away_team) + (1 | home_team),
+                data = window_data, family = "poisson", control = ctrl),
+    error = function(e) NULL
+  )
+
+  if (is.null(fit_h) || is.null(fit_a)) {
+    cli::cli_warn("OAGD fit failed at matchday {target_matchday}")
     return(NULL)
   }
 
-  fit <- tryCatch(
-    lme4::lmer(
-      gd_home ~ 1 + (1 | home_team) + (1 | away_team),
-      data = window_data,
-      REML = FALSE,
-      control = lme4::lmerControl(
-        optimizer = "bobyqa",
-        calc.derivs = FALSE
-      )
-    ),
-    error = function(e) {
-      cli::cli_warn("OAGD fit failed at matchday {target_matchday}: {conditionMessage(e)}")
-      NULL
-    }
+  eta_home <- lme4::fixef(fit_h)[["(Intercept)"]]
+  eta_away <- lme4::fixef(fit_a)[["(Intercept)"]]
+
+  # Attack: how many goals a team scores (home_team RE from fit_h + away_team RE from fit_a)
+  re_h <- lme4::ranef(fit_h)
+  re_a <- lme4::ranef(fit_a)
+
+  attack_home <- tibble::tibble(
+    team = rownames(re_h$home_team),
+    att_h = re_h$home_team[["(Intercept)"]]
+  )
+  attack_away <- tibble::tibble(
+    team = rownames(re_a$away_team),
+    att_a = re_a$away_team[["(Intercept)"]]
+  )
+  # Defence: how many goals a team concedes (away_team RE from fit_h = defence weakness at home,
+  #          home_team RE from fit_a = defence weakness away)
+  defence_home <- tibble::tibble(
+    team = rownames(re_h$away_team),
+    def_h = re_h$away_team[["(Intercept)"]]
+  )
+  defence_away <- tibble::tibble(
+    team = rownames(re_a$home_team),
+    def_a = re_a$home_team[["(Intercept)"]]
   )
 
-  if (is.null(fit)) return(NULL)
-
-  eta <- lme4::fixef(fit)[["(Intercept)"]]
-  re <- lme4::ranef(fit)
-
-  home_re <- tibble::tibble(
-    team = rownames(re$home_team),
-    alpha_home = re$home_team[["(Intercept)"]]
-  )
-  away_re <- tibble::tibble(
-    team = rownames(re$away_team),
-    alpha_away = re$away_team[["(Intercept)"]]
-  )
-
-  strengths <- dplyr::full_join(home_re, away_re, by = "team") |>
+  # Combine: attack = mean of home/away attack REs, defence = mean of home/away defence REs
+  strengths <- attack_home |>
+    dplyr::full_join(attack_away, by = "team") |>
+    dplyr::full_join(defence_home, by = "team") |>
+    dplyr::full_join(defence_away, by = "team") |>
     dplyr::mutate(
-      alpha_home = tidyr::replace_na(.data$alpha_home, 0),
-      alpha_away = tidyr::replace_na(.data$alpha_away, 0),
-      alpha = (.data$alpha_home - .data$alpha_away) / 2
-    )
+      dplyr::across(c("att_h", "att_a", "def_h", "def_a"),
+                    \(x) tidyr::replace_na(x, 0)),
+      attack = (.data$att_h + .data$att_a) / 2,
+      defence = (.data$def_h + .data$def_a) / 2
+    ) |>
+    dplyr::select("team", "attack", "defence")
 
   list(
-    fit = fit,
-    eta = eta,
+    eta_home = eta_home,
+    eta_away = eta_away,
     strengths = strengths,
     matchday = target_matchday,
     window = window
@@ -232,13 +251,20 @@ oagd_residuals <- function(data, fits) {
           if (is.null(f)) return(NA_real_)
 
           s <- f$strengths
-          ah <- s$alpha_home[s$team == ht]
-          aa <- s$alpha_away[s$team == at]
-          if (length(ah) == 0L) ah <- 0
-          if (length(aa) == 0L) aa <- 0
+          att_h <- s$attack[s$team == ht]
+          def_a <- s$defence[s$team == at]
+          att_a <- s$attack[s$team == at]
+          def_h <- s$defence[s$team == ht]
+          if (length(att_h) == 0L) att_h <- 0
+          if (length(def_a) == 0L) def_a <- 0
+          if (length(att_a) == 0L) att_a <- 0
+          if (length(def_h) == 0L) def_h <- 0
 
-          expected <- f$eta + ah + aa
-          gd - expected
+          # Expected goals from Poisson (log-link)
+          exp_home <- exp(f$eta_home + att_h + def_a)
+          exp_away <- exp(f$eta_away + att_a + def_h)
+          expected_gd <- exp_home - exp_away
+          gd - expected_gd
         }
       )
     )

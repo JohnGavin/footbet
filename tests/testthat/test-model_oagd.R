@@ -22,8 +22,9 @@ test_that("dskellam rejects non-positive lambdas", {
 
 test_that("oagd_predict_match returns valid probabilities", {
   result <- oagd_predict_match(
-    alpha_home = 0.5, alpha_away = -0.3, eta = 0.3,
-    form_home = 0, form_away = 0, beta = 0.3
+    attack_home = 0.3, defence_home = -0.1,
+    attack_away = 0.1, defence_away = 0.2,
+    eta_home = 0.3, eta_away = 0.1
   )
 
   expect_equal(result$prob_h + result$prob_d + result$prob_a, 1,
@@ -35,28 +36,47 @@ test_that("oagd_predict_match returns valid probabilities", {
   expect_true(result$lambda_away > 0)
 })
 
-test_that("oagd_predict_match: equal teams with home advantage", {
+test_that("oagd_predict_match: home advantage via intercept gap", {
+  # eta_home > eta_away with equal teams => P(H) > P(A)
   result <- oagd_predict_match(
-    alpha_home = 0, alpha_away = 0, eta = 0.4,
-    form_home = 0, form_away = 0
+    attack_home = 0, defence_home = 0,
+    attack_away = 0, defence_away = 0,
+    eta_home = 0.4, eta_away = 0.1
   )
   expect_true(result$prob_h > result$prob_a)
   expect_true(result$mu > 0)
 })
 
-test_that("oagd_predict_match: equal teams no home advantage", {
+test_that("oagd_predict_match: equal teams equal intercepts", {
   result <- oagd_predict_match(
-    alpha_home = 0, alpha_away = 0, eta = 0,
-    form_home = 0, form_away = 0
+    attack_home = 0, defence_home = 0,
+    attack_away = 0, defence_away = 0,
+    eta_home = 0.2, eta_away = 0.2
   )
   expect_equal(result$prob_h, result$prob_a, tolerance = 1e-6)
 })
 
 test_that("oagd_predict_match: form shifts prediction", {
-  base <- oagd_predict_match(0, 0, 0.3, form_home = 0, form_away = 0, beta = 0.5)
-  hot <- oagd_predict_match(0, 0, 0.3, form_home = 1, form_away = 0, beta = 0.5)
+  base <- oagd_predict_match(form_home = 0, form_away = 0, beta = 0.5)
+  hot <- oagd_predict_match(form_home = 1, form_away = 0, beta = 0.5)
   expect_true(hot$prob_h > base$prob_h)
   expect_true(hot$mu > base$mu)
+})
+
+test_that("oagd_predict_match: strong attack vs weak defence", {
+  # Good attacker at home vs leaky defender away
+  strong <- oagd_predict_match(
+    attack_home = 0.5, defence_home = -0.2,
+    attack_away = -0.2, defence_away = 0.4,
+    eta_home = 0.3, eta_away = 0.1
+  )
+  # Weak attacker vs solid defender
+  weak <- oagd_predict_match(
+    attack_home = -0.2, defence_home = 0.4,
+    attack_away = 0.5, defence_away = -0.2,
+    eta_home = 0.3, eta_away = 0.1
+  )
+  expect_true(strong$prob_h > weak$prob_h)
 })
 
 test_that("oagd_stake applies tiered thresholds correctly", {
@@ -66,16 +86,36 @@ test_that("oagd_stake applies tiered thresholds correctly", {
   expect_equal(oagd_stake(0.10, tau_min = 0.05, tau_double = 0.10), 2L)
 })
 
-test_that("oagd_pnl computes correctly", {
+test_that("oagd_pnl computes correctly (no costs)", {
   # Win: stake * (odds - 1)
-  expect_equal(oagd_pnl(1L, 2.5, TRUE), 1.5)
-  expect_equal(oagd_pnl(2L, 3.0, TRUE), 4.0)
+  expect_equal(oagd_pnl(1L, 2.5, TRUE, 0, 0), 1.5)
+  expect_equal(oagd_pnl(2L, 3.0, TRUE, 0, 0), 4.0)
   # Lose: -stake
-
-  expect_equal(oagd_pnl(1L, 2.5, FALSE), -1L)
-  expect_equal(oagd_pnl(2L, 3.0, FALSE), -2L)
+  expect_equal(oagd_pnl(1L, 2.5, FALSE, 0, 0), -1L)
+  expect_equal(oagd_pnl(2L, 3.0, FALSE, 0, 0), -2L)
   # No bet
-  expect_equal(oagd_pnl(0L, 2.5, TRUE), 0)
+  expect_equal(oagd_pnl(0L, 2.5, TRUE, 0, 0), 0)
+})
+
+test_that("oagd_pnl applies transaction costs", {
+  # 2% commission: gross 1.5 - 1*0.02 = 1.48
+  expect_equal(oagd_pnl(1L, 2.5, TRUE, transaction_cost = 0.02, slippage = 0), 1.48)
+  # Lose: -1 - 1*0.02 = -1.02
+  expect_equal(oagd_pnl(1L, 2.5, FALSE, transaction_cost = 0.02, slippage = 0), -1.02)
+})
+
+test_that("oagd_pnl applies slippage", {
+  # 1% slippage: effective odds = 2.5 * 0.99 = 2.475, win = 1.475
+  expect_equal(oagd_pnl(1L, 2.5, TRUE, transaction_cost = 0, slippage = 0.01), 1.475)
+  # Lose: -1 (slippage only affects winning side)
+  expect_equal(oagd_pnl(1L, 2.5, FALSE, transaction_cost = 0, slippage = 0.01), -1)
+})
+
+test_that("oagd_pnl applies both costs", {
+  # Win: 1 * (2.5 * 0.99 - 1) - 1 * 0.02 = 1.475 - 0.02 = 1.455
+  expect_equal(oagd_pnl(1L, 2.5, TRUE, 0.02, 0.01), 1.455)
+  # Lose: -1 - 0.02 = -1.02
+  expect_equal(oagd_pnl(1L, 2.5, FALSE, 0.02, 0.01), -1.02)
 })
 
 test_that("oagd_edge computes difference", {
@@ -90,6 +130,29 @@ test_that("oagd_grid generates correct dimensions", {
                     names(grid)))
   # tau_double >= 2 * tau_min
   expect_true(all(grid$tau_double >= grid$tau_min * 2))
+})
+
+test_that("oagd_backtest_summary computes finite Sharpe", {
+  bets <- tibble::tibble(
+    won = c(TRUE, FALSE, TRUE, FALSE, FALSE),
+    stake = c(1L, 1L, 2L, 1L, 2L),
+    pnl = c(1.5, -1, 3.0, -1, -2)
+  )
+  s <- oagd_backtest_summary(bets)
+  expect_true(is.finite(s$sharpe))
+  expect_equal(s$sharpe, round(mean(bets$pnl) / sd(bets$pnl), 3))
+})
+
+test_that("oagd_backtest_summary returns NA Sharpe for 1 bet", {
+  bets <- tibble::tibble(won = TRUE, stake = 1L, pnl = 1.5)
+  s <- oagd_backtest_summary(bets)
+  expect_true(is.na(s$sharpe))
+})
+
+test_that("oagd_backtest_summary returns NA Sharpe for identical PnL", {
+  bets <- tibble::tibble(won = c(TRUE, TRUE), stake = c(1L, 1L), pnl = c(1.5, 1.5))
+  s <- oagd_backtest_summary(bets)
+  expect_true(is.na(s$sharpe))
 })
 
 # -- Snapshot tests ----------------------------------------------------------
@@ -107,10 +170,11 @@ test_that("snapshot: Skellam distribution shape (home-skewed)", {
 })
 
 test_that("snapshot: predict_match canonical scenario", {
-  # Strong home team vs weak away, moderate home advantage, no form
+  # Strong home attacker vs leaky away defence
   result <- oagd_predict_match(
-    alpha_home = 0.5, alpha_away = -0.3, eta = 0.35,
-    form_home = 0, form_away = 0, beta = 0.3, avg_total_goals = 2.7
+    attack_home = 0.3, defence_home = -0.1,
+    attack_away = -0.1, defence_away = 0.2,
+    eta_home = 0.35, eta_away = 0.1
   )
   snap <- data.frame(
     metric = c("mu", "lambda_home", "lambda_away",
@@ -124,8 +188,10 @@ test_that("snapshot: predict_match canonical scenario", {
 test_that("snapshot: predict_match with form signal", {
   # Equal teams but home on a hot streak
   result <- oagd_predict_match(
-    alpha_home = 0, alpha_away = 0, eta = 0.3,
-    form_home = 0.8, form_away = -0.4, beta = 0.5, avg_total_goals = 2.6
+    attack_home = 0, defence_home = 0,
+    attack_away = 0, defence_away = 0,
+    eta_home = 0.3, eta_away = 0.1,
+    form_home = 0.8, form_away = -0.4, beta = 0.5
   )
   snap <- data.frame(
     metric = c("mu", "lambda_home", "lambda_away",
@@ -138,8 +204,9 @@ test_that("snapshot: predict_match with form signal", {
 
 test_that("snapshot: predict_match GD distribution", {
   result <- oagd_predict_match(
-    alpha_home = 0.3, alpha_away = 0.1, eta = 0.3,
-    form_home = 0, form_away = 0, beta = 0.3, avg_total_goals = 2.7
+    attack_home = 0.2, defence_home = 0,
+    attack_away = 0, defence_away = 0.1,
+    eta_home = 0.3, eta_away = 0.1
   )
   gd <- result$gd_dist
   gd$prob <- round(gd$prob, 5)

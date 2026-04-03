@@ -70,8 +70,10 @@ plan_oagd <- list(
           if (nrow(d) < 50L) return(tibble::tibble())
           tryCatch(
             oagd_backtest_league(d, o,
-              window = 8L, K = 4L, half_life = 2,
-              beta = 0.3, tau_min = 0.05, tau_double = 0.10),
+              window = 6L, K = 4L, half_life = 2,
+              beta = 0.3, tau_min = 0.05, tau_double = 0.10,
+              exclude_draws = TRUE,
+              transaction_cost = 0.02, slippage = 0.01),
             error = function(e) {
               cli::cli_warn("OAGD backtest failed for {lg} {ssn}: {conditionMessage(e)}")
               tibble::tibble()
@@ -92,6 +94,74 @@ plan_oagd <- list(
         tier = c(rep("Tier1", 5), rep("Tier2", 5))
       )
       oagd_backtest_default |>
+        dplyr::left_join(tier_map, by = "league_code") |>
+        oagd_backtest_summary(.data$tier, .data$league_code, .data$season)
+    }
+  ),
+
+  # ====================================================================
+  # Holdout test: 2324-2526 — run ONCE only (#67)
+  # ====================================================================
+
+  targets::tar_target(
+    oagd_data_holdout,
+    {
+      cli::cli_alert_warning("Running OAGD holdout test (2324-2526) -- do this ONCE only")
+      con <- connect_db(here::here("inst/extdata/footbet.duckdb"))
+      on.exit(DBI::dbDisconnect(con))
+      oagd_match_data(con, seasons = c("2324", "2425", "2526"))
+    }
+  ),
+
+  targets::tar_target(
+    oagd_odds_holdout,
+    {
+      con <- connect_db(here::here("inst/extdata/footbet.duckdb"))
+      on.exit(DBI::dbDisconnect(con))
+      oagd_add_odds(oagd_data_holdout, con)
+    }
+  ),
+
+  targets::tar_target(
+    oagd_backtest_holdout,
+    {
+      leagues <- unique(oagd_data_holdout$league_code)
+      seasons <- unique(oagd_data_holdout$season)
+
+      purrr::map2_dfr(
+        rep(leagues, each = length(seasons)),
+        rep(seasons, times = length(leagues)),
+        function(lg, ssn) {
+          d <- oagd_data_holdout |>
+            dplyr::filter(.data$league_code == lg, .data$season == ssn)
+          o <- oagd_odds_holdout |>
+            dplyr::filter(.data$league_code == lg, .data$season == ssn)
+          if (nrow(d) < 50L) return(tibble::tibble())
+          tryCatch(
+            oagd_backtest_league(d, o,
+              window = 6L, K = 4L, half_life = 2,
+              beta = 0.3, tau_min = 0.05, tau_double = 0.10,
+              exclude_draws = TRUE,
+              transaction_cost = 0.02, slippage = 0.01),
+            error = function(e) {
+              cli::cli_warn("OAGD holdout failed for {lg} {ssn}: {conditionMessage(e)}")
+              tibble::tibble()
+            }
+          )
+        }
+      )
+    }
+  ),
+
+  targets::tar_target(
+    oagd_holdout_summary,
+    {
+      tier_map <- tibble::tibble(
+        league_code = c("E0", "D1", "I1", "SP1", "F1",
+                        "E1", "D2", "I2", "SP2", "F2"),
+        tier = c(rep("Tier1", 5), rep("Tier2", 5))
+      )
+      oagd_backtest_holdout |>
         dplyr::left_join(tier_map, by = "league_code") |>
         oagd_backtest_summary(.data$tier, .data$league_code, .data$season)
     }
