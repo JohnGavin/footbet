@@ -2,6 +2,22 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-03
+
+### Completed
+- docs: MODEL_CATALOGUE.md — all 11 models with results, lessons, leaderboard, structured for incremental additions
+- docs: CLAUDE.md — added Key Documents section linking catalogue, plans, CHANGELOG
+- Filed #78 (Skellam draw bias), #79 (attack/defence split), #80 (Sharpe NA bug)
+- Updated #77 with grid search results
+
+### Accuracy / Metrics
+- 60 tests passing (42 unit + 18 integration), 10 snapshots
+- Nix env fix: `env -u R_LIBS_SITE` prevents library path pollution from outer shell
+
+### Known Limitations
+- Two evaluation frameworks (plan_oos vs OAGD backtest) use different periods, staking, and costs — need unification for fair leaderboard
+- OOS results for models 4-10 (DC, blend, XGBoost, ranger, CLV, isotonic, rolling) not yet extracted into MODEL_CATALOGUE
+
 ## 2026-04-02
 
 ### Completed
