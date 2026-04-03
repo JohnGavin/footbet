@@ -5,6 +5,7 @@
 - [`plans/MODEL_CATALOGUE.md`](plans/MODEL_CATALOGUE.md) — All prediction models with results, lessons, and leaderboard. Update when adding new models.
 - [`plans/PLAN_oagd_model.md`](plans/PLAN_oagd_model.md) — OAGD model design (Johnson/Gans-Kominers approach)
 - [`plans/IMPL_oagd_model.md`](plans/IMPL_oagd_model.md) — OAGD implementation steps and progress
+- [`plans/PLAN_brms_crew.md`](plans/PLAN_brms_crew.md) — brms + crew parallelisation plan (9-step)
 - [`CHANGELOG.md`](CHANGELOG.md) — Session lab notes, experiment results, failed approaches
 
 ## CRITICAL: Package Context (ctx.yaml)
