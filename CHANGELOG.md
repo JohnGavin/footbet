@@ -26,7 +26,18 @@ Cumulative lab notes. Track completed work, **failed approaches**, accuracy chec
 - **The model beats nothing**: even the naive W/D/L patterns (-0.6% to -3.9%) outperform OAGD on validation
 - **Pinnacle closing odds are efficient**: no publicly-available form/strength signal we've tested creates positive EV
 - Filed #78 (Skellam draw bias), #79 (attack/defence split), #80 (Sharpe NA bug)
+- Filed #81 (alternative markets: AH + O/U), #82 (richer data: xG, injuries, market movement)
 - Updated #77 with grid search results
+- brms audit: 470-line models_brms.R implemented but never backtested against odds. 8 pipeline targets, all skip gracefully. #59 open for Bayesian workflow.
+
+### Test Inventory
+- 53 test files, 944 test blocks, 221 snapshots, 1,674 expectations
+- OAGD: 71 tests (53 unit + 18 integration, 10 snapshots)
+
+### Known Limitations
+- **brms never evaluated for ROI** — infrastructure exists but no backtest. Rolling-window brms would need ~190h compute (380 fits × 30min each) without parallelisation.
+- **Two evaluation frameworks not unified** — plan_oos (tiered staking, costs) vs OAGD backtest (flat staking). MODEL_CATALOGUE leaderboard mixes them.
+- **Holdout burned for OAGD** — 2324-2526 used. Future models need a fresh holdout or time-expanding validation.
 
 ### Accuracy / Metrics
 - 60 tests passing (42 unit + 18 integration), 10 snapshots
