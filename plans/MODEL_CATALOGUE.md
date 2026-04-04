@@ -23,23 +23,35 @@ sharpest bookmaker but paying the vig.
 | 6 | OAGD 1-param all bets | -6.1% | 7,544 | 22-25 | All (validation) | #77 |
 | 7 | OOS static GLM | -7.9%* | — | 20-23 | All (validation) | — |
 | — | **OAGD v2 attack/defence (HOLDOUT)** | **-13.5%** | **5,629** | **23-26** | **H+A, with costs** | **#67** |
-| 8 | OOS Dixon-Coles per-league | — | — | 20-23 | All | #70 |
-| 9 | OOS GLM + market blend | — | — | 20-23 | All | #44 |
+| 8 | OOS Dixon-Coles per-league | -9.5% | 7,713 | 20-23 | All (with costs) | #70 |
+| 9 | OOS GLM + market blend (35% model) | -11.6% | 4,312 | 20-23 | All (with costs) | #44 |
 | 10 | OOS XGBoost | — | — | 20-23 | All | #37 |
-| 11 | OOS ranger RF | — | — | 20-23 | All | — |
-| 12 | OOS CLV (B365 vs Pinnacle) | — | — | 20-23 | All | — |
+| 11 | OOS ranger RF | +18.4% | 12,184 | 20-23 | **SUSPECT: likely data leakage** | — |
+| 12 | OOS CLV (B365 vs Pinnacle) | +4.5% | 220 | 20-23 | Market structure, not model | — |
 | 13 | OOS GLM + isotonic calibration | — | — | 20-23 | All | #68 |
 | 14 | OOS rolling refit GLM (quarterly) | — | — | 20-23 | All | #69 |
+| 15 | brms hierarchical Poisson | — | — | 17-19 | CV only (no ROI yet) | #59 |
 
-*From CHANGELOG 2026-03-28: "7-model OOS comparison (-7.9% best ROI)".
-Models 7-14 use a different evaluation framework (plan_oos.R, train 15-20,
-validate 20-23, tiered staking with transaction costs). Results marked "—"
-need to be re-extracted from the pipeline.
+*Models 7-14 use plan_oos.R framework (train 15-20, validate 20-23, tiered
+staking with costs). Ranger RF +18.4% is suspect — likely data leakage from
+market odds features. CLV +4.5% is market structure arbitrage, not modelling.
+
+## Calibration comparison (lower = better)
+
+| Model | Log-loss | Brier | RPS | Folds |
+|-------|--------:|------:|----:|------:|
+| Pinnacle closing | 1.01 | 0.602 | 0.204 | — |
+| **brms_poisson** | **1.03** | 0.617 | 0.210 | 17 |
+| dixon_coles | 1.07 | 0.618 | 0.210 | 776 |
+| glm_poisson | 1.07 | 0.620 | 0.211 | 779 |
+
+brms is the best model on log-loss (1.03 vs 1.07). All models trail Pinnacle.
 
 ## Baseline to beat
 
-**-6.1% ROI** (OAGD, all bets, best grid search params). Any future model
-must outperform this on the same validation set or it is not worth deploying.
+**-9.5% ROI** (Dixon-Coles, OOS with costs). On validation without costs,
+-6.1% (OAGD). The only positive ROI results are ranger (+18.4%, suspect
+leakage) and CLV (+4.5%, market structure not modelling).
 
 For home-only strategies: **-2.2%** is the bar.
 

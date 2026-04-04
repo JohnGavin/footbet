@@ -1,7 +1,7 @@
 # PLAN: brms + crew parallelisation on laptop
 
 **Tracks:** [#59](https://github.com/JohnGavin/footbet/issues/59) | Related: #77 (OAGD)
-**Status:** Step 1 complete — brms verified in Nix (28.5s, 0 divergences)
+**Status:** Steps 1-4 complete — brms fits (8.4 min, 83K obs, Rhat 1.015), CV done (17 folds, RPS 0.210)
 **Created:** 2026-04-03
 
 ## Context
