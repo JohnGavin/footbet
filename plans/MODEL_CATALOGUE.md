@@ -15,26 +15,23 @@ sharpest bookmaker but paying the vig.
 
 | # | Model | ROI % | Bets | Period | Subset | Issue |
 |---|-------|------:|-----:|--------|--------|-------|
-| 1 | W/D/L pattern: fade bounce | -0.6% | 1,307 | 22-25 | All (validation) | — |
-| 2 | OAGD 1-param home only | -2.2% | ~3,400 | 22-25 | Home (validation) | #77 |
-| 3 | W/D/L pattern: pair trade Tier1 | -2.1% | 114 | 22-25 | Home (tiny N) | — |
-| 4 | W/D/L pattern: home slip | -3.9% | 2,283 | 22-25 | All (validation) | — |
-| 5 | OAGD 1-param no draws | -5.4% | ~7,000 | 22-25 | H+A (validation) | #77 |
-| 6 | OAGD 1-param all bets | -6.1% | 7,544 | 22-25 | All (validation) | #77 |
-| 7 | OOS static GLM | -7.9%* | — | 20-23 | All (validation) | — |
-| — | **OAGD v2 attack/defence (HOLDOUT)** | **-13.5%** | **5,629** | **23-26** | **H+A, with costs** | **#67** |
-| 8 | OOS Dixon-Coles per-league | -9.5% | 7,713 | 20-23 | All (with costs) | #70 |
-| 9 | OOS GLM + market blend (35% model) | -11.6% | 4,312 | 20-23 | All (with costs) | #44 |
-| 10 | OOS XGBoost | — | — | 20-23 | All | #37 |
-| 11 | OOS ranger RF | +18.4% | 12,184 | 20-23 | **SUSPECT: likely data leakage** | — |
-| 12 | OOS CLV (B365 vs Pinnacle) | +4.5% | 220 | 20-23 | Market structure, not model | — |
-| 13 | OOS GLM + isotonic calibration | — | — | 20-23 | All | #68 |
-| 14 | OOS rolling refit GLM (quarterly) | — | — | 20-23 | All | #69 |
-| 15 | brms hierarchical Poisson | — | — | 17-19 | CV only (no ROI yet) | #59 |
+| 1 | **CLV (B365 vs Pinnacle)** | **+4.5%** | 220 | 20-23 | Market structure | — |
+| 2 | Ranger RF (no market, fixed Elo) | -7.2% | 12,220 | 20-23 | Best predictive model | #83 |
+| 3 | Ranger RF (with market, fixed Elo) | -7.5% | 10,047 | 20-23 | With costs | #83 |
+| 4 | OOS Dixon-Coles per-league | -9.5% | 7,713 | 20-23 | With costs | #70 |
+| 5 | brms hierarchical Poisson | -9.6% | 9,008 | 20-23 | Best calibration | #59 |
+| 6 | GLM + market blend (35% model) | -11.6% | 4,312 | 20-23 | With costs | #44 |
+| 7 | OAGD v2 attack/defence (HOLDOUT) | -13.5% | 5,629 | 23-26 | H+A, with costs | #67 |
+| — | ~~Ranger RF (pre-fix)~~ | ~~+18.4%~~ | — | — | **Elo leakage — invalidated** | #83 |
+| — | OOS XGBoost | — | — | 20-23 | Not yet run (xgboost not in Nix) | #37 |
+| — | OOS GLM + isotonic calibration | — | — | 20-23 | Not yet extracted | #68 |
+| — | OOS rolling refit GLM | — | — | 20-23 | Not yet extracted | #69 |
 
-*Models 7-14 use plan_oos.R framework (train 15-20, validate 20-23, tiered
-staking with costs). Ranger RF +18.4% is suspect — likely data leakage from
-market odds features. CLV +4.5% is market structure arbitrage, not modelling.
+*All models use plan_oos.R (train 15-20, validate 20-23, tiered staking
+with 2% costs + 1% slippage) unless noted. CLV is the only profitable
+strategy — it exploits B365 vs Pinnacle line discrepancies, not modelling.
+Ranger +18.4% was invalidated: `compute_elo()` recorded post-match Elo,
+encoding match results into features. Fixed to pre-match Elo in commit below.*
 
 ## Calibration comparison (lower = better)
 

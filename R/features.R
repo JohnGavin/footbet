@@ -341,13 +341,14 @@ compute_elo <- function(matches_df, k = 20, home_advantage = 65, init = 1500,
       }
     }
 
-    # Update ratings
-    ratings[[home]] <- ratings[[home]] + delta
-    ratings[[away]] <- ratings[[away]] - delta
-
-    # Record both teams' ratings after this match
+    # Record PRE-match ratings (before the update) to avoid leakage.
+    # Post-match Elo encodes the result — using it as a feature is circular.
     out_list[[idx]] <- list(team = home, match_date = date, elo = ratings[[home]])
     out_list[[idx + 1L]] <- list(team = away, match_date = date, elo = ratings[[away]])
+
+    # Update ratings (after recording pre-match values)
+    ratings[[home]] <- ratings[[home]] + delta
+    ratings[[away]] <- ratings[[away]] - delta
     idx <- idx + 2L
   }
 
