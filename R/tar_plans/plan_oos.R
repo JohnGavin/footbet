@@ -865,6 +865,134 @@ plan_oos <- list(
   ),
 
   # ====================================================================
+  # AH/OU market backtest (#81)
+  # ====================================================================
+
+  targets::tar_target(
+    oos_validate_ah_ou,
+    {
+      # Use GLM predictions (lambda_home, lambda_away) for DC score matrices
+      preds <- oos_validate_predictions
+      if (nrow(preds) == 0L) return(tibble::tibble())
+
+      # Get AH/OU odds for validate period
+      validate_odds <- parsed_odds |>
+        dplyr::semi_join(oos_split$validate, by = "match_id") |>
+        dplyr::filter(!is.na(ah_line), !is.na(pahh), !is.na(p_over25))
+
+      if (nrow(validate_odds) == 0L) {
+        cli::cli_warn("No AH/OU odds available for validate period.")
+        return(tibble::tibble())
+      }
+
+      # Join predictions to odds
+      combined <- dplyr::inner_join(preds, validate_odds, by = "match_id") |>
+        dplyr::inner_join(
+          dplyr::select(parsed_matches, match_id, fthg, ftag, ftr),
+          by = "match_id"
+        )
+
+      # For each match: build DC score matrix, predict AH cover and O/U
+      all_bets <- purrr::pmap_dfr(
+        list(combined$pred_h, combined$pred_d, combined$pred_a,
+             combined$ah_line, combined$pahh, combined$paha,
+             combined$p_over25, combined$p_under25,
+             combined$fthg, combined$ftag, combined$match_id),
+        function(ph, pd, pa, ah_line, pahh, paha,
+                 odds_o25, odds_u25, fthg, ftag, mid) {
+          # Estimate lambdas from 1x2 probs (reverse-engineer)
+          # Use avg_goals = 2.7 and solve for lambdas
+          # Simpler: use pred_h / pred_a ratio to estimate GD, then split
+          total <- 2.7
+          # P(H) / P(A) ~ exp(2*mu) where mu = lambda_h - lambda_a
+          if (is.na(ph) || is.na(pa) || ph <= 0 || pa <= 0) return(tibble::tibble())
+          mu_est <- log(ph / pa) / 2
+          lh <- max(0.3, (total + mu_est) / 2)
+          la <- max(0.3, (total - mu_est) / 2)
+
+          mat <- dc_score_matrix(lh, la, rho = -0.13)
+
+          bets <- list()
+          gd <- fthg - ftag  # actual goal difference
+
+          # AH bet: home covers?
+          p_cover <- predict_ah(mat, ah_line)
+          implied_cover <- 1 / pahh
+          edge_ah <- p_cover - implied_cover
+          if (edge_ah > 0.03 && pahh >= 1.5 && pahh <= 10) {
+            actual_cover <- (gd + ah_line) > 0 ||
+              ((gd + ah_line) == 0) * 0.5  # push = half win
+            won <- as.logical(actual_cover)
+            bets <- c(bets, list(tibble::tibble(
+              match_id = mid, market = "AH_home", edge = edge_ah,
+              odds = pahh, won = won
+            )))
+          }
+
+          # O/U 2.5 bet
+          ou <- predict_ou(mat, 2.5)
+          implied_over <- 1 / odds_o25
+          implied_under <- 1 / odds_u25
+          total_goals <- fthg + ftag
+
+          edge_over <- ou$prob_over - implied_over
+          if (edge_over > 0.03 && odds_o25 >= 1.5 && odds_o25 <= 10) {
+            bets <- c(bets, list(tibble::tibble(
+              match_id = mid, market = "Over_2.5", edge = edge_over,
+              odds = odds_o25, won = total_goals > 2.5
+            )))
+          }
+
+          edge_under <- ou$prob_under - implied_under
+          if (edge_under > 0.03 && odds_u25 >= 1.5 && odds_u25 <= 10) {
+            bets <- c(bets, list(tibble::tibble(
+              match_id = mid, market = "Under_2.5", edge = edge_under,
+              odds = odds_u25, won = total_goals < 2.5
+            )))
+          }
+
+          if (length(bets) == 0L) return(tibble::tibble())
+          dplyr::bind_rows(bets)
+        }
+      )
+
+      if (nrow(all_bets) == 0L) return(tibble::tibble())
+
+      # Compute PnL with costs
+      all_bets |>
+        dplyr::mutate(
+          stake = 10,
+          net = dplyr::if_else(.data$won,
+            .data$stake * (.data$odds * 0.99 - 1), -.data$stake) -
+            .data$stake * 0.02
+        )
+    }
+  ),
+
+  targets::tar_target(
+    oos_validate_summary_ah_ou,
+    {
+      bets <- oos_validate_ah_ou
+      if (nrow(bets) == 0L) {
+        return(tibble::tibble(
+          market = character(), n_bets = integer(),
+          roi_pct = double(), win_rate = double(), avg_odds = double()
+        ))
+      }
+
+      bets |>
+        dplyr::group_by(.data$market) |>
+        dplyr::summarise(
+          n_bets = dplyr::n(),
+          roi_pct = round(100 * sum(.data$net) / sum(.data$stake), 1),
+          win_rate = round(100 * mean(.data$won), 1),
+          avg_odds = round(mean(.data$odds), 2),
+          .groups = "drop"
+        )
+    }
+  ),
+
+  # ====================================================================
   # Vignette comparison table (all scenarios)
   # ====================================================================
 
