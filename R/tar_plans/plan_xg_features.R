@@ -1,43 +1,8 @@
 # plan_xg_features.R
-# Fetches xG data from FBref and computes xG-based features.
-# Uses worldfootballR for data acquisition with rate limiting.
+# xG-based feature engineering and evaluation.
+# Data acquisition (fbref_xg_raw) and matches_with_xg are provided by plan_xgk.R.
 
 plan_xg_features <- list(
-  # ============================================================================
-  # DATA ACQUISITION
-  # ============================================================================
-
-  # Fetch raw FBref data (expensive - use cue = "never")
-  targets::tar_target(
-    fbref_raw,
-    {
-      # Only run if worldfootballR is available
-      if (!requireNamespace("worldfootballR", quietly = TRUE)) {
-        cli::cli_warn("worldfootballR not available. Skipping FBref fetch.")
-        return(tibble::tibble())
-      }
-
-      # Fetch Big 5 leagues, 2018-2024
-      # Note: FBref xG data starts ~2017-18 for most leagues
-      fetch_fbref_all(
-        leagues = c("ENG", "ESP", "GER", "ITA", "FRA"),
-        seasons = 2018:2024,
-        delay = 5  # Rate limiting (FBref ToS)
-      )
-    },
-    cue = targets::tar_cue(mode = "never")  # Manual trigger only
-  ),
-
-  # ============================================================================
-  # DATA INTEGRATION
-  # ============================================================================
-
-  # Join xG to parsed matches
-  targets::tar_target(
-    matches_with_xg,
-    join_xg_to_matches(parsed_matches, fbref_raw)
-  ),
-
   # ============================================================================
   # FEATURE ENGINEERING
   # ============================================================================
