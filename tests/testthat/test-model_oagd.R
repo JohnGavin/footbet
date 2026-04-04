@@ -52,6 +52,38 @@ test_that("dc_score_matrix with rho=0 matches independent Poisson", {
   expect_equal(mat_dc, mat_pois, tolerance = 1e-10)
 })
 
+test_that("predict_ah: home -1.5 requires win by 2+", {
+  mat <- dc_score_matrix(1.5, 1.0, rho = 0)
+  p <- predict_ah(mat, line = -1.5)
+  # P(home covers -1.5) = P(GD >= 2)
+  p_manual <- sum(mat[row(mat) - col(mat) >= 2])
+  expect_equal(p, p_manual, tolerance = 1e-10)
+  expect_true(p > 0 && p < 1)
+})
+
+test_that("predict_ah: line = 0 equals P(home win) + 0.5*P(draw)", {
+  mat <- dc_score_matrix(1.5, 1.0, rho = 0)
+  p <- predict_ah(mat, line = 0)
+  probs <- score_matrix_probs(mat)
+  expect_equal(p, probs$prob_h + 0.5 * probs$prob_d, tolerance = 1e-10)
+})
+
+test_that("predict_ou: 2.5 goals", {
+  mat <- dc_score_matrix(1.5, 1.0, rho = 0)
+  ou <- predict_ou(mat, total_line = 2.5)
+  expect_equal(ou$prob_over + ou$prob_under, 1, tolerance = 1e-10)
+  expect_true(ou$prob_over > 0 && ou$prob_over < 1)
+  # Manual: sum of all cells where h+a >= 3
+  p_over_manual <- sum(mat[(row(mat) - 1) + (col(mat) - 1) >= 3])
+  expect_equal(ou$prob_over, p_over_manual, tolerance = 1e-10)
+})
+
+test_that("predict_ou: higher lambdas → more overs", {
+  mat_low <- dc_score_matrix(0.8, 0.6, rho = 0)
+  mat_high <- dc_score_matrix(1.8, 1.5, rho = 0)
+  expect_true(predict_ou(mat_high)$prob_over > predict_ou(mat_low)$prob_over)
+})
+
 test_that("dc_score_matrix with rho<0 increases P(draw)", {
   probs_0 <- score_matrix_probs(dc_score_matrix(1.3, 0.9, rho = 0))
   probs_dc <- score_matrix_probs(dc_score_matrix(1.3, 0.9, rho = -0.13))

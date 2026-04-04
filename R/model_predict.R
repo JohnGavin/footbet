@@ -102,6 +102,55 @@ score_matrix_probs <- function(mat) {
   )
 }
 
+#' Predict Asian Handicap cover probability from score matrix
+#'
+#' @param mat A score matrix from [dc_score_matrix()].
+#' @param line Numeric. Handicap line for the home team
+#'   (e.g. -1.5 means home must win by 2+).
+#' @return Numeric. P(home covers the line).
+#' @family models
+#' @export
+predict_ah <- function(mat, line) {
+  n <- nrow(mat)
+  p_cover <- 0
+  for (h in seq_len(n)) {
+    for (a in seq_len(n)) {
+      gd <- (h - 1L) - (a - 1L)  # home goals - away goals
+      adjusted <- gd + line
+      if (adjusted > 0) {
+        p_cover <- p_cover + mat[h, a]
+      } else if (adjusted == 0) {
+        # Push (half-line never pushes; whole lines do)
+        p_cover <- p_cover + mat[h, a] * 0.5
+      }
+    }
+  }
+  p_cover
+}
+
+#' Predict Over/Under probability from score matrix
+#'
+#' @param mat A score matrix from [dc_score_matrix()].
+#' @param total_line Numeric. Total goals line (default 2.5).
+#' @return A list with `prob_over` and `prob_under`.
+#' @family models
+#' @export
+predict_ou <- function(mat, total_line = 2.5) {
+  n <- nrow(mat)
+  p_over <- 0
+  for (h in seq_len(n)) {
+    for (a in seq_len(n)) {
+      total <- (h - 1L) + (a - 1L)
+      if (total > total_line) {
+        p_over <- p_over + mat[h, a]
+      } else if (total == total_line) {
+        p_over <- p_over + mat[h, a] * 0.5  # push
+      }
+    }
+  }
+  list(prob_over = p_over, prob_under = 1 - p_over)
+}
+
 #' Predict match outcome probabilities from OAGD model
 #'
 #' Given team attack/defence strengths, intercepts, and form signals,
