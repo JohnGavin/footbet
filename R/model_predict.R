@@ -27,6 +27,81 @@ dskellam <- function(k, lambda1, lambda2) {
     besselI(2 * sqrt(lambda1 * lambda2), nu = abs(k))
 }
 
+#' Dixon-Coles correction factor for low-scoring games
+#'
+#' Multiplies bivariate Poisson probabilities for scorelines 0-0, 1-0,
+#' 0-1, and 1-1 by a correction factor tau that accounts for the
+#' negative correlation between goals in low-scoring matches.
+#'
+#' @param home_goals Integer. Home goals (0 or 1 for correction, else 1).
+#' @param away_goals Integer. Away goals (0 or 1 for correction, else 1).
+#' @param lambda1 Numeric. Home expected goals.
+#' @param lambda2 Numeric. Away expected goals.
+#' @param rho Numeric. Correlation parameter (typically -0.10 to -0.15).
+#' @return Numeric. Multiplicative correction factor.
+#' @family models
+#' @export
+dc_tau <- function(home_goals, away_goals, lambda1, lambda2, rho) {
+  if (home_goals == 0L && away_goals == 0L) {
+    return(1 - lambda1 * lambda2 * rho)
+  }
+  if (home_goals == 0L && away_goals == 1L) {
+    return(1 + lambda1 * rho)
+  }
+  if (home_goals == 1L && away_goals == 0L) {
+    return(1 + lambda2 * rho)
+  }
+  if (home_goals == 1L && away_goals == 1L) {
+    return(1 - rho)
+  }
+  1
+}
+
+#' Build Dixon-Coles corrected score matrix
+#'
+#' Constructs a bivariate Poisson score probability matrix with
+#' the Dixon-Coles tau correction applied to low-scoring cells.
+#'
+#' @param lambda1 Numeric. Home expected goals.
+#' @param lambda2 Numeric. Away expected goals.
+#' @param rho Numeric. Correlation parameter (default -0.13).
+#' @param max_goals Integer. Maximum goals per side (default 8).
+#' @return A (max_goals+1) x (max_goals+1) matrix of probabilities.
+#'   Rows = home goals, columns = away goals.
+#' @family models
+#' @export
+dc_score_matrix <- function(lambda1, lambda2, rho = -0.13, max_goals = 8L) {
+  g <- 0:max_goals
+  ph <- stats::dpois(g, lambda1)
+  pa <- stats::dpois(g, lambda2)
+  mat <- outer(ph, pa)
+
+  # Apply DC correction to the four low-score cells
+  for (h in 0:1) {
+    for (a in 0:1) {
+      mat[h + 1L, a + 1L] <- mat[h + 1L, a + 1L] *
+        dc_tau(h, a, lambda1, lambda2, rho)
+    }
+  }
+
+  # Renormalise
+  mat / sum(mat)
+}
+
+#' Extract match probabilities from a score matrix
+#'
+#' @param mat A score matrix from [dc_score_matrix()].
+#' @return A list with `prob_h`, `prob_d`, `prob_a`.
+#' @family models
+#' @export
+score_matrix_probs <- function(mat) {
+  list(
+    prob_h = sum(mat[row(mat) > col(mat)]),
+    prob_d = sum(diag(mat)),
+    prob_a = sum(mat[row(mat) < col(mat)])
+  )
+}
+
 #' Predict match outcome probabilities from OAGD model
 #'
 #' Given team attack/defence strengths, intercepts, and form signals,

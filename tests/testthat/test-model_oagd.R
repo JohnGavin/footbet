@@ -20,6 +20,46 @@ test_that("dskellam rejects non-positive lambdas", {
   expect_error(dskellam(0, lambda1 = 1, lambda2 = -1), "must be > 0")
 })
 
+# -- Dixon-Coles correction --------------------------------------------------
+
+test_that("dc_tau returns 1 for scorelines > 1", {
+  expect_equal(dc_tau(2L, 0L, 1.3, 0.9, -0.13), 1)
+  expect_equal(dc_tau(3L, 2L, 1.3, 0.9, -0.13), 1)
+})
+
+test_that("dc_tau with rho=0 returns 1 for all scorelines", {
+  for (h in 0:2) for (a in 0:2) {
+    expect_equal(dc_tau(h, a, 1.3, 0.9, 0), 1)
+  }
+})
+
+test_that("dc_tau with rho<0 increases 0-0 and 1-1 probability", {
+  # rho < 0 in Dixon-Coles means goals are negatively correlated at low scores
+  # This INCREASES P(0-0) and P(1-1) — Poisson underestimates these
+  expect_true(dc_tau(0L, 0L, 1.3, 0.9, -0.13) > 1)
+  expect_true(dc_tau(1L, 1L, 1.3, 0.9, -0.13) > 1)
+  # But decreases P(1-0) and P(0-1) — compensating
+  expect_true(dc_tau(1L, 0L, 1.3, 0.9, -0.13) < 1)
+  expect_true(dc_tau(0L, 1L, 1.3, 0.9, -0.13) < 1)
+})
+
+test_that("dc_score_matrix with rho=0 matches independent Poisson", {
+  mat_dc <- dc_score_matrix(1.3, 0.9, rho = 0)
+  ph <- dpois(0:8, 1.3)
+  pa <- dpois(0:8, 0.9)
+  mat_pois <- outer(ph, pa)
+  mat_pois <- mat_pois / sum(mat_pois)
+  expect_equal(mat_dc, mat_pois, tolerance = 1e-10)
+})
+
+test_that("dc_score_matrix with rho<0 increases P(draw)", {
+  probs_0 <- score_matrix_probs(dc_score_matrix(1.3, 0.9, rho = 0))
+  probs_dc <- score_matrix_probs(dc_score_matrix(1.3, 0.9, rho = -0.13))
+  # rho < 0 increases low-score draws → P(D) goes up
+  expect_true(probs_dc$prob_d > probs_0$prob_d)
+  expect_equal(probs_dc$prob_h + probs_dc$prob_d + probs_dc$prob_a, 1, tolerance = 1e-6)
+})
+
 test_that("oagd_predict_match returns valid probabilities", {
   result <- oagd_predict_match(
     attack_home = 0.3, defence_home = -0.1,
