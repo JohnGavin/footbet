@@ -383,13 +383,13 @@ evaluate_brms <- function(long_df,
 
   for (i in seq_along(splits)) {
     split <- splits[[i]]
-    cli::cli_alert("Fold {i}/{length(splits)}: Train {split$train_start} to {split$train_end}")
+    cli::cli_alert("Fold {i}/{length(splits)}: Train {split$train_start} to {split$test_start}")
 
-    # Filter training data
+    # Filter training data (exclusive upper bound matches walk_forward_splits contract)
     train_long <- long_df |>
       dplyr::filter(
         match_date >= split$train_start,
-        match_date <= split$train_end
+        match_date < split$test_start
       )
 
     # Filter test matches

@@ -3,7 +3,13 @@ library(targets)
 # Set global options
 # Note: footbet functions are sourced directly below, no need to list in packages
 tar_option_set(
-  packages = c("dplyr", "tibble", "arrow", "DBI", "duckdb", "ggplot2", "httr2", "lubridate", "glue", "here", "rlang", "cli", "tidyr")
+  packages = c("dplyr", "tibble", "arrow", "DBI", "duckdb", "ggplot2", "httr2", "lubridate", "glue", "here", "rlang", "cli", "tidyr"),
+  controller = if (requireNamespace("crew", quietly = TRUE)) {
+    crew::crew_controller_local(
+      workers = min(4L, parallel::detectCores() - 1L),
+      seconds_idle = 120
+    )
+  }
 )
 
 # Source package functions (exclude dev/ and tar_plans/)

@@ -14,15 +14,9 @@ plan_models_brms <- list(
         return(NULL)
       }
 
-      # Add match_date to long_df for filtering
-      long_with_date <- matches_long |>
-        dplyr::left_join(
-          dplyr::select(parsed_matches, match_id, match_date),
-          by = "match_id"
-        )
-
+      # matches_long already contains match_date
       fit_brms_poisson(
-        long_with_date,
+        matches_long,
         iter = 2000L,
         warmup = 1000L,
         chains = 4L,
@@ -42,15 +36,9 @@ plan_models_brms <- list(
         return(tibble::tibble())
       }
 
-      # Add match_date to long_df
-      long_with_date <- matches_long |>
-        dplyr::left_join(
-          dplyr::select(parsed_matches, match_id, match_date),
-          by = "match_id"
-        )
-
+      # matches_long already contains match_date
       evaluate_brms(
-        long_df = long_with_date,
+        long_df = matches_long,
         matches_df = parsed_matches,
         train_months = 24L,
         test_months = 1L,

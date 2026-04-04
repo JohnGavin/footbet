@@ -53,6 +53,7 @@ Suggests:
     ranger,
     rmarkdown,
     rsample,
+    rstan,
     scales,
     scoring,
     tarchetypes,
