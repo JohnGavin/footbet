@@ -114,7 +114,27 @@ let
     LC_MEASUREMENT = "en_US.UTF-8";
     
     buildInputs = [ rpkgs goalmodel system_packages ];
-    
+
+    # Prevent ABI mismatch when nix-shell is nested inside another nix-shell.
+    # Inherited R_LIBS_SITE points to packages compiled against the outer R;
+    # loading those .so files from the inner R causes segfaults.
+    # Fix: rebuild R_LIBS_SITE from this derivation's full dependency closure.
+    shellHook = ''
+      R_LIBS_SITE=""
+      for pkg in $buildInputs; do
+        for dep in $(nix-store -qR "$pkg" 2>/dev/null); do
+          if [ -d "$dep/library" ]; then
+            case ":$R_LIBS_SITE:" in
+              *":$dep/library:"*) ;;
+              *) R_LIBS_SITE="''${R_LIBS_SITE:+$R_LIBS_SITE:}$dep/library" ;;
+            esac
+          fi
+        done
+      done
+      export R_LIBS_SITE
+      unset R_LIBS_USER
+      unset R_LIBS
+    '';
   }; 
 in
   {
