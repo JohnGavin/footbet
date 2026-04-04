@@ -920,13 +920,13 @@ plan_oos <- list(
           implied_cover <- 1 / pahh
           edge_ah <- p_cover - implied_cover
           if (edge_ah > 0.03 && pahh >= 1.5 && pahh <= 10) {
-            actual_cover <- (gd + ah_line) > 0 ||
-              ((gd + ah_line) == 0) * 0.5  # push = half win
-            won <- as.logical(actual_cover)
-            bets <- c(bets, list(tibble::tibble(
-              match_id = mid, market = "AH_home", edge = edge_ah,
-              odds = pahh, won = won
-            )))
+            ah_result <- sign(gd + ah_line)  # +1 win, 0 push, -1 lose
+            if (ah_result != 0) {  # skip pushes — stake returned
+              bets <- c(bets, list(tibble::tibble(
+                match_id = mid, market = "AH_home", edge = edge_ah,
+                odds = pahh, won = ah_result > 0
+              )))
+            }
           }
 
           # O/U 2.5 bet
