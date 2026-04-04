@@ -442,6 +442,81 @@ plan_oos <- list(
   ),
 
   # ====================================================================
+  # Ranger RF WITHOUT market features (#83 leakage investigation)
+  # ====================================================================
+
+  targets::tar_target(
+    oos_validate_summary_ranger_clean,
+    {
+      if (!requireNamespace("ranger", quietly = TRUE)) {
+        return(tibble::tibble(
+          scenario = "OOS ranger RF (no market features)",
+          n_bets = NA_integer_, roi_pct = NA_real_,
+          win_rate = NA_real_, avg_odds = NA_real_
+        ))
+      }
+
+      fm <- feature_matrix
+      train_fm <- fm |>
+        dplyr::filter(season <= "1920", !is.na(ftr), !is.na(home_elo))
+      validate_fm <- fm |>
+        dplyr::filter(season > "1920", season <= "2223", !is.na(ftr), !is.na(home_elo))
+
+      # NO market features (fair_h, fair_d, fair_a removed)
+      feature_cols <- c("home_elo", "away_elo", "elo_diff",
+                         "home_roll_gf", "home_roll_ga", "home_roll_gd",
+                         "away_roll_gf", "away_roll_ga", "away_roll_gd")
+      available <- intersect(feature_cols, names(train_fm))
+      train_fm$ftr_factor <- factor(train_fm$ftr, levels = c("H", "D", "A"))
+
+      rf <- ranger::ranger(
+        ftr_factor ~ .,
+        data = train_fm[, c("ftr_factor", available)] |> tidyr::drop_na(),
+        num.trees = 500,
+        probability = TRUE,
+        seed = 42
+      )
+
+      validate_clean <- validate_fm[, available] |> tidyr::drop_na()
+      valid_idx <- complete.cases(validate_fm[, available])
+      preds <- stats::predict(rf, validate_clean)$predictions
+
+      pred_df <- tibble::tibble(
+        match_id = validate_fm$match_id[valid_idx],
+        pred_h = preds[, "H"],
+        pred_d = preds[, "D"],
+        pred_a = preds[, "A"]
+      )
+
+      validate_odds_raw <- parsed_odds |>
+        dplyr::semi_join(validate_fm[valid_idx, ], by = "match_id")
+      validate_odds_dev <- devig_odds(validate_odds_raw)
+
+      rf_bets <- find_value_bets(
+        preds = pred_df, devigged = validate_odds_dev,
+        odds = validate_odds_raw,
+        min_edge = 0.03, min_odds = 1.50, max_odds = 10.0
+      )
+
+      bets <- dplyr::inner_join(rf_bets,
+        dplyr::select(parsed_matches, match_id, ftr, match_date),
+        by = "match_id"
+      ) |> dplyr::mutate(
+        won = outcome == ftr,
+        net = dplyr::if_else(won, 10 * (decimal_odds * 0.99 - 1), -10) - 10 * 0.02
+      )
+
+      tibble::tibble(
+        scenario = "OOS ranger RF (no market features)",
+        n_bets = nrow(bets),
+        roi_pct = round(sum(bets$net) / (nrow(bets) * 10) * 100, 1),
+        win_rate = round(mean(bets$won, na.rm = TRUE) * 100, 1),
+        avg_odds = round(mean(bets$decimal_odds), 2)
+      )
+    }
+  ),
+
+  # ====================================================================
   # CLV strategy: bet where B365 > Pinnacle closing (soft vs sharp)
   # ====================================================================
 
@@ -699,6 +774,97 @@ plan_oos <- list(
   ),
 
   # ====================================================================
+  # brms OOS ROI (#59)
+  # ====================================================================
+
+  # Fit brms on train period only (not the full brms_full_model which uses all data)
+  targets::tar_target(
+    oos_brms_train,
+    {
+      if (!requireNamespace("brms", quietly = TRUE)) {
+        cli::cli_warn("brms not available. Skipping brms OOS.")
+        return(NULL)
+      }
+
+      train_long <- oos_train_long
+      tryCatch(
+        fit_brms_poisson(train_long,
+                         iter = 2000L, warmup = 1000L,
+                         chains = 4L, cores = 4L, seed = 42L),
+        error = function(e) {
+          cli::cli_warn("brms train fit failed: {conditionMessage(e)}")
+          NULL
+        }
+      )
+    },
+    cue = targets::tar_cue(mode = "thorough")
+  ),
+
+  # Predict validate period using train-fitted brms
+  targets::tar_target(
+    oos_validate_predictions_brms,
+    {
+      if (is.null(oos_brms_train)) return(tibble::tibble())
+      tryCatch(
+        predict_matches_brms(oos_brms_train, oos_split$validate),
+        error = function(e) {
+          cli::cli_warn("brms predict failed: {conditionMessage(e)}")
+          tibble::tibble()
+        }
+      )
+    }
+  ),
+
+  # Value bets using brms predictions
+  targets::tar_target(
+    oos_validate_bets_brms,
+    {
+      if (nrow(oos_validate_predictions_brms) == 0L) return(tibble::tibble())
+
+      validate_odds_raw <- parsed_odds |>
+        dplyr::semi_join(oos_split$validate, by = "match_id")
+
+      find_value_bets(
+        preds = oos_validate_predictions_brms,
+        devigged = oos_validate_odds,
+        odds = validate_odds_raw,
+        min_edge = 0.03, min_odds = 1.50, max_odds = 10.0
+      )
+    }
+  ),
+
+  # brms OOS summary
+  targets::tar_target(
+    oos_validate_summary_brms,
+    {
+      if (nrow(oos_validate_bets_brms) == 0L) {
+        return(tibble::tibble(
+          scenario = "OOS brms Poisson",
+          n_bets = 0L, roi_pct = NA_real_,
+          win_rate = NA_real_, avg_odds = NA_real_
+        ))
+      }
+
+      bets <- dplyr::inner_join(
+        oos_validate_bets_brms,
+        dplyr::select(parsed_matches, match_id, ftr, match_date),
+        by = "match_id"
+      ) |> dplyr::mutate(
+        won = outcome == ftr,
+        net = dplyr::if_else(won, 10 * (decimal_odds * 0.99 - 1), -10) - 10 * 0.02
+      )
+
+      tibble::tibble(
+        scenario = "OOS brms Poisson",
+        n_bets = nrow(bets),
+        roi_pct = round(sum(bets$net) / (nrow(bets) * 10) * 100, 1),
+        win_rate = round(mean(bets$won, na.rm = TRUE) * 100, 1),
+        avg_odds = round(mean(bets$decimal_odds), 2)
+      )
+    }
+  ),
+
+  # ====================================================================
   # Vignette comparison table (all scenarios)
   # ====================================================================
 
@@ -734,7 +900,9 @@ plan_oos <- list(
         oos_validate_summary_dc,
         oos_validate_summary_blended,
         oos_validate_summary_ranger,
-        oos_validate_summary_clv
+        oos_validate_summary_ranger_clean,
+        oos_validate_summary_clv,
+        oos_validate_summary_brms
       )
 
       # Keep only common columns (scenario, n_bets, roi_pct, win_rate, avg_odds)

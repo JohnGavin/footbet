@@ -281,14 +281,18 @@ score_mat <- score_mat / sum(score_mat)
 
 #' Batch predict matches from a brms model
 #'
+#' Uses brms `predict()` in batch (not per-match) for speed, then
+#' converts expected goals to 1x2 probabilities via Poisson convolution.
+#'
 #' @param model A `brmsfit` object.
 #' @param matches_df A tibble with `home_team` and `away_team` columns.
-#' @param max_goals Integer. Maximum goals in score matrix.
-#' @param ndraws Integer. Number of posterior draws.
-#' @return A tibble with match predictions.
+#' @param max_goals Integer. Maximum goals in score matrix (default 8).
+#' @return A tibble with `match_id` (if present), `pred_h`, `pred_d`, `pred_a`,
+#'   `lambda_home`, `lambda_away`.
 #' @family models
 #' @export
-predict_matches_brms <- function(model, matches_df, max_goals = 10L, ndraws = 500L) {
+predict_matches_brms <- function(model, matches_df, max_goals = 8L) {
+  rlang::check_installed("brms", reason = "to predict from brms models")
   rlang::check_required(model)
   rlang::check_required(matches_df)
 
@@ -296,54 +300,62 @@ predict_matches_brms <- function(model, matches_df, max_goals = 10L, ndraws = 50
     cli::cli_abort("matches_df must have columns {.field home_team} and {.field away_team}.")
   }
 
-  # Check which teams are in the model
   model_teams <- unique(c(model$data$team, model$data$opponent))
-  home_missing <- setdiff(unique(matches_df$home_team), model_teams)
-  away_missing <- setdiff(unique(matches_df$away_team), model_teams)
 
-  if (length(home_missing) > 0L || length(away_missing) > 0L) {
-    cli::cli_warn(c(
-      "!" = "Some teams not in training data (will use population mean):",
-      "i" = "Home: {.val {head(home_missing, 5)}}",
-      "i" = "Away: {.val {head(away_missing, 5)}}"
-    ))
+  # Filter to matches where both teams are in training data
+  valid <- matches_df$home_team %in% model_teams & matches_df$away_team %in% model_teams
+  n_drop <- sum(!valid)
+  if (n_drop > 0L) {
+    cli::cli_warn("Dropping {n_drop} matches with unknown teams.")
+  }
+  matches_sub <- matches_df[valid, ]
+  if (nrow(matches_sub) == 0L) {
+    cli::cli_abort("No matches have both teams in training data.")
   }
 
-  results <- vector("list", nrow(matches_df))
+  # Batch predict: home goals (team = home, opponent = away, home = 1)
+  nd_home <- data.frame(
+    home = 1L, team = matches_sub$home_team, opponent = matches_sub$away_team
+  )
+  nd_away <- data.frame(
+    home = 0L, team = matches_sub$away_team, opponent = matches_sub$home_team
+  )
 
-  for (i in seq_len(nrow(matches_df))) {
-    pred <- tryCatch(
-      predict_brms(
-        model,
-        home_team = matches_df$home_team[[i]],
-        away_team = matches_df$away_team[[i]],
-        max_goals = max_goals,
-        ndraws = ndraws
-      ),
-      error = function(e) {
-        cli::cli_warn("Prediction failed for row {i}: {conditionMessage(e)}")
-        NULL
-      }
-    )
+  lambda_home <- stats::predict(model, newdata = nd_home,
+                                allow_new_levels = TRUE, summary = TRUE)[, "Estimate"]
+  lambda_away <- stats::predict(model, newdata = nd_away,
+                                allow_new_levels = TRUE, summary = TRUE)[, "Estimate"]
 
-    if (!is.null(pred)) {
-      results[[i]] <- tibble::tibble(
-        home_team = matches_df$home_team[[i]],
-        away_team = matches_df$away_team[[i]],
-        prob_h = pred$prob_1x2[["H"]],
-        prob_d = pred$prob_1x2[["D"]],
-        prob_a = pred$prob_1x2[["A"]],
-        prob_over_25 = pred$prob_ou[["over_25"]],
-        prob_under_25 = pred$prob_ou[["under_25"]],
-        lambda_home = pred$lambda[["home"]],
-        lambda_away = pred$lambda[["away"]],
-        lambda_home_sd = pred$lambda_sd[["home"]],
-        lambda_away_sd = pred$lambda_sd[["away"]]
-      )
-    }
+  # Poisson convolution → 1x2 probabilities
+  g <- 0:max_goals
+  n <- length(lambda_home)
+  prob_h <- numeric(n)
+  prob_d <- numeric(n)
+  prob_a <- numeric(n)
+
+  for (i in seq_len(n)) {
+    ph <- stats::dpois(g, lambda_home[i])
+    pa <- stats::dpois(g, lambda_away[i])
+    mat <- outer(ph, pa)  # rows = home goals, cols = away goals
+    total <- sum(mat)
+    prob_h[i] <- sum(mat[row(mat) > col(mat)]) / total
+    prob_d[i] <- sum(diag(mat)) / total
+    prob_a[i] <- sum(mat[row(mat) < col(mat)]) / total
   }
 
-  dplyr::bind_rows(results)
+  out <- tibble::tibble(
+    pred_h = prob_h,
+    pred_d = prob_d,
+    pred_a = prob_a,
+    lambda_home = lambda_home,
+    lambda_away = lambda_away
+  )
+
+  if ("match_id" %in% names(matches_sub)) {
+    out <- dplyr::mutate(out, match_id = matches_sub$match_id, .before = 1)
+  }
+
+  out
 }
 
 #' Evaluate brms model via walk-forward cross-validation
