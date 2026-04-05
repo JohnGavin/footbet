@@ -13,24 +13,25 @@ sharpest bookmaker but paying the vig.
 
 ## Leaderboard
 
-| # | Model | ROI % | Bets | Period | Subset | Issue |
-|---|-------|------:|-----:|--------|--------|-------|
-| 1 | **CLV (B365 vs Pinnacle)** | **+4.5%** | 220 | 20-23 | Market structure | — |
-| 2 | Ranger RF (no market, fixed Elo) | -7.2% | 12,220 | 20-23 | Best predictive (1x2) | #83 |
-| 3 | **xG-Kalman-DC** | **-7.3%** | 5,605 | 20-23 | xG + Kalman + DC correction | #82 |
-| 4 | Ranger RF (with market, fixed Elo) | -7.5% | 10,047 | 20-23 | With costs | #83 |
-| 4 | OOS Dixon-Coles per-league | -9.5% | 7,713 | 20-23 | With costs | #70 |
-| 5 | brms hierarchical Poisson | -9.6% | 9,008 | 20-23 | Best calibration | #59 |
-| 6 | GLM + market blend (35% model) | -11.6% | 4,312 | 20-23 | With costs | #44 |
-| 7 | OAGD v2 attack/defence (HOLDOUT) | -13.5% | 5,629 | 23-26 | H+A, with costs | #67 |
-| — | ~~Ranger RF (pre-fix)~~ | ~~+18.4%~~ | — | — | **Elo leakage — invalidated** | #83 |
-| — | OOS XGBoost | — | — | 20-23 | Not yet run (xgboost not in Nix) | #37 |
-| — | OOS GLM + isotonic calibration | — | — | 20-23 | Not yet extracted | #68 |
-| — | OOS rolling refit GLM | — | — | 20-23 | Not yet extracted | #69 |
+| # | Model | Market | ROI % | Bets | Sharpe | Max DD | Issue |
+|---|-------|--------|------:|-----:|-------:|-------:|-------|
+| 1 | **CLV (B365 vs Pinnacle)** | 1x2 | **+4.5%** | 220 | — | — | — |
+| 2 | **GLM∩Ranger AH intersection** | AH | **+0.3%** | 2,106 | +0.003 | 312 | #81 |
+| 3 | GLM AH | AH | -0.5% | 2,790 | -0.005 | 414 | #81 |
+| 4 | Ranger AH | AH | -1.0% | 3,376 | -0.010 | 764 | #81 |
+| 5 | Ensemble AH | AH | -1.2% | 1,729 | — | — | #81 |
+| 6 | xGK AH | AH | -5.8% | 2,312 | — | — | #82 |
+| 7 | Ranger RF (1x2, fixed Elo) | 1x2 | -7.2% | 12,220 | — | — | #83 |
+| 8 | xG-Kalman-DC (1x2) | 1x2 | -7.3% | 5,605 | — | — | #82 |
+| 9 | Dixon-Coles per-league | 1x2 | -9.5% | 7,713 | — | — | #70 |
+| 10 | brms Poisson | 1x2 | -9.6% | 9,008 | — | — | #59 |
+| 11 | GLM + market blend | 1x2 | -11.6% | 4,312 | — | — | #44 |
+| 12 | OAGD v2 (holdout) | 1x2 | -13.5% | 5,629 | — | — | #67 |
 
-*All models use plan_oos.R (train 15-20, validate 20-23, tiered staking
-with 2% costs + 1% slippage) unless noted. CLV is the only profitable
-strategy — it exploits B365 vs Pinnacle line discrepancies, not modelling.
+*Key insight: model agreement (intersection) is more valuable than any individual
+model. GLM∩Ranger on AH is the only predictive strategy with positive ROI.
+Bets where only one model fires lose -2.7% to -3.0%. CLV (+4.5%) is market
+arbitrage, not prediction.
 Ranger +18.4% was invalidated: `compute_elo()` recorded post-match Elo,
 encoding match results into features. Fixed to pre-match Elo in commit below.*
 
