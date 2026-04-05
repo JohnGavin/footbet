@@ -151,6 +151,99 @@ predict_ou <- function(mat, total_line = 2.5) {
   list(prob_over = p_over, prob_under = 1 - p_over)
 }
 
+#' Reverse-engineer Poisson lambdas from 1x2 probabilities
+#'
+#' When a model only outputs P(H), P(D), P(A) and no lambdas,
+#' this estimates lambda_home and lambda_away using the probability
+#' ratio and a fixed total-goals assumption.
+#'
+#' @param ph Numeric. P(Home win).
+#' @param pa Numeric. P(Away win).
+#' @param total Numeric. Assumed total goals per match (default 2.7).
+#' @return A list with `lambda_home` and `lambda_away`, or NULL if
+#'   inputs are invalid.
+#' @family models
+#' @export
+lambdas_from_hda <- function(ph, pa, total = 2.7) {
+  if (is.na(ph) || is.na(pa) || ph <= 0 || pa <= 0) return(NULL)
+  mu_est <- log(ph / pa) / 2
+  list(
+    lambda_home = max(0.3, (total + mu_est) / 2),
+    lambda_away = max(0.3, (total - mu_est) / 2)
+  )
+}
+
+#' Generate AH bets from any prediction dataframe
+#'
+#' Generic function that takes model predictions (with or without lambdas),
+#' builds DC score matrices, computes AH cover probabilities, and identifies
+#' value bets against Pinnacle AH odds.
+#'
+#' @param preds Tibble with `match_id`, `pred_h`, `pred_a`. Optionally
+#'   `lambda_home`, `lambda_away` (if absent, reverse-engineered from probs).
+#' @param odds Tibble with `match_id`, `ah_line`, `pahh`, `paha`.
+#' @param matches Tibble with `match_id`, `fthg`, `ftag`, `ftr`.
+#' @param rho Numeric. Dixon-Coles rho (default -0.13).
+#' @param min_edge Numeric. Minimum edge to bet (default 0.03).
+#' @return Tibble of AH bets with `match_id`, `market`, `edge`, `odds`,
+#'   `won`, `stake`, `net`.
+#' @family decisions
+#' @export
+ah_bets_from_preds <- function(preds, odds, matches,
+                               rho = -0.13, min_edge = 0.03) {
+  rlang::check_required(preds)
+  rlang::check_required(odds)
+  rlang::check_required(matches)
+
+  has_lambdas <- all(c("lambda_home", "lambda_away") %in% names(preds))
+
+  combined <- dplyr::inner_join(preds, odds, by = "match_id") |>
+    dplyr::inner_join(
+      matches |> dplyr::select("match_id", "fthg", "ftag"),
+      by = "match_id"
+    ) |>
+    dplyr::filter(!is.na(.data$ah_line), !is.na(.data$pahh))
+
+  if (nrow(combined) == 0L) return(tibble::tibble())
+
+  purrr::pmap_dfr(
+    list(combined$match_id, combined$pred_h, combined$pred_a,
+         if (has_lambdas) combined$lambda_home else rep(NA_real_, nrow(combined)),
+         if (has_lambdas) combined$lambda_away else rep(NA_real_, nrow(combined)),
+         combined$ah_line, combined$pahh,
+         combined$fthg, combined$ftag),
+    function(mid, ph, pa, lh, la, ah_line, pahh, fthg, ftag) {
+      # Get lambdas
+      if (is.na(lh) || is.na(la)) {
+        lams <- lambdas_from_hda(ph, pa)
+        if (is.null(lams)) return(tibble::tibble())
+        lh <- lams$lambda_home
+        la <- lams$lambda_away
+      }
+
+      mat <- dc_score_matrix(lh, la, rho = rho)
+      p_cover <- predict_ah(mat, ah_line)
+      implied_cover <- 1 / pahh
+      edge <- p_cover - implied_cover
+
+      if (edge <= min_edge || pahh < 1.5 || pahh > 10) return(tibble::tibble())
+
+      gd <- fthg - ftag
+      ah_result <- sign(gd + ah_line)
+      if (ah_result == 0) return(tibble::tibble())  # push — skip
+
+      won <- ah_result > 0
+      net <- if (won) 10 * (pahh * 0.99 - 1) else -10
+      net <- net - 10 * 0.02
+
+      tibble::tibble(
+        match_id = mid, market = "AH_home", edge = edge,
+        odds = pahh, won = won, stake = 10, net = net
+      )
+    }
+  )
+}
+
 #' Predict match outcome probabilities from OAGD model
 #'
 #' Given team attack/defence strengths, intercepts, and form signals,

@@ -517,6 +517,191 @@ plan_oos <- list(
   ),
 
   # ====================================================================
+  # Ranger RF → AH market
+  # ====================================================================
+
+  targets::tar_target(
+    oos_ranger_predictions,
+    {
+      if (!requireNamespace("ranger", quietly = TRUE)) return(tibble::tibble())
+
+      fm <- feature_matrix
+      train_fm <- fm |>
+        dplyr::filter(season <= "1920", !is.na(ftr), !is.na(home_elo))
+      validate_fm <- fm |>
+        dplyr::filter(season > "1920", season <= "2223", !is.na(ftr), !is.na(home_elo))
+
+      feature_cols <- c("home_elo", "away_elo", "elo_diff",
+                         "home_roll_gf", "home_roll_ga", "home_roll_gd",
+                         "away_roll_gf", "away_roll_ga", "away_roll_gd")
+      available <- intersect(feature_cols, names(train_fm))
+      train_fm$ftr_factor <- factor(train_fm$ftr, levels = c("H", "D", "A"))
+
+      rf <- ranger::ranger(
+        ftr_factor ~ .,
+        data = train_fm[, c("ftr_factor", available)] |> tidyr::drop_na(),
+        num.trees = 500, probability = TRUE, seed = 42
+      )
+
+      validate_clean <- validate_fm[, available] |> tidyr::drop_na()
+      valid_idx <- complete.cases(validate_fm[, available])
+      preds <- stats::predict(rf, validate_clean)$predictions
+
+      tibble::tibble(
+        match_id = validate_fm$match_id[valid_idx],
+        pred_h = preds[, "H"],
+        pred_d = preds[, "D"],
+        pred_a = preds[, "A"]
+      )
+    }
+  ),
+
+  targets::tar_target(
+    oos_ah_ranger,
+    {
+      if (nrow(oos_ranger_predictions) == 0L) return(tibble::tibble())
+      ah_bets_from_preds(
+        preds = oos_ranger_predictions,
+        odds = parsed_odds |> dplyr::filter(!is.na(.data$ah_line)),
+        matches = parsed_matches
+      )
+    }
+  ),
+
+  targets::tar_target(
+    oos_ah_ranger_summary,
+    {
+      if (nrow(oos_ah_ranger) == 0L) {
+        return(tibble::tibble(scenario = "Ranger AH", n_bets = 0L,
+                              roi_pct = NA_real_, win_rate = NA_real_))
+      }
+      tibble::tibble(
+        scenario = "Ranger AH",
+        n_bets = nrow(oos_ah_ranger),
+        roi_pct = round(100 * sum(oos_ah_ranger$net) / sum(oos_ah_ranger$stake), 1),
+        win_rate = round(100 * mean(oos_ah_ranger$won), 1),
+        avg_odds = round(mean(oos_ah_ranger$odds), 2)
+      )
+    }
+  ),
+
+  # ====================================================================
+  # Ensemble AH (equal-weight average of GLM, Ranger, xGK cover probs)
+  # ====================================================================
+
+  targets::tar_target(
+    oos_ah_ensemble,
+    {
+      # Get AH cover probabilities from each model
+      # We need to recompute cover probs (not just bets) for the ensemble
+      validate_odds <- parsed_odds |> dplyr::filter(!is.na(.data$ah_line), !is.na(.data$pahh))
+
+      # GLM predictions
+      glm_preds <- oos_validate_predictions
+      # Ranger predictions
+      ranger_preds <- oos_ranger_predictions
+      # xGK predictions (with lambdas)
+      xgk_preds <- xgk_predictions
+
+      # Find matches present in all three models AND have AH odds
+      common_ids <- Reduce(intersect, list(
+        glm_preds$match_id, ranger_preds$match_id,
+        xgk_preds$match_id, validate_odds$match_id
+      ))
+
+      if (length(common_ids) == 0L) {
+        cli::cli_warn("No common matches across all models for ensemble.")
+        return(tibble::tibble())
+      }
+
+      combined <- validate_odds |>
+        dplyr::filter(.data$match_id %in% common_ids) |>
+        dplyr::inner_join(
+          parsed_matches |> dplyr::select("match_id", "fthg", "ftag"),
+          by = "match_id"
+        )
+
+      rho <- -0.13
+
+      purrr::pmap_dfr(
+        list(combined$match_id, combined$ah_line, combined$pahh,
+             combined$fthg, combined$ftag),
+        function(mid, ah_line, pahh, fthg, ftag) {
+          # Get cover probability from each model
+          covers <- numeric(0)
+
+          # GLM (reverse-engineer lambdas)
+          g <- glm_preds |> dplyr::filter(.data$match_id == mid)
+          if (nrow(g) > 0) {
+            lams <- lambdas_from_hda(g$pred_h[1], g$pred_a[1])
+            if (!is.null(lams)) {
+              mat <- dc_score_matrix(lams$lambda_home, lams$lambda_away, rho)
+              covers <- c(covers, predict_ah(mat, ah_line))
+            }
+          }
+
+          # Ranger (reverse-engineer lambdas)
+          r <- ranger_preds |> dplyr::filter(.data$match_id == mid)
+          if (nrow(r) > 0) {
+            lams <- lambdas_from_hda(r$pred_h[1], r$pred_a[1])
+            if (!is.null(lams)) {
+              mat <- dc_score_matrix(lams$lambda_home, lams$lambda_away, rho)
+              covers <- c(covers, predict_ah(mat, ah_line))
+            }
+          }
+
+          # xGK (has real lambdas)
+          x <- xgk_preds |> dplyr::filter(.data$match_id == mid)
+          if (nrow(x) > 0) {
+            mat <- dc_score_matrix(x$lambda_home[1], x$lambda_away[1], rho)
+            covers <- c(covers, predict_ah(mat, ah_line))
+          }
+
+          if (length(covers) == 0L) return(tibble::tibble())
+
+          # Equal-weight ensemble
+          p_cover <- mean(covers)
+          implied <- 1 / pahh
+          edge <- p_cover - implied
+
+          if (is.na(pahh) || edge <= 0.03 || pahh < 1.5 || pahh > 10) return(tibble::tibble())
+
+          gd <- fthg - ftag
+          ah_result <- sign(gd + ah_line)
+          if (ah_result == 0) return(tibble::tibble())
+
+          won <- ah_result > 0
+          net <- if (won) 10 * (pahh * 0.99 - 1) else -10
+          net <- net - 10 * 0.02
+
+          tibble::tibble(
+            match_id = mid, market = "AH_ensemble", edge = edge,
+            odds = pahh, won = won, stake = 10, net = net,
+            n_models = length(covers), mean_cover = round(p_cover, 3)
+          )
+        }
+      )
+    }
+  ),
+
+  targets::tar_target(
+    oos_ah_ensemble_summary,
+    {
+      if (nrow(oos_ah_ensemble) == 0L) {
+        return(tibble::tibble(scenario = "Ensemble AH", n_bets = 0L,
+                              roi_pct = NA_real_, win_rate = NA_real_))
+      }
+      tibble::tibble(
+        scenario = "Ensemble AH",
+        n_bets = nrow(oos_ah_ensemble),
+        roi_pct = round(100 * sum(oos_ah_ensemble$net) / sum(oos_ah_ensemble$stake), 1),
+        win_rate = round(100 * mean(oos_ah_ensemble$won), 1),
+        avg_odds = round(mean(oos_ah_ensemble$odds), 2)
+      )
+    }
+  ),
+
+  # ====================================================================
   # CLV strategy: bet where B365 > Pinnacle closing (soft vs sharp)
   # ====================================================================
 

@@ -261,5 +261,81 @@ plan_xgk <- list(
         avg_odds = round(mean(xgk_backtest$odds), 2)
       )
     }
+  ),
+
+  # ====================================================================
+  # Phase 4b: xG-Kalman-DC on Asian Handicap market
+  # ====================================================================
+
+  # Expose match-level predictions with lambdas for AH
+  targets::tar_target(
+    xgk_predictions,
+    {
+      if (nrow(kalman_xg_strengths) == 0L) return(tibble::tibble())
+
+      validate <- matches_with_xg |>
+        dplyr::filter(
+          .data$season > "1920", .data$season <= "2223",
+          !is.na(.data$home_xg), !is.na(.data$ftr)
+        )
+
+      strengths <- kalman_xg_strengths
+
+      purrr::pmap_dfr(
+        list(validate$match_id, validate$match_date, validate$league_code,
+             validate$home_team, validate$away_team),
+        function(mid, mdate, lg, ht, at) {
+          ht_str <- strengths |>
+            dplyr::filter(.data$team == ht, .data$league_code == lg,
+                          .data$match_date <= mdate) |>
+            dplyr::slice_tail(n = 1)
+          at_str <- strengths |>
+            dplyr::filter(.data$team == at, .data$league_code == lg,
+                          .data$match_date <= mdate) |>
+            dplyr::slice_tail(n = 1)
+
+          if (nrow(ht_str) == 0L || nrow(at_str) == 0L) return(tibble::tibble())
+
+          lh <- max(0.3, exp(0.3 + ht_str$attack + at_str$defence))
+          la <- max(0.3, exp(0.1 + at_str$attack + ht_str$defence))
+          mat <- dc_score_matrix(lh, la, rho = -0.13)
+          probs <- score_matrix_probs(mat)
+
+          tibble::tibble(
+            match_id = mid, pred_h = probs$prob_h, pred_d = probs$prob_d,
+            pred_a = probs$prob_a, lambda_home = lh, lambda_away = la
+          )
+        }
+      )
+    }
+  ),
+
+  targets::tar_target(
+    xgk_ah_backtest,
+    {
+      if (nrow(xgk_predictions) == 0L) return(tibble::tibble())
+      ah_bets_from_preds(
+        preds = xgk_predictions,
+        odds = parsed_odds |> dplyr::filter(!is.na(.data$ah_line)),
+        matches = parsed_matches
+      )
+    }
+  ),
+
+  targets::tar_target(
+    xgk_ah_summary,
+    {
+      if (nrow(xgk_ah_backtest) == 0L) {
+        return(tibble::tibble(scenario = "xGK AH", n_bets = 0L,
+                              roi_pct = NA_real_, win_rate = NA_real_))
+      }
+      tibble::tibble(
+        scenario = "xGK AH",
+        n_bets = nrow(xgk_ah_backtest),
+        roi_pct = round(100 * sum(xgk_ah_backtest$net) / sum(xgk_ah_backtest$stake), 1),
+        win_rate = round(100 * mean(xgk_ah_backtest$won), 1),
+        avg_odds = round(mean(xgk_ah_backtest$odds), 2)
+      )
+    }
   )
 )
