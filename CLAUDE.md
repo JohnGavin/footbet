@@ -7,6 +7,7 @@
 - [`plans/IMPL_oagd_model.md`](plans/IMPL_oagd_model.md) — OAGD implementation steps and progress
 - [`plans/PLAN_brms_crew.md`](plans/PLAN_brms_crew.md) — brms + crew parallelisation plan (9-step)
 - [`plans/PLAN_xg_kalman_dc.md`](plans/PLAN_xg_kalman_dc.md) — xG + Kalman filter + Dixon-Coles correction (5-phase)
+- [`plans/PLAN_ah_improvements.md`](plans/PLAN_ah_improvements.md) — AH market: Kelly staking, xGK fixes, brms CI betting
 - [`CHANGELOG.md`](CHANGELOG.md) — Session lab notes, experiment results, failed approaches
 
 ## CRITICAL: Package Context (ctx.yaml)
