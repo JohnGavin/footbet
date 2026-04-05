@@ -12,6 +12,7 @@
 #' @keywords internal
 stringdist_sim <- function(a, b) {
   bigrams <- function(s) {
+    if (is.na(s)) return(character(0L))
     s <- tolower(s)
     if (nchar(s) < 2L) return(s)
     vapply(seq_len(nchar(s) - 1L), function(i) substr(s, i, i + 1L), "")

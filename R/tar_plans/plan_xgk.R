@@ -68,13 +68,16 @@ plan_xgk <- list(
                  dplyr::mutate(home_xg = NA_real_, away_xg = NA_real_))
       }
 
+      # Understat delivers league names with either spaces or underscores
+      # (e.g. "La liga" and "La_liga" both appear). Normalise to space form.
       league_map <- tibble::tibble(
-        league = c("EPL", "La_liga", "Bundesliga", "Serie_A", "Ligue_1"),
+        league = c("EPL", "La liga", "Bundesliga", "Serie A", "Ligue 1"),
         league_code = c("E0", "SP1", "D1", "I1", "F1")
       )
 
-      # Clean team names for fuzzy matching
+      # Normalise league names then join
       xg <- understat_match_xg |>
+        dplyr::mutate(league = gsub("_", " ", .data$league)) |>
         dplyr::left_join(league_map, by = "league") |>
         dplyr::filter(!is.na(.data$league_code))
 
