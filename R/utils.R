@@ -1,6 +1,29 @@
 #' @keywords internal
 "_PACKAGE"
 
+#' Simple string similarity (bigram Jaccard)
+#'
+#' Computes similarity between two strings using character bigrams.
+#' No external dependencies — used for fuzzy team name matching.
+#'
+#' @param a Character. First string.
+#' @param b Character. Second string.
+#' @return Numeric between 0 (no overlap) and 1 (identical bigrams).
+#' @keywords internal
+stringdist_sim <- function(a, b) {
+  bigrams <- function(s) {
+    s <- tolower(s)
+    if (nchar(s) < 2L) return(s)
+    vapply(seq_len(nchar(s) - 1L), function(i) substr(s, i, i + 1L), "")
+  }
+  mapply(function(x, y) {
+    bx <- bigrams(x)
+    by <- bigrams(y)
+    if (length(bx) == 0L || length(by) == 0L) return(0)
+    length(intersect(bx, by)) / length(union(bx, by))
+  }, a, b, USE.NAMES = FALSE)
+}
+
 #' Build football-data.co.uk URL for a league/season CSV
 #'
 #' @param league_code Character. League code (e.g. "E0", "D1").
