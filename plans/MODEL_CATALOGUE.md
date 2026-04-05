@@ -16,8 +16,9 @@ sharpest bookmaker but paying the vig.
 | # | Model | ROI % | Bets | Period | Subset | Issue |
 |---|-------|------:|-----:|--------|--------|-------|
 | 1 | **CLV (B365 vs Pinnacle)** | **+4.5%** | 220 | 20-23 | Market structure | — |
-| 2 | Ranger RF (no market, fixed Elo) | -7.2% | 12,220 | 20-23 | Best predictive model | #83 |
-| 3 | Ranger RF (with market, fixed Elo) | -7.5% | 10,047 | 20-23 | With costs | #83 |
+| 2 | Ranger RF (no market, fixed Elo) | -7.2% | 12,220 | 20-23 | Best predictive (1x2) | #83 |
+| 3 | **xG-Kalman-DC** | **-7.3%** | 5,605 | 20-23 | xG + Kalman + DC correction | #82 |
+| 4 | Ranger RF (with market, fixed Elo) | -7.5% | 10,047 | 20-23 | With costs | #83 |
 | 4 | OOS Dixon-Coles per-league | -9.5% | 7,713 | 20-23 | With costs | #70 |
 | 5 | brms hierarchical Poisson | -9.6% | 9,008 | 20-23 | Best calibration | #59 |
 | 6 | GLM + market blend (35% model) | -11.6% | 4,312 | 20-23 | With costs | #44 |

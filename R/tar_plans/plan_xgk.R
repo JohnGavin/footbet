@@ -117,5 +117,149 @@ plan_xgk <- list(
           .groups = "drop"
         )
     }
+  ),
+
+  # ====================================================================
+  # Phase 2: Kalman filter on xG data
+  # ====================================================================
+
+  # Run Kalman filter per league on xG-enriched matches (Tier 1 only)
+  targets::tar_target(
+    kalman_xg_strengths,
+    {
+      tier1 <- c("E0", "D1", "I1", "SP1", "F1")
+      xg_data <- matches_with_xg |>
+        dplyr::filter(
+          .data$league_code %in% tier1,
+          !is.na(.data$home_xg)
+        )
+
+      if (nrow(xg_data) == 0L) {
+        cli::cli_warn("No xG data for Kalman filter.")
+        return(tibble::tibble())
+      }
+
+      purrr::map_dfr(tier1, function(lg) {
+        lg_data <- xg_data |> dplyr::filter(.data$league_code == lg)
+        if (nrow(lg_data) < 50L) return(tibble::tibble())
+
+        tryCatch({
+          s <- kalman_strengths(lg_data, sigma_process = 0.05,
+                                sigma_obs = 0.7, use_xg = TRUE)
+          s$league_code <- lg
+          s
+        }, error = function(e) {
+          cli::cli_warn("Kalman failed for {lg}: {conditionMessage(e)}")
+          tibble::tibble()
+        })
+      })
+    }
+  ),
+
+  # ====================================================================
+  # Phase 4: Backtest Kalman xG + DC correction vs Pinnacle
+  # ====================================================================
+
+  targets::tar_target(
+    xgk_backtest,
+    {
+      if (nrow(kalman_xg_strengths) == 0L) return(tibble::tibble())
+
+      # Validate period: 20-21 to 22-23 (same as plan_oos)
+      validate <- matches_with_xg |>
+        dplyr::filter(
+          .data$season > "1920", .data$season <= "2223",
+          !is.na(.data$home_xg), !is.na(.data$ftr)
+        )
+
+      # Get Pinnacle closing odds
+      validate_odds <- parsed_odds |>
+        dplyr::semi_join(validate, by = "match_id") |>
+        dplyr::filter(!is.na(.data$psh))
+
+      combined <- dplyr::inner_join(validate, validate_odds, by = "match_id")
+
+      if (nrow(combined) == 0L) return(tibble::tibble())
+
+      # For each match: look up Kalman pre-match strengths → DC score matrix → probs → edge
+      strengths <- kalman_xg_strengths
+      rho <- -0.13  # Dixon-Coles default
+
+      purrr::pmap_dfr(
+        list(combined$match_id, combined$match_date, combined$league_code,
+             combined$home_team, combined$away_team,
+             combined$fthg, combined$ftag, combined$ftr,
+             combined$psh, combined$psd, combined$psa),
+        function(mid, mdate, lg, ht, at, fthg, ftag, ftr,
+                 psh, psd, psa) {
+          # Look up pre-match strengths (latest before this date)
+          ht_str <- strengths |>
+            dplyr::filter(.data$team == ht, .data$league_code == lg,
+                          .data$match_date <= mdate) |>
+            dplyr::slice_tail(n = 1)
+          at_str <- strengths |>
+            dplyr::filter(.data$team == at, .data$league_code == lg,
+                          .data$match_date <= mdate) |>
+            dplyr::slice_tail(n = 1)
+
+          if (nrow(ht_str) == 0L || nrow(at_str) == 0L) return(tibble::tibble())
+
+          # Lambda from Kalman strengths (home attack + away defence weakness)
+          lh <- max(0.3, exp(0.3 + ht_str$attack + at_str$defence))
+          la <- max(0.3, exp(0.1 + at_str$attack + ht_str$defence))
+
+          # DC-corrected score matrix
+          mat <- dc_score_matrix(lh, la, rho = rho)
+          probs <- score_matrix_probs(mat)
+
+          # Devig Pinnacle odds
+          raw_sum <- 1/psh + 1/psd + 1/psa
+          imp_h <- (1/psh) / raw_sum
+          imp_d <- (1/psd) / raw_sum
+          imp_a <- (1/psa) / raw_sum
+
+          # Check all 3 outcomes for edge
+          bets <- list()
+          for (info in list(
+            list(out = "H", model = probs$prob_h, implied = imp_h, odds = psh),
+            list(out = "D", model = probs$prob_d, implied = imp_d, odds = psd),
+            list(out = "A", model = probs$prob_a, implied = imp_a, odds = psa)
+          )) {
+            edge <- info$model - info$implied
+            if (edge > 0.03 && info$odds >= 1.5 && info$odds <= 10) {
+              won <- info$out == ftr
+              net <- if (won) 10 * (info$odds * 0.99 - 1) else -10
+              net <- net - 10 * 0.02  # transaction cost
+              bets <- c(bets, list(tibble::tibble(
+                match_id = mid, outcome = info$out, edge = edge,
+                odds = info$odds, won = won, net = net
+              )))
+            }
+          }
+          if (length(bets) == 0L) return(tibble::tibble())
+          dplyr::bind_rows(bets)
+        }
+      )
+    }
+  ),
+
+  targets::tar_target(
+    xgk_backtest_summary,
+    {
+      if (nrow(xgk_backtest) == 0L) {
+        return(tibble::tibble(
+          scenario = "xG-Kalman-DC", n_bets = 0L,
+          roi_pct = NA_real_, win_rate = NA_real_, avg_odds = NA_real_
+        ))
+      }
+
+      tibble::tibble(
+        scenario = "xG-Kalman-DC",
+        n_bets = nrow(xgk_backtest),
+        roi_pct = round(100 * sum(xgk_backtest$net) / (nrow(xgk_backtest) * 10), 1),
+        win_rate = round(100 * mean(xgk_backtest$won), 1),
+        avg_odds = round(mean(xgk_backtest$odds), 2)
+      )
+    }
   )
 )
