@@ -2,6 +2,32 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-06
+
+### Completed
+- feat: xG pipeline via Understat (502K shots → 20K match xG, 97% coverage 15-25)
+- feat: xG-Kalman-DC backtest (-7.3% → -5.4% ROI after tuning)
+- feat: AH market backtests for ranger, xGK, ensemble, and intersection filter
+- feat: Kelly staking option in ah_bets_from_preds()
+- feat: Per-league intercepts (D1 eta_home=0.32 vs F1=0.24)
+- feat: Kalman σ ML tuning (all leagues → σ_process=0.01, σ_obs=0.7)
+- fix: Elo leakage in compute_elo() — post-match Elo encoded results (#83)
+- fix: AH push bug — as.logical(0.5) counted pushes as wins
+- fix: shellHook rebuilds R_LIBS_SITE from derivation closure
+- docs: nix-nested-shell-isolation global rule
+
+### Key Findings
+- **Model agreement is the signal:** GLM∩Ranger AH = +0.3% ROI (2,106 bets); GLM∩Ranger∩xGK = +0.9% (364 bets)
+- **xGK tuning helped 1x2:** -7.3% → -5.4% ROI (+1.9pp) from Kalman σ tuning + per-league intercepts
+- **AH markets efficient:** no individual model finds positive AH ROI vs Pinnacle closing
+- **Pinnacle 1x2 overround ~2%:** model error accounts for remaining ~3-5pp of the -5% to -7% ROI
+- **Elo leakage was real:** ranger +18.5% → -7.2% after fix (post-match Elo encoded results)
+
+### Accuracy / Metrics
+- 78 unit tests + 18 integration tests passing (96 total for OAGD/Kalman)
+- 15 Kalman-specific tests
+- Pipeline: 161+ targets
+
 ## 2026-04-03
 
 ### Completed

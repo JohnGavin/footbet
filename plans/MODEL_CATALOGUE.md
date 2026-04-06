@@ -22,7 +22,7 @@ sharpest bookmaker but paying the vig.
 | 5 | Ensemble AH | AH | -1.2% | 1,729 | — | — | #81 |
 | 6 | xGK AH | AH | -5.8% | 2,312 | — | — | #82 |
 | 7 | Ranger RF (1x2, fixed Elo) | 1x2 | -7.2% | 12,220 | — | — | #83 |
-| 8 | xG-Kalman-DC (1x2) | 1x2 | -7.3% | 5,605 | — | — | #82 |
+| 8 | xG-Kalman-DC tuned (1x2) | 1x2 | -5.4% | 5,605 | — | — | #82 |
 | 9 | Dixon-Coles per-league | 1x2 | -9.5% | 7,713 | — | — | #70 |
 | 10 | brms Poisson | 1x2 | -9.6% | 9,008 | — | — | #59 |
 | 11 | GLM + market blend | 1x2 | -11.6% | 4,312 | — | — | #44 |
