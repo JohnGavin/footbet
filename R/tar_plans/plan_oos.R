@@ -1086,13 +1086,19 @@ plan_oos <- list(
       validate <- oos_split$validate |>
         dplyr::filter(!is.na(.data$ftr))
 
+      # Use 80th percentile of p_cover_lower as threshold (not lower > implied,
+      # which was too conservative — only 1 bet). This selects matches where
+      # the model is relatively more confident about AH cover.
+      threshold <- stats::quantile(ci$p_cover_lower, 0.80, na.rm = TRUE)
+
       ci |>
         dplyr::inner_join(
           validate |> dplyr::select("match_id", "fthg", "ftag"),
           by = "match_id"
         ) |>
         dplyr::filter(
-          .data$p_cover_lower > .data$implied_cover,  # CI excludes zero edge
+          .data$p_cover_lower >= threshold,
+          .data$p_cover_mean > .data$implied_cover,  # mean edge must be positive
           .data$pahh >= 1.5, .data$pahh <= 10
         ) |>
         dplyr::mutate(
@@ -1132,59 +1138,227 @@ plan_oos <- list(
   ),
 
   # ====================================================================
-  # Walk-forward AH: train 15-19, test on 19-20 AH (Step 5)
+  # Walk-forward AH: 4 models × 2 staking × seasons 19-20 to 24-25
   # ====================================================================
 
   targets::tar_target(
-    oos_ah_walkforward_1920,
+    ah_walkforward_all,
     {
-      # Train GLM on 15-19 (exclude 19-20 from train)
-      train_1519 <- parsed_matches |>
-        dplyr::filter(.data$season <= "1819", !is.na(.data$fthg))
-      train_long_1519 <- matches_to_long(train_1519)
-      glm_1519 <- tryCatch(
-        fit_poisson_glm(train_long_1519),
-        error = function(e) NULL
-      )
-      if (is.null(glm_1519)) return(tibble::tibble())
+      # Seasons with AH data: 1920, 2021, 2122, 2223, 2324, 2425
+      ah_seasons <- c("1920", "2021", "2122", "2223", "2324", "2425")
+      # Train cutoffs: for test season X, train on everything before X
+      train_cutoffs <- c("1819", "1920", "2021", "2122", "2223", "2324")
 
-      # Predict 19-20 matches
-      test_1920 <- parsed_matches |>
-        dplyr::filter(.data$season == "1920", !is.na(.data$ftr))
-      preds <- tryCatch(
-        predict_matches_glm(glm_1519, test_1920),
-        error = function(e) NULL
-      )
-      if (is.null(preds) || nrow(preds) == 0L) return(tibble::tibble())
+      all_results <- list()
 
-      # AH bets on 19-20
-      odds_1920 <- parsed_odds |>
-        dplyr::semi_join(test_1920, by = "match_id") |>
-        dplyr::filter(!is.na(.data$ah_line), !is.na(.data$pahh))
+      for (idx in seq_along(ah_seasons)) {
+        test_ssn <- ah_seasons[idx]
+        train_cut <- train_cutoffs[idx]
 
-      ah_bets_from_preds(
-        preds = preds,
-        odds = odds_1920,
-        matches = parsed_matches
-      )
+        cli::cli_alert("Walk-forward: train ≤{train_cut}, test {test_ssn}")
+
+        # Test data
+        test <- parsed_matches |>
+          dplyr::filter(.data$season == test_ssn, !is.na(.data$ftr))
+        test_odds <- parsed_odds |>
+          dplyr::semi_join(test, by = "match_id") |>
+          dplyr::filter(!is.na(.data$ah_line), !is.na(.data$pahh))
+
+        if (nrow(test) < 50L || nrow(test_odds) < 50L) next
+
+        # --- Model 1: GLM ---
+        train_glm <- parsed_matches |>
+          dplyr::filter(.data$season <= train_cut, !is.na(.data$fthg))
+        glm_fit <- tryCatch(
+          fit_poisson_glm(matches_to_long(train_glm)),
+          error = function(e) NULL
+        )
+        glm_preds <- if (!is.null(glm_fit)) {
+          tryCatch(predict_matches_glm(glm_fit, test), error = function(e) NULL)
+        }
+
+        # --- Model 2: Ranger ---
+        ranger_preds <- NULL
+        if (requireNamespace("ranger", quietly = TRUE)) {
+          fm <- feature_matrix
+          train_rf <- fm |>
+            dplyr::filter(.data$season <= train_cut, !is.na(.data$ftr), !is.na(.data$home_elo))
+          test_rf <- fm |>
+            dplyr::filter(.data$season == test_ssn, !is.na(.data$ftr), !is.na(.data$home_elo))
+
+          feature_cols <- c("home_elo", "away_elo", "elo_diff",
+                             "home_roll_gf", "home_roll_ga", "home_roll_gd",
+                             "away_roll_gf", "away_roll_ga", "away_roll_gd")
+          available <- intersect(feature_cols, names(train_rf))
+
+          if (length(available) >= 3 && nrow(train_rf) >= 100) {
+            train_rf$ftr_factor <- factor(train_rf$ftr, levels = c("H", "D", "A"))
+            rf <- tryCatch(
+              ranger::ranger(ftr_factor ~ .,
+                data = train_rf[, c("ftr_factor", available)] |> tidyr::drop_na(),
+                num.trees = 500, probability = TRUE, seed = 42),
+              error = function(e) NULL
+            )
+            if (!is.null(rf)) {
+              valid_idx <- complete.cases(test_rf[, available])
+              if (sum(valid_idx) > 0) {
+                p <- stats::predict(rf, test_rf[valid_idx, available] |> tidyr::drop_na())$predictions
+                ranger_preds <- tibble::tibble(
+                  match_id = test_rf$match_id[valid_idx],
+                  pred_h = p[, "H"], pred_d = p[, "D"], pred_a = p[, "A"]
+                )
+              }
+            }
+          }
+        }
+
+        # --- Model 3: xGK (Kalman — uses kalman_xg_strengths, online) ---
+        xgk_preds <- NULL
+        if (nrow(kalman_xg_strengths) > 0L) {
+          tier1 <- c("E0", "D1", "I1", "SP1", "F1")
+          test_xg <- test |> dplyr::filter(.data$league_code %in% tier1)
+          if (nrow(test_xg) > 0) {
+            xgk_preds <- purrr::pmap_dfr(
+              list(test_xg$match_id, test_xg$match_date, test_xg$league_code,
+                   test_xg$home_team, test_xg$away_team),
+              function(mid, mdate, lg, ht, at) {
+                ht_str <- kalman_xg_strengths |>
+                  dplyr::filter(.data$team == ht, .data$league_code == lg,
+                                .data$match_date <= mdate) |>
+                  dplyr::slice_tail(n = 1)
+                at_str <- kalman_xg_strengths |>
+                  dplyr::filter(.data$team == at, .data$league_code == lg,
+                                .data$match_date <= mdate) |>
+                  dplyr::slice_tail(n = 1)
+                if (nrow(ht_str) == 0L || nrow(at_str) == 0L) return(tibble::tibble())
+                li <- league_intercepts |> dplyr::filter(.data$league_code == lg)
+                eh <- if (nrow(li) > 0) li$eta_home else 0.3
+                ea <- if (nrow(li) > 0) li$eta_away else 0.1
+                lh <- max(0.3, exp(eh + ht_str$attack + at_str$defence))
+                la <- max(0.3, exp(ea + at_str$attack + ht_str$defence))
+                mat <- dc_score_matrix(lh, la, rho = -0.13)
+                probs <- score_matrix_probs(mat)
+                tibble::tibble(match_id = mid, pred_h = probs$prob_h,
+                               pred_d = probs$prob_d, pred_a = probs$prob_a,
+                               lambda_home = lh, lambda_away = la)
+              }
+            )
+          }
+        }
+
+        # --- Model 4: Intersection (GLM ∩ Ranger) ---
+        # Computed below from individual bets
+
+        # --- Generate AH bets for each model × 2 staking ---
+        models <- list(
+          GLM = glm_preds,
+          Ranger = ranger_preds,
+          xGK = if (!is.null(xgk_preds) && nrow(xgk_preds) > 0) xgk_preds else NULL
+        )
+
+        for (model_name in names(models)) {
+          preds <- models[[model_name]]
+          if (is.null(preds) || nrow(preds) == 0L) next
+
+          for (use_kelly in c(FALSE, TRUE)) {
+            staking <- if (use_kelly) "kelly" else "flat"
+            bets <- tryCatch(
+              ah_bets_from_preds(preds, test_odds, parsed_matches,
+                                 use_kelly = use_kelly, kelly_frac = 0.25),
+              error = function(e) tibble::tibble()
+            )
+            if (nrow(bets) > 0L) {
+              bets$model <- model_name
+              bets$staking <- staking
+              bets$test_season <- test_ssn
+              all_results <- c(all_results, list(bets))
+            }
+          }
+        }
+
+        # Model 4: Intersection (GLM ∩ Ranger) for both staking modes
+        glm_bets_flat <- tryCatch(
+          ah_bets_from_preds(glm_preds, test_odds, parsed_matches, use_kelly = FALSE),
+          error = function(e) tibble::tibble()
+        )
+        ranger_bets_flat <- tryCatch(
+          ah_bets_from_preds(ranger_preds, test_odds, parsed_matches, use_kelly = FALSE),
+          error = function(e) tibble::tibble()
+        )
+
+        if (nrow(glm_bets_flat) > 0 && nrow(ranger_bets_flat) > 0) {
+          common_ids <- intersect(glm_bets_flat$match_id, ranger_bets_flat$match_id)
+          if (length(common_ids) > 0) {
+            # Flat intersection
+            int_flat <- glm_bets_flat |> dplyr::filter(.data$match_id %in% common_ids) |>
+              dplyr::mutate(model = "Intersection", staking = "flat", test_season = test_ssn)
+            all_results <- c(all_results, list(int_flat))
+
+            # Kelly intersection
+            int_kelly <- tryCatch(
+              ah_bets_from_preds(
+                glm_preds |> dplyr::filter(.data$match_id %in% common_ids),
+                test_odds, parsed_matches, use_kelly = TRUE, kelly_frac = 0.25),
+              error = function(e) tibble::tibble()
+            )
+            if (nrow(int_kelly) > 0) {
+              int_kelly$model <- "Intersection"
+              int_kelly$staking <- "kelly"
+              int_kelly$test_season <- test_ssn
+              all_results <- c(all_results, list(int_kelly))
+            }
+          }
+        }
+      }
+
+      dplyr::bind_rows(all_results)
     }
   ),
 
   targets::tar_target(
-    oos_ah_walkforward_1920_summary,
+    ah_walkforward_summary,
     {
-      bets <- oos_ah_walkforward_1920
-      if (nrow(bets) == 0L) {
-        return(tibble::tibble(scenario = "AH walk-forward 19-20",
-                              n_bets = 0L, roi_pct = NA_real_))
-      }
-      tibble::tibble(
-        scenario = "AH walk-forward 19-20",
-        n_bets = nrow(bets),
-        roi_pct = round(100 * sum(bets$net) / sum(bets$stake), 1),
-        win_rate = round(100 * mean(bets$won), 1),
-        avg_odds = round(mean(bets$odds), 2)
-      )
+      bets <- ah_walkforward_all
+      if (nrow(bets) == 0L) return(tibble::tibble())
+
+      bets |>
+        dplyr::group_by(.data$model, .data$staking) |>
+        dplyr::summarise(
+          n_bets = dplyr::n(),
+          total_staked = round(sum(.data$stake), 0),
+          total_pnl = round(sum(.data$net), 1),
+          roi_pct = round(100 * sum(.data$net) / sum(.data$stake), 1),
+          win_rate = round(100 * mean(.data$won), 1),
+          sharpe = {
+            n <- dplyr::n()
+            s <- if (n >= 2L) stats::sd(.data$net) else NA_real_
+            dplyr::if_else(!is.na(s) & s > 0,
+              round(mean(.data$net) / s, 3), NA_real_)
+          },
+          max_dd = round(max(cummax(cumsum(.data$net)) - cumsum(.data$net)), 1),
+          seasons = paste(sort(unique(.data$test_season)), collapse = ","),
+          .groups = "drop"
+        ) |>
+        dplyr::arrange(.data$model, .data$staking)
+    }
+  ),
+
+  # Per-season breakdown
+  targets::tar_target(
+    ah_walkforward_by_season,
+    {
+      bets <- ah_walkforward_all
+      if (nrow(bets) == 0L) return(tibble::tibble())
+
+      bets |>
+        dplyr::group_by(.data$model, .data$staking, .data$test_season) |>
+        dplyr::summarise(
+          n_bets = dplyr::n(),
+          roi_pct = round(100 * sum(.data$net) / sum(.data$stake), 1),
+          win_rate = round(100 * mean(.data$won), 1),
+          .groups = "drop"
+        ) |>
+        dplyr::arrange(.data$model, .data$staking, .data$test_season)
     }
   ),
 
