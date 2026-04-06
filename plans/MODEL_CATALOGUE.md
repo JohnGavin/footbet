@@ -28,12 +28,11 @@ sharpest bookmaker but paying the vig.
 | 11 | GLM + market blend | 1x2 | -11.6% | 4,312 | — | — | #44 |
 | 12 | OAGD v2 (holdout) | 1x2 | -13.5% | 5,629 | — | — | #67 |
 
-*Key insight: model agreement (intersection) is more valuable than any individual
-model. GLM∩Ranger on AH is the only predictive strategy with positive ROI.
-Bets where only one model fires lose -2.7% to -3.0%. CLV (+4.5%) is market
-arbitrage, not prediction.
-Ranger +18.4% was invalidated: `compute_elo()` recorded post-match Elo,
-encoding match results into features. Fixed to pre-match Elo in commit below.*
+*Key caveat: intersection ROI (+0.3% to +0.9%) is from the 20-23 validate
+period only. Walk-forward 19-20 shows -1.4% ROI — the edge does not
+generalise across time periods. brms CI filter produces only 1 bet (CIs too
+wide for any confident edge). CLV (+4.5%) remains the only credibly
+profitable strategy. Ranger +18.4% was invalidated: post-match Elo leakage.*
 
 ## Calibration comparison (lower = better)
 
