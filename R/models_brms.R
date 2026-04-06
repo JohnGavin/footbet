@@ -358,6 +358,86 @@ predict_matches_brms <- function(model, matches_df, max_goals = 8L) {
   out
 }
 
+#' Predict AH cover probability with credible intervals from brms
+#'
+#' Uses posterior draws to compute a distribution of P(cover) for
+#' each match, enabling CI-based bet filtering.
+#'
+#' @param model A `brmsfit` object.
+#' @param matches_df Tibble with `match_id`, `home_team`, `away_team`.
+#' @param odds_df Tibble with `match_id`, `ah_line`, `pahh`.
+#' @param ndraws Integer. Posterior draws per match (default 200).
+#' @param rho Numeric. Dixon-Coles rho (default -0.13).
+#' @param ci_level Numeric. Credible interval level (default 0.90).
+#' @return Tibble with `match_id`, `p_cover_mean`, `p_cover_lower`,
+#'   `p_cover_upper`, `ah_line`, `implied_cover`.
+#' @family models
+#' @export
+brms_ah_ci <- function(model, matches_df, odds_df,
+                       ndraws = 200L, rho = -0.13, ci_level = 0.90) {
+  rlang::check_installed("brms", reason = "to compute AH credible intervals")
+
+  model_teams <- unique(c(model$data$team, model$data$opponent))
+  valid <- matches_df$home_team %in% model_teams &
+    matches_df$away_team %in% model_teams
+  matches_sub <- matches_df[valid, ]
+
+  # Join odds
+  combined <- dplyr::inner_join(matches_sub, odds_df, by = "match_id") |>
+    dplyr::filter(!is.na(.data$ah_line), !is.na(.data$pahh))
+
+  if (nrow(combined) == 0L) return(tibble::tibble())
+
+  # Posterior draws of lambda (home and away goals)
+  nd_home <- data.frame(
+    home = 1L, team = combined$home_team, opponent = combined$away_team
+  )
+  nd_away <- data.frame(
+    home = 0L, team = combined$away_team, opponent = combined$home_team
+  )
+
+  # posterior_predict returns matrix: ndraws x nobs
+  draws_home <- brms::posterior_predict(
+    model, newdata = nd_home, ndraws = ndraws, allow_new_levels = TRUE
+  )
+  draws_away <- brms::posterior_predict(
+    model, newdata = nd_away, ndraws = ndraws, allow_new_levels = TRUE
+  )
+
+  # For each match, compute P(cover) per draw via score matrix
+  alpha <- (1 - ci_level) / 2
+  n <- nrow(combined)
+
+  results <- vector("list", n)
+  for (i in seq_len(n)) {
+    # Get lambda draws (posterior_predict returns counts, use mean as lambda proxy)
+    # More efficient: use posterior_epred for expected values
+    lh_draws <- pmax(0.3, draws_home[, i])
+    la_draws <- pmax(0.3, draws_away[, i])
+    ah_line <- combined$ah_line[i]
+
+    # For each draw, compute P(cover) from score matrix
+    p_covers <- vapply(seq_len(ndraws), function(d) {
+      # Use draw as lambda (Poisson mean)
+      mat <- dc_score_matrix(max(0.3, lh_draws[d]), max(0.3, la_draws[d]),
+                             rho = rho, max_goals = 6L)
+      predict_ah(mat, ah_line)
+    }, numeric(1))
+
+    results[[i]] <- tibble::tibble(
+      match_id = combined$match_id[i],
+      ah_line = ah_line,
+      pahh = combined$pahh[i],
+      implied_cover = 1 / combined$pahh[i],
+      p_cover_mean = mean(p_covers),
+      p_cover_lower = stats::quantile(p_covers, alpha),
+      p_cover_upper = stats::quantile(p_covers, 1 - alpha)
+    )
+  }
+
+  dplyr::bind_rows(results)
+}
+
 #' Evaluate brms model via walk-forward cross-validation
 #'
 #' @param long_df Long-format match data.

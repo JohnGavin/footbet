@@ -1050,6 +1050,145 @@ plan_oos <- list(
   ),
 
   # ====================================================================
+  # brms AH with credible interval filtering (#59, Step 4)
+  # ====================================================================
+
+  targets::tar_target(
+    brms_ah_ci_predictions,
+    {
+      if (is.null(oos_brms_train)) return(tibble::tibble())
+
+      validate <- oos_split$validate |>
+        dplyr::filter(!is.na(.data$ftr))
+
+      validate_odds <- parsed_odds |>
+        dplyr::semi_join(validate, by = "match_id") |>
+        dplyr::filter(!is.na(.data$ah_line), !is.na(.data$pahh))
+
+      tryCatch(
+        brms_ah_ci(oos_brms_train, validate, validate_odds,
+                   ndraws = 200L, rho = -0.13, ci_level = 0.90),
+        error = function(e) {
+          cli::cli_warn("brms AH CI failed: {conditionMessage(e)}")
+          tibble::tibble()
+        }
+      )
+    }
+  ),
+
+  # Bet only when lower CI on P(cover) exceeds implied probability
+  targets::tar_target(
+    brms_ah_ci_bets,
+    {
+      ci <- brms_ah_ci_predictions
+      if (nrow(ci) == 0L) return(tibble::tibble())
+
+      validate <- oos_split$validate |>
+        dplyr::filter(!is.na(.data$ftr))
+
+      ci |>
+        dplyr::inner_join(
+          validate |> dplyr::select("match_id", "fthg", "ftag"),
+          by = "match_id"
+        ) |>
+        dplyr::filter(
+          .data$p_cover_lower > .data$implied_cover,  # CI excludes zero edge
+          .data$pahh >= 1.5, .data$pahh <= 10
+        ) |>
+        dplyr::mutate(
+          gd = .data$fthg - .data$ftag,
+          ah_result = sign(.data$gd + .data$ah_line)
+        ) |>
+        dplyr::filter(.data$ah_result != 0) |>  # skip pushes
+        dplyr::mutate(
+          won = .data$ah_result > 0,
+          edge = .data$p_cover_mean - .data$implied_cover,
+          stake = 10,
+          net = dplyr::if_else(.data$won,
+            .data$stake * (.data$pahh * 0.99 - 1), -.data$stake) -
+            .data$stake * 0.02,
+          market = "brms_AH_CI"
+        )
+    }
+  ),
+
+  targets::tar_target(
+    brms_ah_ci_summary,
+    {
+      bets <- brms_ah_ci_bets
+      if (nrow(bets) == 0L) {
+        return(tibble::tibble(scenario = "brms AH (CI filter)",
+                              n_bets = 0L, roi_pct = NA_real_,
+                              win_rate = NA_real_, avg_odds = NA_real_))
+      }
+      tibble::tibble(
+        scenario = "brms AH (CI filter)",
+        n_bets = nrow(bets),
+        roi_pct = round(100 * sum(bets$net) / sum(bets$stake), 1),
+        win_rate = round(100 * mean(bets$won), 1),
+        avg_odds = round(mean(bets$pahh), 2)
+      )
+    }
+  ),
+
+  # ====================================================================
+  # Walk-forward AH: train 15-19, test on 19-20 AH (Step 5)
+  # ====================================================================
+
+  targets::tar_target(
+    oos_ah_walkforward_1920,
+    {
+      # Train GLM on 15-19 (exclude 19-20 from train)
+      train_1519 <- parsed_matches |>
+        dplyr::filter(.data$season <= "1819", !is.na(.data$fthg))
+      train_long_1519 <- matches_to_long(train_1519)
+      glm_1519 <- tryCatch(
+        fit_poisson_glm(train_long_1519),
+        error = function(e) NULL
+      )
+      if (is.null(glm_1519)) return(tibble::tibble())
+
+      # Predict 19-20 matches
+      test_1920 <- parsed_matches |>
+        dplyr::filter(.data$season == "1920", !is.na(.data$ftr))
+      preds <- tryCatch(
+        predict_matches_glm(glm_1519, test_1920),
+        error = function(e) NULL
+      )
+      if (is.null(preds) || nrow(preds) == 0L) return(tibble::tibble())
+
+      # AH bets on 19-20
+      odds_1920 <- parsed_odds |>
+        dplyr::semi_join(test_1920, by = "match_id") |>
+        dplyr::filter(!is.na(.data$ah_line), !is.na(.data$pahh))
+
+      ah_bets_from_preds(
+        preds = preds,
+        odds = odds_1920,
+        matches = parsed_matches
+      )
+    }
+  ),
+
+  targets::tar_target(
+    oos_ah_walkforward_1920_summary,
+    {
+      bets <- oos_ah_walkforward_1920
+      if (nrow(bets) == 0L) {
+        return(tibble::tibble(scenario = "AH walk-forward 19-20",
+                              n_bets = 0L, roi_pct = NA_real_))
+      }
+      tibble::tibble(
+        scenario = "AH walk-forward 19-20",
+        n_bets = nrow(bets),
+        roi_pct = round(100 * sum(bets$net) / sum(bets$stake), 1),
+        win_rate = round(100 * mean(bets$won), 1),
+        avg_odds = round(mean(bets$odds), 2)
+      )
+    }
+  ),
+
+  # ====================================================================
   # AH/OU market backtest (#81)
   # ====================================================================
 
