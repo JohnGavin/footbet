@@ -16,17 +16,46 @@ Cumulative lab notes. Track completed work, **failed approaches**, accuracy chec
 - fix: shellHook rebuilds R_LIBS_SITE from derivation closure
 - docs: nix-nested-shell-isolation global rule
 
+- feat: Walk-forward AH — 4 models × 2 staking × 6 seasons (19-20 to 24-25)
+- feat: brms AH CI betting with posterior credible intervals
+- feat: brms_ah_ci() function for posterior-based AH cover probability
+- docs: PLAN_ah_improvements.md — Kelly, xGK fixes, brms CI, walk-forward
+
+### Definitive Walk-Forward Results (4 × 2 × 6)
+| Model | Staking | Bets | ROI | Max DD |
+|-------|---------|-----:|----:|-------:|
+| Intersection | flat | 3,940 | -0.3% | 512 |
+| Ranger | flat | 5,963 | -1.8% | 1,337 |
+| GLM | flat | 5,214 | -2.1% | 1,341 |
+| xGK | flat | 4,450 | -7.4% | 3,355 |
+| brms CI | flat | 2,269 | -1.2% | — |
+- Kelly staking: no improvement, amplifies drawdowns (xGK Kelly max DD: 29,926)
+- 22-23 only positive season across all models — market anomaly
+- 23-24 and 24-25 worse — market tightening
+
 ### Key Findings
-- **Model agreement is the signal:** GLM∩Ranger AH = +0.3% ROI (2,106 bets); GLM∩Ranger∩xGK = +0.9% (364 bets)
-- **xGK tuning helped 1x2:** -7.3% → -5.4% ROI (+1.9pp) from Kalman σ tuning + per-league intercepts
-- **AH markets efficient:** no individual model finds positive AH ROI vs Pinnacle closing
-- **Pinnacle 1x2 overround ~2%:** model error accounts for remaining ~3-5pp of the -5% to -7% ROI
-- **Elo leakage was real:** ranger +18.5% → -7.2% after fix (post-match Elo encoded results)
+- **No predictive model beats Pinnacle closing AH odds over 6 seasons**
+- **xGK tuning helped 1x2:** -7.3% → -5.4% ROI (+1.9pp)
+- **Elo leakage confirmed:** ranger +18.5% → -7.2% after fix (#83)
+- **brms CI gave honest answer:** posteriors too wide for confident edge
+- **CLV (+4.5%) remains the only profitable strategy** — market structure, not prediction
+
+### Failed Approaches
+- Kelly staking on AH: amplifies drawdowns without improving ROI (near-50/50 odds + small uncalibrated edges → volatile stakes)
+- brms CI filter (strict): only 1 bet — posterior uncertainty is correctly large
+- xGK on AH: -7.4% ROI — Kalman xG strengths don't translate to handicap edge
+- Ensemble (average of 3 models): -1.2% — dilutes best signal rather than concentrating it
 
 ### Accuracy / Metrics
-- 78 unit tests + 18 integration tests passing (96 total for OAGD/Kalman)
-- 15 Kalman-specific tests
-- Pipeline: 161+ targets
+- 78 unit tests + 18 integration tests + 15 Kalman tests (93 total for OAGD/Kalman/xGK)
+- Pipeline: 170+ targets
+- Walk-forward: 8m 43s for full 4×2×6 evaluation
+
+### Known Limitations
+- **FBref HTTP 403:** xG data from Understat mirror only (no FBref direct access)
+- **Regime detection not implemented:** Kalman filter doesn't reset on structural breaks (manager sacking, transfers)
+- **No opening odds:** all backtests vs closing odds — earlier lines may have more slack
+- **Holdout burned for OAGD (23-26):** walk-forward covers this period for AH but not cleanly separated
 
 ## 2026-04-03
 
