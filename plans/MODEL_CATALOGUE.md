@@ -28,11 +28,13 @@ sharpest bookmaker but paying the vig.
 | 11 | GLM + market blend | 1x2 | -11.6% | 4,312 | — | — | #44 |
 | 12 | OAGD v2 (holdout) | 1x2 | -13.5% | 5,629 | — | — | #67 |
 
-*Key caveat: intersection ROI (+0.3% to +0.9%) is from the 20-23 validate
-period only. Walk-forward 19-20 shows -1.4% ROI — the edge does not
-generalise across time periods. brms CI filter produces only 1 bet (CIs too
-wide for any confident edge). CLV (+4.5%) remains the only credibly
-profitable strategy. Ranger +18.4% was invalidated: post-match Elo leakage.*
+*Definitive walk-forward (4 models × 2 staking × 6 seasons, 19-20 to 24-25):
+No predictive model beats Pinnacle closing AH odds. Intersection (GLM∩Ranger)
+is least bad at -0.3% over 3,940 bets. 22-23 was the only positive season
+across all models — likely a market anomaly, not systematic edge. Market has
+tightened in 23-24 and 24-25. Kelly staking doesn't help (amplifies drawdowns).
+brms CI filter at relaxed threshold: -1.2% on 2,269 bets.
+CLV (+4.5%) remains the only credibly profitable strategy.*
 
 ## Calibration comparison (lower = better)
 
