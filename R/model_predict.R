@@ -190,7 +190,9 @@ lambdas_from_hda <- function(ph, pa, total = 2.7) {
 #' @family decisions
 #' @export
 ah_bets_from_preds <- function(preds, odds, matches,
-                               rho = -0.13, min_edge = 0.03) {
+                               rho = -0.13, min_edge = 0.03,
+                               use_kelly = FALSE, kelly_frac = 0.25,
+                               base_stake = 10) {
   rlang::check_required(preds)
   rlang::check_required(odds)
   rlang::check_required(matches)
@@ -233,12 +235,23 @@ ah_bets_from_preds <- function(preds, odds, matches,
       if (ah_result == 0) return(tibble::tibble())  # push — skip
 
       won <- ah_result > 0
-      net <- if (won) 10 * (pahh * 0.99 - 1) else -10
-      net <- net - 10 * 0.02
+
+      # Stake: Kelly or flat
+      if (use_kelly) {
+        kf <- kelly_fraction(p_cover, pahh, fraction = kelly_frac)
+        stake <- round(kf * 1000, 2)  # fraction of 1000-unit bankroll
+        if (stake < 1) return(tibble::tibble())  # skip tiny bets
+      } else {
+        stake <- base_stake
+      }
+
+      net <- if (won) stake * (pahh * 0.99 - 1) else -stake
+      net <- net - stake * 0.02
 
       tibble::tibble(
         match_id = mid, market = "AH_home", edge = edge,
-        odds = pahh, won = won, stake = 10, net = net
+        odds = pahh, won = won, stake = stake, net = net,
+        p_cover = p_cover
       )
     }
   )

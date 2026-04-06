@@ -104,6 +104,21 @@ plan_xgk <- list(
     }
   ),
 
+  # Per-league intercepts (mean log-goals from training period)
+  targets::tar_target(
+    league_intercepts,
+    {
+      parsed_matches |>
+        dplyr::filter(.data$season <= "1920", !is.na(.data$fthg)) |>
+        dplyr::group_by(.data$league_code) |>
+        dplyr::summarise(
+          eta_home = mean(log(pmax(.data$fthg, 0.5))),
+          eta_away = mean(log(pmax(.data$ftag, 0.5))),
+          .groups = "drop"
+        )
+    }
+  ),
+
   # xG coverage summary
   targets::tar_target(
     xg_coverage,
@@ -123,7 +138,38 @@ plan_xgk <- list(
   # Phase 2: Kalman filter on xG data
   # ====================================================================
 
-  # Run Kalman filter per league on xG-enriched matches (Tier 1 only)
+  # Tune Kalman hyperparameters per league on training data
+  targets::tar_target(
+    kalman_best_params,
+    {
+      tier1 <- c("E0", "D1", "I1", "SP1", "F1")
+      train_xg <- matches_with_xg |>
+        dplyr::filter(.data$season <= "1920", !is.na(.data$home_xg),
+                       .data$league_code %in% tier1)
+
+      if (nrow(train_xg) == 0L) {
+        return(tibble::tibble(league_code = tier1,
+                              sigma_process = 0.05, sigma_obs = 0.7))
+      }
+
+      purrr::map_dfr(tier1, function(lg) {
+        lg_data <- train_xg |> dplyr::filter(.data$league_code == lg)
+        if (nrow(lg_data) < 50L) {
+          return(tibble::tibble(league_code = lg,
+                                sigma_process = 0.05, sigma_obs = 0.7))
+        }
+        best <- kalman_tune(lg_data, use_xg = TRUE) |> dplyr::slice_head(n = 1)
+        tibble::tibble(
+          league_code = lg,
+          sigma_process = best$sigma_process,
+          sigma_obs = best$sigma_obs
+        )
+      })
+    },
+    cue = targets::tar_cue(mode = "thorough")
+  ),
+
+  # Run Kalman filter per league with tuned parameters
   targets::tar_target(
     kalman_xg_strengths,
     {
@@ -144,8 +190,12 @@ plan_xgk <- list(
         if (nrow(lg_data) < 50L) return(tibble::tibble())
 
         tryCatch({
-          s <- kalman_strengths(lg_data, sigma_process = 0.05,
-                                sigma_obs = 0.7, use_xg = TRUE)
+          params <- kalman_best_params |>
+            dplyr::filter(.data$league_code == lg)
+          sp <- if (nrow(params) > 0) params$sigma_process else 0.05
+          so <- if (nrow(params) > 0) params$sigma_obs else 0.7
+          s <- kalman_strengths(lg_data, sigma_process = sp,
+                                sigma_obs = so, use_xg = TRUE)
           s$league_code <- lg
           s
         }, error = function(e) {
@@ -204,9 +254,12 @@ plan_xgk <- list(
 
           if (nrow(ht_str) == 0L || nrow(at_str) == 0L) return(tibble::tibble())
 
-          # Lambda from Kalman strengths (home attack + away defence weakness)
-          lh <- max(0.3, exp(0.3 + ht_str$attack + at_str$defence))
-          la <- max(0.3, exp(0.1 + at_str$attack + ht_str$defence))
+          # Lambda from Kalman strengths + per-league intercepts
+          li <- league_intercepts |> dplyr::filter(.data$league_code == lg)
+          eh <- if (nrow(li) > 0) li$eta_home else 0.3
+          ea <- if (nrow(li) > 0) li$eta_away else 0.1
+          lh <- max(0.3, exp(eh + ht_str$attack + at_str$defence))
+          la <- max(0.3, exp(ea + at_str$attack + ht_str$defence))
 
           # DC-corrected score matrix
           mat <- dc_score_matrix(lh, la, rho = rho)

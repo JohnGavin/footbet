@@ -132,3 +132,87 @@ kalman_strengths <- function(matches,
 
   dplyr::bind_rows(results)
 }
+
+#' Tune Kalman filter hyperparameters via innovation log-likelihood
+#'
+#' Grid search over sigma_process and sigma_obs, maximising the
+#' sum of log-likelihoods from the Kalman innovation sequence.
+#'
+#' @param matches Tibble of matches (same format as [kalman_strengths()]).
+#' @param sigma_process_grid Numeric vector. Process noise candidates.
+#' @param sigma_obs_grid Numeric vector. Observation noise candidates.
+#' @param use_xg Logical (default TRUE).
+#' @return A tibble with one row per grid point: `sigma_process`,
+#'   `sigma_obs`, `log_lik`.
+#' @family models
+#' @export
+kalman_tune <- function(matches,
+                        sigma_process_grid = c(0.01, 0.03, 0.05, 0.08, 0.12),
+                        sigma_obs_grid = c(0.3, 0.5, 0.7, 1.0, 1.5),
+                        use_xg = TRUE) {
+  rlang::check_required(matches)
+
+  if (use_xg && all(c("home_xg", "away_xg") %in% names(matches))) {
+    home_col <- "home_xg"; away_col <- "away_xg"
+  } else {
+    home_col <- "fthg"; away_col <- "ftag"
+  }
+
+  matches <- matches |>
+    dplyr::filter(!is.na(.data[[home_col]]), !is.na(.data[[away_col]])) |>
+    dplyr::arrange(.data$match_date)
+
+  teams <- sort(unique(c(matches$home_team, matches$away_team)))
+  n_teams <- length(teams)
+  team_idx <- stats::setNames(seq_along(teams), teams)
+
+  grid <- tidyr::expand_grid(
+    sigma_process = sigma_process_grid,
+    sigma_obs = sigma_obs_grid
+  )
+
+  grid$log_lik <- purrr::map2_dbl(grid$sigma_process, grid$sigma_obs,
+    function(sp, so) {
+      state <- rep(0, 2 * n_teams)
+      P <- diag(1, 2 * n_teams)
+      Q <- diag(sp^2, 2 * n_teams)
+      R <- so^2
+      ll <- 0
+
+      for (i in seq_len(nrow(matches))) {
+        hi <- team_idx[matches$home_team[i]]
+        ai <- team_idx[matches$away_team[i]]
+        h_obs <- matches[[home_col]][i]
+        a_obs <- matches[[away_col]][i]
+
+        # Home goals update
+        H <- rep(0, 2 * n_teams)
+        H[hi] <- 1; H[n_teams + ai] <- 1
+        P_pred <- P + Q
+        S <- as.numeric(matrix(H, 1) %*% P_pred %*% matrix(H, ncol = 1)) + R
+        innov <- h_obs - sum(H * state)
+        ll <- ll - 0.5 * (log(S) + innov^2 / S)
+
+        K <- P_pred %*% matrix(H, ncol = 1) / S
+        state <- state + as.numeric(K) * innov
+        P <- (diag(2 * n_teams) - K %*% matrix(H, 1)) %*% P_pred
+
+        # Away goals update
+        H2 <- rep(0, 2 * n_teams)
+        H2[ai] <- 1; H2[n_teams + hi] <- 1
+        P_pred2 <- P + Q
+        S2 <- as.numeric(matrix(H2, 1) %*% P_pred2 %*% matrix(H2, ncol = 1)) + R
+        innov2 <- a_obs - sum(H2 * state)
+        ll <- ll - 0.5 * (log(S2) + innov2^2 / S2)
+
+        K2 <- P_pred2 %*% matrix(H2, ncol = 1) / S2
+        state <- state + as.numeric(K2) * innov2
+        P <- (diag(2 * n_teams) - K2 %*% matrix(H2, 1)) %*% P_pred2
+      }
+
+      ll
+    }
+  )
+
+  grid |> dplyr::arrange(dplyr::desc(.data$log_lik))
+}
