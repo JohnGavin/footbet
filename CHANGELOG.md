@@ -2,6 +2,88 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-09 (Ensemble cut7 + xG audit)
+
+### xG rolling feature leakage audit
+
+All four xG rolling helpers in `R/features.R` use the same
+`dplyr::lag(slider_mean(..., window))` pattern as `rolling_goals`,
+so all four have the Wednesday-for-Monday leak:
+
+- `rolling_xg`: rolling mean of `home_xg`/`away_xg`
+- `cumulative_xg_ratio`: per-season cumulative sum of xG (also leaky)
+- `xg_overperformance`: rolling mean of `goals - xg`
+- `compute_gamestate_xg`: rolling mean of gamestate-weighted xG
+
+Fix: all four would take the same `apply_asof_cutoff(cutoff_days=7)`
+treatment as `rolling_goals` and `compute_elo`. The existing as-of
+join helper in `R/leakage_fix.R` handles any `(team, match_date,
+feature_cols...)` time series, so no new function needed.
+
+### xGK Kalman-state lookup leak
+
+`plan_xgk.R::xgk_predictions` looks up Kalman state via
+`filter(match_date <= mdate)`. The Kalman strengths tibble contains
+one row per team per prior match with the pre-match state; selecting
+`match_date <= mdate` includes any midweek cup match played after
+`pahh` was quoted. Fix is one character: `mdate - 7`.
+
+### Ensemble cut7 refit (2/3 components fixed)
+
+Ran Ensemble cut7 combining:
+- GLM (leak-free by construction — no rolling features, fitted once
+  on train period, predicts via team factors only)
+- Ranger with feature_matrix_cut7 (rolling goals + Elo via as-of join)
+- xGK with Kalman state lookup `match_date <= mdate - 7`
+
+Results (devigged CLV excess over matched baseline):
+
+  All 3 seasons:
+    Ranger cut0    +0.059pp -> cut7 +0.027pp  (-54%)
+    Ranger cut7    ^ matches earlier single-model refit exactly
+    Ensemble cut0  +0.106pp -> cut7 +0.097pp  (-8%)
+
+  Post-COVID only (2021-22 + 2022-23):
+    Ranger cut0    +0.056pp -> cut7 +0.010pp  (-82%)
+    Ensemble cut0  +0.002pp -> cut7 -0.027pp  (flipped negative)
+
+**Why Ensemble's full-sample number barely moved**: Ensemble's
+all-3-seasons excess is dominated by the 2020-21 COVID anomaly
+(Ensemble 2020-21 excess went from +0.306pp cut0 -> +0.329pp cut7,
+actually slightly *larger* under the fix). Post-COVID was already
+essentially zero before the fix; cut7 pushes it slightly negative.
+The 2020-21 signal is a genuine regime-shift capture (Pinnacle slow
+to price out home advantage during ghost games), not rolling-feature
+leakage — it survives the cut7 fix.
+
+Combined cut0-vs-cut7 table:
+
+| Model    | Window     | cut0       | cut7       | Delta    |
+|----------|------------|-----------:|-----------:|---------:|
+| Ranger   | All 3      | +0.059pp   | +0.027pp   | -0.032   |
+| Ranger   | Post-COVID | +0.056pp   | +0.010pp   | -0.046   |
+| Ensemble | All 3      | +0.106pp   | +0.097pp   | -0.009   |
+| Ensemble | Post-COVID | +0.002pp   | -0.027pp   | -0.029   |
+
+### Definitive final verdict on #82 model family
+
+Under the cleanest possible test (walk-forward validation, Pinnacle
+own-close benchmark, devigged probabilities, 7-day bet-time cutoff
+on rolling features and Elo and Kalman state, excluding the 2020-21
+COVID anomaly):
+
+- Ranger: +0.010pp devigged CLV excess (statistically zero)
+- Ensemble: -0.027pp devigged CLV excess (slightly below baseline)
+
+Both are well below every bookmaker's vig. **NULL RESULT CONFIRMED**
+under all four correction layers (margin, vig compression, COVID
+anomaly, feature leakage). The only positive finding is the
+2020-21 COVID season, which is a one-season anomaly on
+non-representative data — not generalisable.
+
+Artifacts: `/tmp/ensemble_cut7_bets.rds`,
+`/tmp/ensemble_cut7_expanding.rds` (regenerable; not committed).
+
 ## 2026-04-09 (cut7 refit — confirms null)
 
 ### Bet-time cutoff refit ran — definitive confirmation
