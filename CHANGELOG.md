@@ -2,6 +2,71 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-09 (cut7 refit — confirms null)
+
+### Bet-time cutoff refit ran — definitive confirmation
+
+- Nix env drift resolved: the session was running inside the shinylive
+  shell (R binary with a different store hash than the football
+  shell's R). Invoking the football `default.nix` via
+  `nix-shell default.nix --run "Rscript ..."` from the outer shell
+  loads the correct R + ranger combination with matching ABI.
+  `default.nix` shellHook was already correct (nix-nested-shell-
+  isolation rule); no file changes needed.
+
+- Refit results (Ranger, 500 trees, same train/validate split as cut0,
+  features recomputed via `apply_asof_cutoff(cutoff_days = 7)`):
+
+  Devigged CLV excess over matched baseline:
+
+  | Window             | cut0       | cut7       | Delta   |
+  |--------------------|-----------:|-----------:|--------:|
+  | All 3 seasons      | +0.059pp   | +0.027pp   | -54%    |
+  | Post-COVID only    | +0.056pp   | **+0.010pp** | **-82%** |
+  | 2020-21 only       | +0.077pp   | +0.064pp   | -17%    |
+
+  Full-sample ROI unchanged (-1.0% cut0 -> -1.5% cut7). Bet count
+  barely changed (3376 cut0 -> 3287 cut7 full sample; 1331 -> 1312
+  post-COVID). Beat-close rate 50.7% both variants.
+
+- **Interpretation**: Post-COVID, the leakage fix removes 82% of
+  the apparent signal. The residual +0.010pp excess is
+  indistinguishable from zero (SE ~ 0.073pp at n=1,312) and
+  economically below every reasonable vig. The 2020-21 season's
+  signal (+0.064pp) is largely preserved by the cutoff refit,
+  consistent with it being real signal from a regime shift (Pinnacle
+  slow to price out home advantage during ghost-games) rather than
+  within-fold leakage — but it is a one-season anomaly result on
+  highly non-representative data.
+
+- **Reconciliation with clean-subset filter** (task from previous
+  session block):
+
+  | Test                | All 3      | Post-COVID |
+  |---------------------|-----------:|-----------:|
+  | cut0 raw            | +0.059pp   | +0.056pp   |
+  | Clean-subset filter | -0.003pp   | -0.044pp   |
+  | **cut7 refit**      | **+0.027pp** | **+0.010pp** |
+
+  The filter was slightly harsher because it restricts to matches
+  where neither team had a recent fixture (a biased sub-population
+  excluding Europe/cup weeks). The refit uses the full validation
+  set with leak-free features and is the more honest test. Both
+  agree qualitatively: signal approaches zero under post-COVID +
+  leakage-corrected conditions.
+
+- **Artifacts saved**: `/tmp/ranger_cut7_bets.rds` and
+  `/tmp/ranger_cut7_expanding.rds` (not committed — regenerable
+  from the targets pipeline via `plan_cutoff.R`).
+
+- **Final verdict** (now with refit confirmation): Null result on
+  the Ranger AH model family. Under the cleanest possible test
+  (walk-forward validation, Pinnacle-own-close benchmark, devigged
+  probabilities, 7-day bet-time cutoff on rolling features and Elo,
+  excluding the 2020-21 COVID anomaly), devigged CLV excess is
+  +0.010pp — statistically zero, economically nowhere near covering
+  any bookmaker's vig.
+
 ## 2026-04-09 (continued)
 
 ### Decisive leakage test: clean-subset CLV
