@@ -2,6 +2,68 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-09 (continued)
+
+### Decisive leakage test: clean-subset CLV
+
+- **Motivation**: filter existing Ranger/Ensemble bets to matches
+  where NEITHER team played in the 7 days before kickoff (n=20,848,
+  50.2% of dataset). Under this restriction the Wednesday-for-Monday
+  rolling-feature leak cannot apply. If the models have real skill,
+  the devigged CLV excess should survive the filter; if the skill
+  was leakage, the excess should collapse. This is a filter (not a
+  refit) and serves as an upper bound on the surviving signal.
+
+- **Result — all 3 validation seasons, devigged excess over matched baseline**:
+  - Ranger all matches:   +0.059pp -> clean only:  -0.003pp (signal gone)
+  - Ensemble all matches: +0.106pp -> clean only:  +0.076pp (partial survival)
+
+- **Result — post-COVID only (2021-22 + 2022-23)**:
+  - Ranger all matches:   +0.056pp -> clean only:  -0.044pp (below baseline)
+  - Ensemble all matches: +0.002pp -> clean only:  -0.199pp (sharply negative)
+
+- **Interpretation**: every variant that showed any positive signal
+  either loses it or reverses it in the leak-free subset. Under the
+  strictest view (post-COVID + clean), both models UNDERPERFORM a
+  random unselected baseline. The previously-reported +0.09-0.14pp
+  devigged CLV excess was leakage. Null-result verdict on the
+  xG+Kalman+DC+Ranger+Ensemble AH model family now holds with very
+  high confidence.
+
+- **Pending**: a full refit with ranger available (currently blocked
+  by nix-shell env drift — ranger is in DESCRIPTION and default.nix
+  but not picked up by R_LIBS_SITE in the running shell) would
+  confirm the filter result with a from-scratch training on cut7
+  features. The refit infrastructure is already in place
+  (`R/leakage_fix.R::apply_asof_cutoff`, `R/tar_plans/plan_cutoff.R`
+  with feature_matrix_cut7 + oos_ranger_cut7_predictions +
+  oos_ah_cutoff_comparison); only the Ranger fit step currently
+  errors out.
+
+- **New permanent infrastructure committed this session**:
+  - `R/clv.R::expanding_clv_window()`: cumulative-through-season
+    CLV with baseline comparison and excess calculation.
+  - `R/leakage_fix.R::apply_asof_cutoff()`: as-of join for bet-time
+    cutoff on any per-team feature time series.
+  - `R/tar_plans/plan_clv.R`: `oos_ah_*_clv_expanding` targets.
+  - `R/tar_plans/plan_cutoff.R`: `feature_matrix_cut7`,
+    `oos_ranger_cut7_predictions`, `oos_ah_ranger_cut7*`,
+    `oos_ah_cutoff_comparison` — runnable once ranger env is fixed.
+
+- **Additional findings logged this session**:
+  - **min_edge sweep** (0.020 -> 0.030) is flat: ~170-bet difference
+    in count, <0.01pp difference in devigged excess, <0.5pp difference
+    in ROI. The 3% threshold is conservative but not optimal; 2.25%
+    or 2.5% would capture more bets at essentially identical quality.
+    Break-even is roughly half the overround (~1.25% at Pinnacle's
+    2.5% vig), so 3% provides ~1.75pp buffer above break-even.
+  - **2020-21 season is the anomaly**. COVID ghost games produced
+    a negative baseline devig CLV (-0.121pp) as Pinnacle was slow
+    to price out home advantage. Ensemble's entire full-sample
+    edge came from this one season. Post-COVID (2021-22 + 2022-23)
+    Ensemble excess = +0.002pp (zero). Ranger post-COVID excess =
+    +0.056pp (before leakage filter) / -0.044pp (after).
+
 ## 2026-04-09
 
 ### Leakage audit + devigged CLV — corrected posterior on #82

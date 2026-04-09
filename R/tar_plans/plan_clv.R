@@ -43,5 +43,38 @@ plan_clv <- list(
       oos_ah_ranger_clv_summary,
       oos_ah_ensemble_clv_summary
     )
+  ),
+
+  # ------------------------------------------------------------------
+  # Expanding-window devigged CLV with baseline comparison.
+  # Reveals whether the model's excess CLV is stable as the sample
+  # accumulates (real signal) or shrinks (noise or regime artefact).
+  # ------------------------------------------------------------------
+
+  targets::tar_target(
+    clv_validation_seasons,
+    c("2020-21", "2021-22", "2022-23")
+  ),
+
+  targets::tar_target(
+    oos_ah_ranger_clv_expanding,
+    expanding_clv_window(
+      bets = oos_ah_ranger,
+      odds = parsed_odds,
+      closing = closing_ah_prices,
+      scenario = "Ranger",
+      seasons = clv_validation_seasons
+    )
+  ),
+
+  targets::tar_target(
+    oos_ah_ensemble_clv_expanding,
+    expanding_clv_window(
+      bets = oos_ah_ensemble,
+      odds = parsed_odds,
+      closing = closing_ah_prices,
+      scenario = "Ensemble",
+      seasons = clv_validation_seasons
+    )
   )
 )

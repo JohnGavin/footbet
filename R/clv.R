@@ -237,3 +237,122 @@ summarise_ah_clv <- function(bets_with_clv, scenario) {
 
   dplyr::bind_rows(overall, by_league)
 }
+
+#' Expanding-window devigged CLV with baseline comparison
+#'
+#' Produces cumulative devigged CLV through each season in the validation
+#' window, for a model bet tibble and an unselected same-line baseline.
+#' Reveals whether a model's excess CLV is stable as the sample grows
+#' (real signal) or shrinks (noise, regime artefact).
+#'
+#' Devigging strips Pinnacle's vig from both opening and closing pair
+#' prices via multiplicative normalisation: `fair = (1/p) / (1/pH + 1/pA)`.
+#' The per-match devigged CLV is `fair_close_home - fair_open_home`,
+#' expressed in probability points.
+#'
+#' @param bets Tibble from `ah_bets_from_preds()` with `match_id`. Can
+#'   be empty to produce a baseline-only result.
+#' @param odds Tibble with `match_id`, `pahh`, `paha`, `ah_line`.
+#' @param closing Tibble from `load_closing_ah_prices()` with `pcahh`,
+#'   `pcaha`, `ah_line_close`.
+#' @param scenario Character label for the bet tibble.
+#' @param seasons Character vector of validation seasons to iterate
+#'   through (e.g. `c("2020-21","2021-22","2022-23")`). Each row of the
+#'   output is cumulative through `seasons[1:k]`.
+#' @return Tibble with one row per cumulative-through-season per
+#'   scenario, plus a matched-seasons baseline row per cumulative
+#'   window. Columns include `n_bets`, `devig_clv_pp`,
+#'   `devig_clv_ci_lo`/`hi`, `devig_excess_pp` (scenario minus matched
+#'   baseline), `decimal_clv_pct` for reference.
+#' @family decisions
+#' @export
+expanding_clv_window <- function(bets, odds, closing, scenario, seasons) {
+  rlang::check_required(odds)
+  rlang::check_required(closing)
+  rlang::check_required(scenario)
+  rlang::check_required(seasons)
+
+  parse_season_from_match_id <- function(match_id) {
+    d <- as.Date(sub("^[A-Z0-9]+_(\\d{4}-\\d{2}-\\d{2})_.*$", "\\1", match_id))
+    y <- as.integer(format(d, "%Y"))
+    m <- as.integer(format(d, "%m"))
+    ifelse(m >= 7L, paste0(y, "-", substr(y + 1L, 3, 4)),
+                    paste0(y - 1L, "-", substr(y, 3, 4)))
+  }
+
+  odds_joined <- odds |>
+    dplyr::select("match_id", "pahh", "paha", "ah_line") |>
+    dplyr::inner_join(
+      closing |> dplyr::select("match_id", "pcahh", "pcaha", "ah_line_close"),
+      by = "match_id"
+    ) |>
+    dplyr::filter(
+      !is.na(.data$pahh), !is.na(.data$paha),
+      !is.na(.data$pcahh), !is.na(.data$pcaha),
+      .data$pahh > 1, .data$paha > 1,
+      .data$pcahh > 1, .data$pcaha > 1,
+      !is.na(.data$ah_line_close),
+      .data$ah_line == .data$ah_line_close
+    ) |>
+    dplyr::mutate(
+      season = parse_season_from_match_id(.data$match_id),
+      fair_open_h  = (1 / .data$pahh)  / (1 / .data$pahh  + 1 / .data$paha),
+      fair_close_h = (1 / .data$pcahh) / (1 / .data$pcahh + 1 / .data$pcaha),
+      devig_clv_h   = .data$fair_close_h - .data$fair_open_h,
+      decimal_clv_h = .data$pahh / .data$pcahh - 1
+    ) |>
+    dplyr::filter(.data$season %in% seasons)
+
+  summarise_cum <- function(df, label) {
+    n <- nrow(df)
+    if (n == 0L) return(NULL)
+    dm <- mean(df$decimal_clv_h)
+    vm <- mean(df$devig_clv_h)
+    vse <- stats::sd(df$devig_clv_h) / sqrt(n)
+    tibble::tibble(
+      scenario = label, n_bets = n,
+      decimal_clv_pct = round(100 * dm, 3),
+      devig_clv_pp    = round(100 * vm, 3),
+      devig_clv_ci_lo = round(100 * (vm - 1.96 * vse), 3),
+      devig_clv_ci_hi = round(100 * (vm + 1.96 * vse), 3)
+    )
+  }
+
+  bet_joined <- if (!is.null(bets) && nrow(bets) > 0L) {
+    bets |>
+      dplyr::inner_join(
+        odds_joined |> dplyr::select("match_id", "season", "decimal_clv_h", "devig_clv_h"),
+        by = "match_id"
+      ) |>
+      dplyr::filter(!is.na(.data$devig_clv_h))
+  } else {
+    NULL
+  }
+
+  rows <- purrr::map_dfr(seq_along(seasons), function(k) {
+    cum_seasons <- seasons[1:k]
+
+    bl <- odds_joined |> dplyr::filter(.data$season %in% cum_seasons)
+    bl_row <- summarise_cum(bl, "Baseline")
+    if (!is.null(bl_row)) bl_row$through_season <- seasons[k]
+
+    model_row <- NULL
+    if (!is.null(bet_joined)) {
+      cum <- bet_joined |> dplyr::filter(.data$season %in% cum_seasons)
+      model_row <- summarise_cum(cum, scenario)
+      if (!is.null(model_row)) {
+        model_row$through_season <- seasons[k]
+        model_row$devig_excess_pp <- round(model_row$devig_clv_pp - bl_row$devig_clv_pp, 3)
+      }
+    }
+    if (!is.null(bl_row)) bl_row$devig_excess_pp <- 0
+    dplyr::bind_rows(bl_row, model_row)
+  })
+
+  rows |>
+    dplyr::select(
+      "scenario", "through_season", "n_bets",
+      "decimal_clv_pct", "devig_clv_pp",
+      "devig_clv_ci_lo", "devig_clv_ci_hi", "devig_excess_pp"
+    )
+}

@@ -40,6 +40,7 @@ c(
   plan_doc_examples,
   plan_oos,
   plan_clv,
+  plan_cutoff,
   plan_oagd,
   plan_xgk,
   plan_vignette_outputs,
