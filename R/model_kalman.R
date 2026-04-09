@@ -33,7 +33,12 @@ kalman_update <- function(state, P, observation, H, Q, R) {
   state_new <- state_pred + as.numeric(K) * (observation - y_hat)
   P_new <- (diag(length(state)) - K %*% H_mat) %*% P_pred
 
-  list(state = state_new, P = P_new, innovation = observation - y_hat)
+  list(
+    state = state_new, P = P_new,
+    innovation = observation - y_hat,
+    S = S,
+    std_innovation = (observation - y_hat) / sqrt(S)
+  )
 }
 
 #' Run Kalman filter over a season for one league
@@ -49,14 +54,23 @@ kalman_update <- function(state, P, observation, H, Q, R) {
 #'   Single-match xG/goals noise.
 #' @param use_xg Logical. If TRUE, use `home_xg`/`away_xg` columns.
 #'   If FALSE, use `fthg`/`ftag` (default TRUE).
+#' @param record_innovations Logical. If TRUE, return a list with both
+#'   `strengths` and `innovations` (a tibble with `match_date`, `home_team`,
+#'   `away_team`, `side` ("home"/"away"), `observation`, `y_hat`, `S`,
+#'   `innovation`, `std_innovation`). Use post-hoc to diagnose regime
+#'   breaks: `abs(std_innovation) > 3` sustained over several matches for
+#'   a given team suggests a structural change not captured by the
+#'   steady-state process noise. Default FALSE for backwards compatibility.
 #' @return A tibble with `team`, `match_date`, `matchday`,
-#'   `attack`, `defence` (pre-match strength estimates).
+#'   `attack`, `defence` (pre-match strength estimates). If
+#'   `record_innovations = TRUE`, a list with `strengths` and `innovations`.
 #' @family models
 #' @export
 kalman_strengths <- function(matches,
                              sigma_process = 0.05,
                              sigma_obs = 0.7,
-                             use_xg = TRUE) {
+                             use_xg = TRUE,
+                             record_innovations = FALSE) {
   rlang::check_required(matches)
 
   # Choose observation columns
@@ -92,6 +106,8 @@ kalman_strengths <- function(matches,
   # Record pre-match strengths
   results <- vector("list", nrow(matches) * 2L)
   idx <- 1L
+  innov_log <- if (record_innovations) vector("list", nrow(matches) * 2L) else NULL
+  inv_idx <- 1L
 
   for (i in seq_len(nrow(matches))) {
     ht <- matches$home_team[i]
@@ -126,11 +142,38 @@ kalman_strengths <- function(matches,
     H_away[n_teams + hi] <- 1  # home defence
     upd_a <- kalman_update(upd_h$state, upd_h$P, a_obs, H_away, Q, R)
 
+    if (record_innovations) {
+      y_hat_h <- h_obs - upd_h$innovation
+      y_hat_a <- a_obs - upd_a$innovation
+      innov_log[[inv_idx]] <- list(
+        match_date = matches$match_date[i], home_team = ht, away_team = at,
+        side = "home", observation = h_obs, y_hat = y_hat_h,
+        S = upd_h$S, innovation = upd_h$innovation,
+        std_innovation = upd_h$std_innovation
+      )
+      innov_log[[inv_idx + 1L]] <- list(
+        match_date = matches$match_date[i], home_team = ht, away_team = at,
+        side = "away", observation = a_obs, y_hat = y_hat_a,
+        S = upd_a$S, innovation = upd_a$innovation,
+        std_innovation = upd_a$std_innovation
+      )
+      inv_idx <- inv_idx + 2L
+    }
+
     state <- upd_a$state
     P <- upd_a$P
   }
 
-  dplyr::bind_rows(results)
+  strengths <- dplyr::bind_rows(results)
+
+  if (record_innovations) {
+    list(
+      strengths = strengths,
+      innovations = dplyr::bind_rows(innov_log)
+    )
+  } else {
+    strengths
+  }
 }
 
 #' Tune Kalman filter hyperparameters via innovation log-likelihood

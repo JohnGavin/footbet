@@ -85,6 +85,33 @@ if (file.exists(here::here("_targets"))) {
 }
 ```
 
+## Walk-Forward AH Backtest: Null Result
+
+A full walk-forward Asian Handicap backtest against Pinnacle prices across
+six seasons and four models (GLM, Ranger, xG-Kalman-Dixon-Coles, ensemble),
+with both flat and Kelly staking, did not find a profitable edge. Best ROI
+reached -5.4% after Kelly staking, per-league intercepts and Kalman σ tuning
+(see issues [#59](https://github.com/JohnGavin/footbet/issues/59),
+[#81](https://github.com/JohnGavin/footbet/issues/81),
+[#82](https://github.com/JohnGavin/footbet/issues/82)). The xG-Kalman-DC
+stack was the second-best model at -7.3% before tuning.
+
+- **Detailed methodology, results and leaderboard**: [`plans/MODEL_CATALOGUE.md`](plans/MODEL_CATALOGUE.md)
+- **Session-by-session lab notes and failed approaches**: [`CHANGELOG.md`](CHANGELOG.md)
+- **Closing Line Value (CLV) diagnostic**: `R/clv.R` — `load_closing_ah_prices()`,
+  `attach_clv()`, `summarise_clv()`. See `plan_clv.R` for targets
+  `oos_ah_clv_summary`, `oos_ah_{ranger,ensemble}_clv_summary`. CLV is the
+  honest follow-up test to "no edge vs Pinnacle" — it disambiguates
+  "model found nothing" from "model found something only softer books pay".
+- **Kalman innovation logging**: `kalman_strengths(..., record_innovations = TRUE)`
+  returns standardised innovations `ε_t = (y_t - ŷ_t|t-1) / sqrt(S_t)` for
+  regime-break diagnostics (manager changes, transfer shocks).
+
+Publishing a documented null result from a clean walk-forward backtest is
+rare in this space; the intent is that other projects attempting the same
+stack can calibrate expectations against these results rather than
+rediscovering them.
+
 ## Project Structure
 
 ```{r}

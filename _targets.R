@@ -39,6 +39,7 @@ c(
   plan_transfers,
   plan_doc_examples,
   plan_oos,
+  plan_clv,
   plan_oagd,
   plan_xgk,
   plan_vignette_outputs,

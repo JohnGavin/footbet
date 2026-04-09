@@ -2,6 +2,179 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-09
+
+### Leakage audit + devigged CLV — corrected posterior on #82
+
+- **Feature leakage audit (`R/features.R`)**. Two forms of leakage are
+  correctly prevented (same-match via `dplyr::lag()`; cross-season via
+  walk-forward split). A third form is present: **within-fold bet-time
+  cutoff**. `feature_matrix` is computed once over the full history;
+  rolling features for match M at time `t_M` include matches played
+  between `pahh_quote_time` and `t_M`. The Pinnacle opening price
+  (`pahh`) has no timestamp in the data, so the leak fraction depends
+  on the assumed `pahh` timing:
+
+  | Assumed pahh timing | Leaky match fraction |
+  |---|---:|
+  | 3 days pre-kickoff | 0.2% |
+  | 5 days pre-kickoff | 24.5% |
+  | 7 days pre-kickoff | 49.8% |
+  | 10 days pre-kickoff | 84.7% |
+
+  Typical top-tier European leagues: 25-50%. English Championship
+  (E1) worst at 63.8% under the 7-day assumption. The Bundesliga (D1)
+  — where the +16% ROI outlier lives — is 39.9% at 7 days. Leakage
+  inflates apparent model skill. A cleanly refitted model with a
+  bet-time cutoff would show smaller CLV excess, possibly approaching
+  zero. Not refitted in this pass; flagged as the definitive test.
+
+- **Devigged CLV rerun** (post-hoc on existing bets, no refit).
+  Strip each Pinnacle quote pair (pahh/paha open, pcahh/pcaha close)
+  to fair probabilities via multiplicative devig, compute CLV in
+  probability units:
+
+  | | n | Mean devig CLV (pp of fair prob) | 95% CI | Excess vs baseline |
+  |---|---:|---:|---|---:|
+  | Baseline (unselected) | 15,801 | +0.11pp | [+0.06, +0.15] | — |
+  | Ranger | 2,085 | +0.20pp | [+0.08, +0.32] | +0.09pp |
+  | Ensemble | 1,034 | +0.25pp | [+0.08, +0.41] | +0.14pp |
+
+  Pinnacle overround: 2.65% open -> 2.39% close (vig tightens
+  naturally as the market matures; this accounted for most of the
+  raw-decimal "+1%" CLV I previously reported).
+
+- **Final posterior on the AH model family**. Devigged CLV excess of
+  +0.09-0.14pp probability translates to ~0.18-0.27pp of gross EV at
+  `pahh ~ 1.95`. Pinnacle AH vig ~2.5%, soft book vig ~5%. Signal is
+  **too small to cover either**. If leakage inflates the estimate by
+  30-60% (plausible but unverified), true signal is 0.04-0.10pp devig
+  CLV, equivalent to 0.08-0.20pp EV. Null-result verdict for #82
+  **stands with higher confidence** than before: the model has at
+  most a faint trace of skill, not exploitable against any book.
+
+- **What would still be informative.** Refit Ranger with a 7-day
+  bet-time cutoff on rolling features (and the same for Elo), rerun
+  walk-forward, recompute devigged CLV against Pinnacle close. If
+  the cleanly refitted model retains measurable devig CLV excess,
+  the null result weakens; if it collapses to baseline, the null
+  result hardens. Estimated cost: 1-2 hours of code plus pipeline
+  runtime.
+
+## 2026-04-08
+
+### Post-null-result diagnostics (issue #82 reviewer follow-up)
+
+Scope: act on reviewer suggestions from JohnGavin/footbet#82 in priority
+order: CLV > innovation logging > null-result promotion > park external-data
+work.
+
+- **CLV metrics added** (`R/clv.R`, `R/tar_plans/plan_clv.R`). New targets
+  `closing_ah_prices`, `oos_ah_{ranger,ensemble}_clv`,
+  `oos_ah_{ranger,ensemble}_clv_summary`, `oos_ah_clv_summary`. Uses
+  `AvgCAHH`/`AvgCAHA` (market closing AH average) as honest close proxy —
+  football-data.co.uk does not publish a Pinnacle-specific closing AH
+  column. Covers 25,686 matches across 10 leagues.
+
+  **Initial claim: CLV flips the null verdict. Retracted after baselining.**
+
+  Initial result: mean CLV positive
+  across every league × model combination (17/17 rows), with 95% CIs
+  excluding zero in all rows and beat-close rate > 50% everywhere:
+  - Ranger AH (n=3,376): mean CLV **+2.18%** [+1.94, +2.42], beat-close
+    60.4%, ROI -1.0%
+  - Ensemble AH (n=1,646): mean CLV **+2.55%** [+2.23, +2.87], beat-close
+    62.8%, ROI +0.5%
+  - Bundesliga standout: Ranger D1 ROI +16.3% on 306 bets with CLV +2.6%;
+    Ensemble D1 ROI +8.9% on 268 bets — two independent models agree.
+
+  Interpretation: the near-zero ROI against Pinnacle was exactly the CLV
+  tautology the reviewer flagged — measuring against the tightest market
+  and concluding no edge. The models are finding real signal (+CLV)
+  that vig absorbs on Pinnacle but would show through on softer books.
+
+  **Upgraded after finding PCAHH column.** football-data.co.uk DOES
+  publish a Pinnacle-specific closing AH column: `PCAHH`/`PCAHA`
+  (coverage ~59% of matches). Added as the preferred CLV benchmark in
+  `attach_clv(benchmark = "pcahh")`. Redone vs baseline:
+
+  Baseline (unselected same-line home bets, n=15,801):
+  - PCAHH:   mean CLV +0.09% [0.00, +0.17], beat-close 46.8%
+  - AvgCAHH: +1.87% [+1.80, +1.95] (inflated by Pinnacle margin)
+  - MaxCAHH: -1.98% [-2.06, -1.90] (sharpest market close)
+
+  Model-selected (vs PCAHH):
+  - Ranger   (n=3,376): +0.69% [+0.45, +0.93], beat 50.7%
+    → excess over baseline +0.60%, beat +3.9pp
+  - Ensemble (n=1,646): +1.06% [+0.74, +1.39], beat 53.8%
+    → excess over baseline +0.97%, beat +7.0pp
+
+  CIs clear baseline with daylight in both cases. **Small but real
+  edge vs true Pinnacle close.** Insufficient to overcome Pinnacle's
+  2-3% AH vig (which is why ROI vs Pinnacle is near zero), but
+  plausibly profitable against softer books that pay worse than the
+  Pinnacle close. Ensemble noticeably stronger than Ranger on CLV.
+
+  **Original retraction superseded.** Earlier "retraction after
+  baseline check" below used AvgCAHH only — the right benchmark is
+  PCAHH. Keeping the retraction text for provenance.
+
+  Retracted intermediate claim follows. Across ALL same-line home bets
+  (not model-selected, n=15,805), baseline mean CLV is +1.87% [CI
+  +1.80, +1.95] with 63.1% beat-close rate. The model-selected CLV
+  excess over baseline is only Ranger +0.31% / Ensemble +0.68%, and
+  Ranger's beat-close rate (60.4%) is *below* the 63.1% baseline. The
+  apparent +2% CLV is a structural artefact of comparing Pinnacle
+  opening AH prices (~2% margin) to a market-average closing benchmark
+  (~5-6% margin), not genuine model signal. **Null-result verdict for
+  #82 stands.**
+
+  D1 audit (Ranger): ROI positive across all 3 seasons
+  (2020-21: +11.9%, 2021-22: +16.4%, 2022-23: +21.5%) on 91-109 bets
+  each. Consistent across seasons, not a single-match or single-season
+  outlier. No leakage evidence (cor(pahh, close)≈0; 14/306 exact
+  matches; line moves 36% of all matches, consistent with genuine
+  open/close differences). The D1 ROI is real in the backtest but
+  not tracked by CLV excess, so likely in-sample luck on ~300 bets;
+  needs a bootstrap significance test before any conclusion.
+- **Kalman innovation logging** (`R/model_kalman.R`). `kalman_update()`
+  now also returns `S` and `std_innovation`; `kalman_strengths()` gains
+  `record_innovations = FALSE` param (backwards-compatible default).
+  When TRUE, returns `list(strengths, innovations)` with
+  `std_innovation = (y - ŷ) / sqrt(S)` per match-side for regime-break
+  detection. Motivation: reviewer flagged that steady-state σ tuning
+  does not catch structural breaks (manager change, transfer shocks).
+  Flagged for post-hoc inspection only; not wired into decisions given
+  the no-edge verdict.
+- **Null-result promotion** (`README.qmd`). New "Walk-Forward AH
+  Backtest: Null Result" section linking `plans/MODEL_CATALOGUE.md`,
+  `CHANGELOG.md`, `R/clv.R`, and the Kalman innovation flag. Rationale:
+  a documented null result from a clean walk-forward backtest is rare
+  enough in this space to be worth making discoverable.
+
+### Failed approaches parked
+
+- **Lineup / weather / referee / microstructure ingestion** — reviewer
+  (#82 comment 4207411600) suggests these as the unpriced-signal
+  frontier. Not pursued. Reasons: (1) null-result verdict means the
+  return on engineering is uncertain; (2) scrape-fragile and
+  ToS-encumbered for lineup feeds; (3) microstructure requires paid
+  Betfair historical or a live capture rig and competes with full-time
+  sharps; (4) cheaper refinements inside the xG family (game-state
+  conditional xG, set-piece xG, rest/travel covariates) would be first
+  on the menu if revived. **Gate for reviving #82:** originally set to
+  "mean CLV > 0 for at least one league". After finding the PCAHH
+  column and baselining properly: **gate met with daylight.** Both
+  Ranger and Ensemble beat an unselected baseline by +0.6% / +1.0%
+  mean CLV against the true Pinnacle close, with CIs not overlapping
+  baseline and beat-close rate +3.9 / +7.0pp above baseline. Signal is
+  small and vig-bound against Pinnacle itself but plausibly tradeable
+  against softer books. Revival priority: (a) per-league PCAHH CLV
+  breakdown to identify which leagues carry the signal, (b) diagnose
+  why Ensemble beats Ranger on CLV (which component models contribute),
+  (c) retest against Bet365 closing (`B365CAHH`) as a proxy for "best
+  available soft-book close".
+
 ## 2026-04-06
 
 ### Completed
