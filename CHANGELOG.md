@@ -2,6 +2,54 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-09 (xG rolling features cut7 — code correctness)
+
+### xG rolling features cut7 fix (plan_xg_features.R)
+
+Added leak-free variants of the xG evaluation targets:
+
+- `feature_matrix_xg_cut7`: as-of-cutoff (7 days) join of xg_features
+  onto parsed_matches via `apply_asof_cutoff`. Parallel to the
+  existing `feature_matrix_xg`.
+- `long_df_xg_cut7`: long-format variant with cut7 xG joined on
+  (team, match_date).
+- `cv_xg_features_cut7`: walk-forward CV on cut7 long format.
+- `xg_vs_goals_cut7_comparison`: side-by-side of goals_only,
+  xg_cut0, and xg_cut7 on log_loss / Brier / RPS.
+
+Result:
+
+| model              | log_loss | Brier | RPS   | folds |
+|--------------------|---------:|------:|------:|------:|
+| goals_only         | 1.07     | 0.620 | 0.211 | 779   |
+| xg_cut0 (leaky)    | 1.00     | 0.591 | 0.202 | 406   |
+| xg_cut7 (clean)    | 1.00     | 0.592 | 0.202 | 406   |
+
+**xG features show a real ~7% log-loss improvement over goals-only
+AND that improvement survives the cut7 fix unchanged.** Unlike the
+AH bet CLV analysis (where cut7 killed the Ranger/Ensemble signal),
+the xG vs goals predictive advantage is robust to leakage correction.
+
+Why the difference: walk-forward CV log_loss averages across all
+test-fold matches, where leakage contaminates only the ~50% with
+midweek fixtures and is diluted in the mean. Per-match CLV against
+the Pinnacle close, by contrast, is *selection-sensitive*: leakage
+creates spurious signal in exactly the matches the model tends to
+bet, so the cut7 fix had dramatic effect on bet CLV but none on
+average-calibration metrics.
+
+### Scope clarification
+
+None of the four xG rolling helpers (`rolling_xg`,
+`cumulative_xg_ratio`, `xg_overperformance`, `compute_gamestate_xg`)
+are consumed by the #82 AH bet decision path. The Ranger uses
+`feature_matrix` (rolling_goals + Elo, no xG); the xGK uses
+`kalman_xg_strengths` built directly from matches_with_xg via
+`kalman_strengths()`, bypassing the xG rolling helpers entirely.
+The fix is pure code-correctness for the research/evaluation
+targets in plan_xg_features.R, with zero impact on the #82 null
+verdict.
+
 ## 2026-04-09 (Ensemble cut7 + xG audit)
 
 ### xG rolling feature leakage audit
