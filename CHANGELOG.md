@@ -2,6 +2,13 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-10 — xG per-league + calibration (#84) + snapshot tests (#65)
+
+### #65: Phase 3 Snapshot Tests (closed)
+- 8 snapshot tests for mermaid diagram generators + HTML/fenced wrappers
+- 2 assertion tests for return types and dark theme colors
+- Total: 10 tests, all pass
+
 ## 2026-04-10 — xG per-league breakdown + calibration (#84)
 
 ### Completed
