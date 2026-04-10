@@ -2,6 +2,70 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-10 — session end
+
+### Completed (multi-day session, 2026-04-08 through 2026-04-10)
+
+- CLV diagnostic infrastructure: `R/clv.R` (load_closing_ah_prices,
+  attach_clv, summarise_ah_clv, expanding_clv_window), `R/tar_plans/plan_clv.R`
+- Bet-time cutoff infrastructure: `R/leakage_fix.R` (apply_asof_cutoff),
+  `R/tar_plans/plan_cutoff.R` (feature_matrix_cut7, oos_ranger_cut7_*)
+- Kalman innovation logging: `R/model_kalman.R` record_innovations param
+- xG rolling features cut7 code correctness fix in plan_xg_features.R
+- Nine-round CLV correction arc, ending at devigged post-COVID cut7
+  excess: Ranger +0.010pp, Ensemble -0.027pp (both zero)
+- Issue #82 closed as definitive null with full audit trail
+- Issue #84 opened for the positive xG-vs-goals finding (~7% log-loss)
+- Replied to #82 comments (4189523456, 4207411600, 4206106931, 4216116603)
+- README.qmd: Walk-Forward AH Backtest: Null Result section
+
+### Failed Approaches
+
+- **Raw decimal CLV vs AvgCAHH**: +2.18% was 95% Pinnacle-vs-market
+  margin artefact. Fix: use PCAHH (same bookmaker close).
+- **Raw decimal CLV vs PCAHH without devigging**: +0.60pp included vig
+  compression (2.65% -> 2.39%). Fix: devig both price pairs first.
+- **Devigged CLV without post-COVID exclusion**: Ensemble's +0.14pp
+  was entirely 2020-21 COVID anomaly. Fix: exclude ghost-games season.
+- **Devigged CLV without bet-time cutoff**: Ranger's +0.056pp was
+  within-fold rolling-feature leakage (~50% of matches affected).
+  Fix: 7-day as-of cutoff on rolling features + Elo + Kalman state.
+- **nix-shell --run with R_LIBS_SITE augmentation for ranger**: crew
+  workers don't inherit env vars; Sys.setenv doesn't propagate;
+  tar_option_set(controller=NULL) doesn't override _targets.R.
+  Fix: invoke football nix-shell directly via nix-shell default.nix --run.
+- **Ranger SIGSEGV loading from shinylive shell**: ABI mismatch between
+  ranger .so compiled for football-shell R and the running shinylive
+  R binary. Fix: invoke via the correct nix-shell; default.nix already
+  has the nix-nested-shell-isolation shellHook.
+
+### Accuracy / Metrics
+
+- Final CLV (post-COVID cut7 devigged excess over baseline):
+  Ranger +0.010pp, Ensemble -0.027pp — both statistically zero
+- xG vs goals-only: log_loss 1.07 → 1.00 (~7% improvement),
+  survives cut7 unchanged (1.00 → 1.00)
+- min_edge sweep (2.0% → 3.0%): flat, <0.01pp CLV variation
+- 5 commits, 1,255 lines added, 0 tests broken
+
+### Known Limitations
+
+- Full Ensemble cut7 ran xGK Kalman-lookup cutoff but did NOT apply
+  as-of cutoff to the xG rolling helpers upstream of kalman_strengths.
+  Those helpers don't feed the AH bet path (Kalman reads matches_with_xg
+  directly), so the #82 null verdict is unaffected, but a future model
+  using feature_matrix_xg should use feature_matrix_xg_cut7 instead.
+- Ranger cut7 refit ran outside targets (via nix-shell --run Rscript)
+  because crew workers in the shinylive shell can't load ranger.
+  The plan_cutoff.R targets are correct but need the football nix-shell
+  to build. Artifacts saved to /tmp/ranger_cut7_*.rds (regenerable).
+- No bootstrap significance test on the D1 ROI outlier (+16.3% Ranger,
+  +8.9% Ensemble across 3 seasons). The per-season breakdown is
+  consistent but n=91-109/season is small.
+- `pahh` has no timestamp in football-data.co.uk data. The 7-day cutoff
+  is conservative for top-tier leagues but may be too aggressive for
+  lower tiers where Pinnacle opens markets later (3-5 days before).
+
 ## 2026-04-09 (xG rolling features cut7 — code correctness)
 
 ### xG rolling features cut7 fix (plan_xg_features.R)
