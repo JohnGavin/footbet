@@ -2,6 +2,22 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-10 — xG per-league breakdown + calibration (#84)
+
+### Completed
+- Per-league xG vs goals-only comparison: all 5 leagues improve (EPL/I1 +1.6%, D1 +1.3%, F1 +0.9%, SP1 +0.2%)
+- Dixon-Coles vs GLM+xG: DC barely beats GLM on goals (1.017 vs 1.018), xG beats both (1.003)
+- Calibration infrastructure: `collect_fold_predictions()`, `reliability_curve_data()` in models_eval.R
+- Reliability curves + Brier decomposition targets: xG improves resolution, not reliability
+- New targets: `xg_per_league_comparison`, `dc_vs_glm_xg_era`, `xg_calibration_data`, `xg_reliability_curves`, `xg_brier_decomposition`
+- README.qmd updated with per-league and DC comparison data
+- Issue #84 comment with full results
+
+### Accuracy / Metrics
+- xG log-loss improvement by league: EPL +1.56%, I1 +1.64%, D1 +1.30%, F1 +0.85%, SP1 +0.23%
+- Brier decomposition: reliability ~0.0006 (both models), resolution 0.0187→0.0189 (xG better)
+- BSS: goals 0.081 → xG 0.082
+
 ## 2026-04-10 — session end
 
 ### Completed (multi-day session, 2026-04-08 through 2026-04-10)

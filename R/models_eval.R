@@ -957,6 +957,43 @@ brier_decomposition_1x2 <- function(prob_h, prob_d, prob_a, actual, n_bins = 10L
   dplyr::bind_rows(by_outcome, overall)
 }
 
+#' Compute reliability curve data for calibration plots
+#'
+#' Bins predicted probabilities and computes observed frequency in each bin.
+#' Produces data suitable for a reliability diagram (calibration curve).
+#'
+#' @param predicted Numeric vector. Predicted probabilities for one outcome.
+#' @param actual Logical or 0/1 numeric. Whether that outcome occurred.
+#' @param n_bins Integer. Number of bins (default 10).
+#' @return A tibble with `bin_mid`, `observed_freq`, `mean_pred`, `n`,
+#'   and `bin_lower`, `bin_upper`.
+#' @family evaluation
+#' @export
+reliability_curve_data <- function(predicted, actual, n_bins = 10L) {
+  rlang::check_required(predicted)
+  rlang::check_required(actual)
+
+  actual <- as.numeric(actual)
+  breaks <- seq(0, 1, length.out = n_bins + 1)
+  bins <- cut(predicted, breaks = breaks, include.lowest = TRUE, labels = FALSE)
+
+  result <- vector("list", n_bins)
+  for (k in seq_len(n_bins)) {
+    idx <- which(bins == k)
+    if (length(idx) == 0L) next
+    result[[k]] <- tibble::tibble(
+      bin_lower = breaks[k],
+      bin_upper = breaks[k + 1],
+      bin_mid = (breaks[k] + breaks[k + 1]) / 2,
+      mean_pred = mean(predicted[idx]),
+      observed_freq = mean(actual[idx]),
+      n = length(idx)
+    )
+  }
+
+  dplyr::bind_rows(result)
+}
+
 # ============================================================================
 # PROBABILITY CALIBRATION
 # ============================================================================
@@ -1408,4 +1445,110 @@ convert_odds <- function(odds, from, to) {
     fractional = decimal_to_fractional(decimal),
     american = decimal_to_american(decimal)
   )
+}
+
+# ============================================================================
+# CALIBRATION DIAGNOSTICS
+# ============================================================================
+
+#' Collect match-level predictions from walk-forward CV
+#'
+#' Runs the same walk-forward split as [evaluate_glm_baseline()] but
+#' returns per-match predictions instead of per-fold summary metrics.
+#' Used for calibration plots (reliability curves).
+#'
+#' @param long_df Long-format match data for GLM fitting.
+#' @param matches_df Wide-format matches with `match_id`, `ftr`,
+#'   `match_date`, `league_code`.
+#' @param train_months Integer. Training window (default 24).
+#' @param test_months Integer. Test period (default 1).
+#' @param model_label Character. Label for the model (e.g., "goals_only").
+#' @return A tibble with `match_id`, `league_code`, `pred_h`, `pred_d`,
+#'   `pred_a`, `actual`, `model`.
+#' @family evaluation
+#' @export
+collect_fold_predictions <- function(long_df,
+                                     matches_df,
+                                     train_months = 24L,
+                                     test_months = 1L,
+                                     model_label = "model") {
+  rlang::check_required(long_df)
+  rlang::check_required(matches_df)
+
+  leagues <- unique(matches_df$league_code)
+  all_preds <- purrr::map(leagues, function(lg) {
+    lg_long <- long_df[long_df$league_code == lg, ]
+    lg_matches <- matches_df[matches_df$league_code == lg, ]
+    if (nrow(lg_long) < 100L) return(NULL)
+
+    tryCatch({
+      collect_fold_predictions_single(
+        lg_long, lg_matches,
+        train_months = train_months,
+        test_months = test_months,
+        model_label = model_label,
+        league_code = lg
+      )
+    }, error = function(e) {
+      cli::cli_warn("Prediction collection failed for {lg}: {conditionMessage(e)}")
+      NULL
+    })
+  })
+
+  dplyr::bind_rows(all_preds)
+}
+
+#' Collect match-level predictions for a single league
+#'
+#' @inheritParams collect_fold_predictions
+#' @param league_code Character. League identifier.
+#' @return A tibble of per-match predictions.
+#' @keywords internal
+collect_fold_predictions_single <- function(long_df,
+                                            matches_df,
+                                            train_months = 24L,
+                                            test_months = 1L,
+                                            model_label = "model",
+                                            league_code = NA_character_) {
+  dates <- sort(unique(matches_df$match_date))
+  splits <- walk_forward_splits(dates, train_months, test_months)
+  if (length(splits) == 0L) return(tibble::tibble())
+
+  all_preds <- vector("list", length(splits))
+
+  for (k in seq_along(splits)) {
+    sp <- splits[[k]]
+    train_long <- long_df[long_df$match_date >= sp$train_start &
+                            long_df$match_date < sp$test_start, ]
+    test_matches <- matches_df[matches_df$match_date >= sp$test_start &
+                                 matches_df$match_date < sp$test_end, ]
+    if (nrow(train_long) < 20L || nrow(test_matches) == 0L) next
+
+    model <- tryCatch(fit_poisson_glm(train_long), error = function(e) NULL)
+    if (is.null(model)) next
+
+    preds <- predict_matches_glm(model, test_matches)
+    rm(model, train_long)
+
+    eval_df <- dplyr::inner_join(
+      preds, test_matches[, c("match_id", "ftr")], by = "match_id"
+    ) |> dplyr::filter(!is.na(.data$pred_h))
+    rm(preds, test_matches)
+
+    if (nrow(eval_df) == 0L) next
+
+    all_preds[[k]] <- tibble::tibble(
+      match_id = eval_df$match_id,
+      league_code = league_code,
+      pred_h = eval_df$pred_h,
+      pred_d = eval_df$pred_d,
+      pred_a = eval_df$pred_a,
+      actual = eval_df$ftr,
+      model = model_label
+    )
+    rm(eval_df)
+    if (k %% 20L == 0L) gc(verbose = FALSE)
+  }
+
+  dplyr::bind_rows(all_preds)
 }

@@ -124,11 +124,22 @@ baseline in leak-corrected walk-forward CV
 - **RPS**: 0.211 → 0.202 (~4.3%)
 
 The improvement survives the 7-day bet-time cutoff correction
-unchanged (cut0 vs cut7: log_loss 1.00 vs 1.00). Per-league, Serie A
-and the Premier League benefit most (+1.6% log_loss each); La Liga
-least (+0.2%). The xG advantage is real but too diffuse to overcome
-Pinnacle's AH vig when translated to per-match bet selection — it
-improves average calibration, not selective sharpness.
+unchanged (cut0 vs cut7: log_loss 1.00 vs 1.00).
+
+**Per-league breakdown** (log-loss improvement, cut7):
+EPL +1.6%, Serie A +1.6%, Bundesliga +1.3%, Ligue 1 +0.9%, La Liga +0.2%.
+All 5 leagues show improvement; none regress.
+
+**Model comparison on xG-era data** (top-5 leagues, 2019–2025):
+GLM goals-only 1.018, Dixon-Coles 1.017, GLM+xG 1.003.
+Dixon-Coles barely beats GLM on goals alone; xG features provide a
+larger gain than the DC low-score correction.
+
+**Brier decomposition**: xG improves resolution (0.019 vs 0.019) while
+maintaining identical reliability (~0.0006). The gain is in sharpness
+(more decisive predictions), not better calibration. The xG advantage
+is real but too diffuse to overcome Pinnacle's AH vig when translated
+to per-match bet selection.
 
 ## Project Structure
 

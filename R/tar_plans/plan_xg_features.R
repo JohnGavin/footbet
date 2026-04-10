@@ -360,5 +360,191 @@ plan_xg_features <- list(
         summarise_one(cv_xg_features_cut7, "xg_cut7 (clean)")
       )
     }
+  ),
+
+  # ============================================================================
+  # PER-LEAGUE BREAKDOWN (#84)
+  # ============================================================================
+
+  # Per-league xG vs goals-only comparison (cut7 only)
+  targets::tar_target(
+    xg_per_league_comparison,
+    {
+      # xG cut7 leagues
+      xg_leagues <- unique(cv_xg_features_cut7$league_code)
+
+      # Filter goals-only to same leagues for fair comparison
+      goals_filtered <- cv_goals_only |>
+        dplyr::filter(.data$league_code %in% xg_leagues)
+
+      summarise_by_league <- function(df, label) {
+        df |>
+          dplyr::group_by(.data$league_code) |>
+          dplyr::summarise(
+            model = label,
+            mean_log_loss = mean(.data$log_loss, na.rm = TRUE),
+            mean_brier = mean(.data$brier, na.rm = TRUE),
+            mean_rps = mean(.data$rps, na.rm = TRUE),
+            n_folds = dplyr::n(),
+            .groups = "drop"
+          )
+      }
+
+      goals_by_lg <- summarise_by_league(goals_filtered, "goals_only")
+      xg_by_lg <- summarise_by_league(cv_xg_features_cut7, "xg_cut7")
+
+      comparison <- dplyr::bind_rows(goals_by_lg, xg_by_lg) |>
+        dplyr::arrange(.data$league_code, .data$model)
+
+      # Add improvement column
+      wide <- goals_by_lg |>
+        dplyr::select("league_code",
+                       goals_ll = "mean_log_loss",
+                       goals_brier = "mean_brier",
+                       goals_rps = "mean_rps") |>
+        dplyr::inner_join(
+          xg_by_lg |>
+            dplyr::select("league_code",
+                           xg_ll = "mean_log_loss",
+                           xg_brier = "mean_brier",
+                           xg_rps = "mean_rps"),
+          by = "league_code"
+        ) |>
+        dplyr::mutate(
+          ll_improvement_pct = 100 * (.data$goals_ll - .data$xg_ll) /
+            .data$goals_ll,
+          brier_improvement_pct = 100 * (.data$goals_brier - .data$xg_brier) /
+            .data$goals_brier,
+          rps_improvement_pct = 100 * (.data$goals_rps - .data$xg_rps) /
+            .data$goals_rps
+        )
+
+      list(long = comparison, wide = wide)
+    }
+  ),
+
+  # Dixon-Coles vs GLM on xG-era data subset (#84)
+  targets::tar_target(
+    dc_vs_glm_xg_era,
+    {
+      # Filter DC results to xG-era leagues
+      xg_leagues <- unique(cv_xg_features_cut7$league_code)
+      dc_xg_era <- dc_cv |>
+        dplyr::filter(.data$league_code %in% xg_leagues)
+
+      # Also filter goals-only GLM to same leagues
+      glm_xg_era <- cv_goals_only |>
+        dplyr::filter(.data$league_code %in% xg_leagues)
+
+      summarise_one <- function(df, label) {
+        if (!is.data.frame(df) || nrow(df) == 0L) {
+          return(tibble::tibble(
+            model = label, mean_log_loss = NA_real_,
+            mean_brier = NA_real_, mean_rps = NA_real_, n_folds = 0L
+          ))
+        }
+        tibble::tibble(
+          model = label,
+          mean_log_loss = mean(df$log_loss, na.rm = TRUE),
+          mean_brier = mean(df$brier, na.rm = TRUE),
+          mean_rps = mean(df$rps, na.rm = TRUE),
+          n_folds = nrow(df)
+        )
+      }
+
+      dplyr::bind_rows(
+        summarise_one(glm_xg_era, "GLM goals-only"),
+        summarise_one(dc_xg_era, "Dixon-Coles goals-only"),
+        summarise_one(cv_xg_features_cut7, "GLM + xG cut7")
+      )
+    }
+  ),
+
+  # Calibration data for reliability curves (#84)
+  targets::tar_target(
+    xg_calibration_data,
+    {
+      # Collect per-fold match-level predictions for calibration
+      # Recompute with match-level data from the same walk-forward
+      matches_xg <- matches_with_xg |>
+        dplyr::filter(!is.na(.data$home_xg))
+      xg_leagues <- unique(cv_xg_features_cut7$league_code)
+
+      # Goals-only model: per-fold match predictions
+      goals_preds <- collect_fold_predictions(
+        long_df = matches_long,
+        matches_df = parsed_matches |>
+          dplyr::filter(.data$league_code %in% xg_leagues),
+        train_months = 24L,
+        test_months = 1L,
+        model_label = "goals_only"
+      )
+
+      # xG model: per-fold match predictions using cut7 long format
+      long_xg <- long_df_xg_cut7 |>
+        dplyr::filter(!is.na(.data$rolling_xg_for))
+      xg_preds <- collect_fold_predictions(
+        long_df = long_xg,
+        matches_df = matches_xg,
+        train_months = 24L,
+        test_months = 1L,
+        model_label = "xg_cut7"
+      )
+
+      dplyr::bind_rows(goals_preds, xg_preds)
+    }
+  ),
+
+  # Reliability curve data for calibration plot (#84)
+  targets::tar_target(
+    xg_reliability_curves,
+    {
+      if (!is.data.frame(xg_calibration_data) ||
+          nrow(xg_calibration_data) == 0L) {
+        return(tibble::tibble())
+      }
+
+      # Compute reliability curves per model and outcome
+      models <- unique(xg_calibration_data$model)
+      outcomes <- c("H", "D", "A")
+
+      purrr::map_dfr(models, function(m) {
+        df <- xg_calibration_data[xg_calibration_data$model == m, ]
+        purrr::map_dfr(outcomes, function(out) {
+          pred_col <- switch(out,
+            H = df$pred_h,
+            D = df$pred_d,
+            A = df$pred_a
+          )
+          actual_binary <- as.numeric(df$actual == out)
+          rc <- reliability_curve_data(pred_col, actual_binary,
+                                       n_bins = 10L)
+          rc$model <- m
+          rc$outcome <- out
+          rc
+        })
+      })
+    }
+  ),
+
+  # Brier decomposition comparison (#84)
+  targets::tar_target(
+    xg_brier_decomposition,
+    {
+      if (!is.data.frame(xg_calibration_data) ||
+          nrow(xg_calibration_data) == 0L) {
+        return(tibble::tibble())
+      }
+
+      models <- unique(xg_calibration_data$model)
+      purrr::map_dfr(models, function(m) {
+        df <- xg_calibration_data[xg_calibration_data$model == m, ]
+        dec <- brier_decomposition_1x2(
+          df$pred_h, df$pred_d, df$pred_a, df$actual
+        )
+        dec$model <- m
+        dec
+      })
+    }
   )
 )
