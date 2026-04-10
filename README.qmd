@@ -112,6 +112,24 @@ rare in this space; the intent is that other projects attempting the same
 stack can calibrate expectations against these results rather than
 rediscovering them.
 
+## Positive Finding: xG Features Improve Calibration
+
+While the AH bet family produces no edge, xG rolling features do
+reliably improve prediction quality over a goals-only Poisson GLM
+baseline in leak-corrected walk-forward CV
+([#84](https://github.com/JohnGavin/footbet/issues/84)):
+
+- **Log-loss**: goals-only 1.07 → xG 1.00 (~6.5% improvement)
+- **Brier**: 0.620 → 0.592 (~4.5%)
+- **RPS**: 0.211 → 0.202 (~4.3%)
+
+The improvement survives the 7-day bet-time cutoff correction
+unchanged (cut0 vs cut7: log_loss 1.00 vs 1.00). Per-league, Serie A
+and the Premier League benefit most (+1.6% log_loss each); La Liga
+least (+0.2%). The xG advantage is real but too diffuse to overcome
+Pinnacle's AH vig when translated to per-match bet selection — it
+improves average calibration, not selective sharpness.
+
 ## Project Structure
 
 ```{r}
