@@ -2,6 +2,36 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-13 — New features: SoT ratio + shot quality (ElHabr gap analysis)
+
+### Completed
+- Rolling SoT ratio feature (`rolling_sot`) from existing football-data.co.uk data
+- Understat shot quality features: `compute_shot_quality`, `rolling_shot_quality`
+  (xG per shot, big chances, open-play xG fraction) from 502k shots
+- FBref advanced scraping functions added (ready for when 403 block lifts)
+- Walk-forward CV evaluation of new features
+
+### Failed Approaches
+- **FBref team match logs** (progressive passes, PSxG): HTTP 403 blocked.
+  Functions written in data_fbref.R but cannot fetch data.
+- **Shot quality features in Poisson GLM**: Adding rolling_xg_per_shot,
+  big_chances, open_play_pct to the GLM worsened log_loss from 1.016 to
+  1.059 (-4.2%). Likely overfitting on correlated features in small
+  per-league samples. SoT alone helps; shot quality alone hurts.
+
+### Accuracy / Metrics
+- Goals-only (5 leagues): 1.016
+- Goals + SoT: 1.011 (+0.5% improvement)
+- xG cut7: 1.005 (+1.1%)
+- Goals + SoT + Shot Quality: 1.059 (-4.2%, worse — dropped)
+
+### Known Limitations
+- SoT ratio adds ~0.5% log-loss improvement — real but small
+- Shot quality features need a more flexible model (Ranger, XGBoost)
+  to avoid overfitting; the Poisson GLM can't handle the collinearity
+- Progressive passes/carries blocked by FBref HTTP 403; would be the
+  highest-value addition per ElHabr's work
+
 ## 2026-04-10 — xG per-league + calibration (#84) + snapshot tests (#65)
 
 ### #65: Phase 3 Snapshot Tests (closed)
