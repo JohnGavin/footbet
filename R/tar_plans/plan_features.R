@@ -50,6 +50,12 @@ plan_features <- list(
     devig_odds(parsed_odds)
   ),
 
+  # Rolling shots-on-target ratio (high discrimination per meta-analytics)
+  targets::tar_target(
+    rolling_sot_5,
+    rolling_sot(parsed_matches, window = 5L)
+  ),
+
   # Combined feature matrix: join rolling stats + Elo + devigged odds
   targets::tar_target(
     feature_matrix,
@@ -104,6 +110,23 @@ plan_features <- list(
 
       # Add rest days
       fm <- compute_rest_days(fm)
+
+      # Join rolling SoT ratio
+      home_sot <- rolling_sot_5 |>
+        dplyr::select("team", "match_date",
+                       home_sot_for = "rolling_sot_for",
+                       home_sot_against = "rolling_sot_against",
+                       home_sot_ratio = "rolling_sot_ratio")
+      away_sot <- rolling_sot_5 |>
+        dplyr::select("team", "match_date",
+                       away_sot_for = "rolling_sot_for",
+                       away_sot_against = "rolling_sot_against",
+                       away_sot_ratio = "rolling_sot_ratio")
+      fm <- fm |>
+        dplyr::left_join(home_sot,
+          by = c("home_team" = "team", "match_date")) |>
+        dplyr::left_join(away_sot,
+          by = c("away_team" = "team", "match_date"))
 
       # Add Pinnacle implied Elo (ensemble feature)
       if ("fair_h" %in% names(fm)) {

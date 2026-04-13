@@ -4,6 +4,22 @@
 
 plan_xg_features <- list(
   # ============================================================================
+  # SHOT QUALITY FEATURES (from Understat shot-level data)
+  # ============================================================================
+
+  # Per-match shot quality aggregation
+  targets::tar_target(
+    shot_quality_per_match,
+    compute_shot_quality(understat_shots_raw)
+  ),
+
+  # Rolling shot quality features (5-match window)
+  targets::tar_target(
+    rolling_shot_quality_5,
+    rolling_shot_quality(shot_quality_per_match, window = 5L)
+  ),
+
+  # ============================================================================
   # FEATURE ENGINEERING
   # ============================================================================
 

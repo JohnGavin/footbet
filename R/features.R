@@ -2009,3 +2009,220 @@ add_matches_since <- function(matches_df) {
       )
   }
 }
+
+#' Compute rolling shots-on-target ratio
+#'
+#' Calculates rolling mean shots on target for and against each team.
+#' SoT ratio = SoT_for / (SoT_for + SoT_against). High discrimination
+#' per ElHabr meta-analytics (0.926).
+#'
+#' @param matches_df A tibble with `match_date`, `home_team`, `away_team`,
+#'   `hst`, `ast` (home/away shots on target).
+#' @param window Integer. Rolling window size (default 5).
+#' @return A tibble with `team`, `match_date`, `rolling_sot_for`,
+#'   `rolling_sot_against`, `rolling_sot_ratio`.
+#' @family features
+#' @export
+rolling_sot <- function(matches_df, window = 5L) {
+  rlang::check_required(matches_df)
+
+  home <- matches_df |>
+    dplyr::transmute(
+      team = .data$home_team,
+      match_date = .data$match_date,
+      sot_for = .data$hst,
+      sot_against = .data$ast
+    )
+
+  away <- matches_df |>
+    dplyr::transmute(
+      team = .data$away_team,
+      match_date = .data$match_date,
+      sot_for = .data$ast,
+      sot_against = .data$hst
+    )
+
+  long <- dplyr::bind_rows(home, away) |>
+    dplyr::arrange(.data$team, .data$match_date)
+
+  long |>
+    dplyr::group_by(.data$team) |>
+    dplyr::mutate(
+      rolling_sot_for = dplyr::lag(
+        slider_mean(.data$sot_for, window),
+        default = NA_real_
+      ),
+      rolling_sot_against = dplyr::lag(
+        slider_mean(.data$sot_against, window),
+        default = NA_real_
+      ),
+      rolling_sot_ratio = ratio_normalize(
+        .data$rolling_sot_for, .data$rolling_sot_against
+      )
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::select("team", "match_date",
+                   "rolling_sot_for", "rolling_sot_against",
+                   "rolling_sot_ratio")
+}
+
+#' Compute per-match shot quality features from Understat shot data
+#'
+#' Aggregates shot-level data to per-team per-match summaries capturing
+#' dimensions that total xG doesn't: quality of chances, volume, and
+#' situation breakdown. Higher `xg_per_shot` means fewer but better
+#' chances; higher `big_chances` means more clear-cut opportunities.
+#'
+#' @param shots_df Understat shot data with `match_id`, `h_a`, `xG`,
+#'   `result`, `situation`, `home_team`, `away_team`, `date`.
+#' @return A tibble with one row per team per match date, columns:
+#'   `team`, `match_date`, `n_shots`, `xg_total`, `xg_per_shot`,
+#'   `big_chances` (xG > 0.3), `open_play_xg_pct`, `goals_from_shots`.
+#' @family features
+#' @export
+compute_shot_quality <- function(shots_df) {
+  rlang::check_required(shots_df)
+
+  # Exclude own goals (not the shooting team's action)
+  shots_df <- shots_df |>
+    dplyr::filter(.data$result != "OwnGoal")
+
+  # Resolve team name from h_a indicator
+  team_shots <- shots_df |>
+    dplyr::mutate(
+      team = dplyr::if_else(
+        .data$h_a == "h" | .data$home_away == "h",
+        .data$home_team, .data$away_team
+      ),
+      match_date = as.Date(.data$date),
+      xg = as.numeric(.data$xG),
+      is_goal = .data$result == "Goal",
+      is_open_play = .data$situation == "OpenPlay",
+      is_big_chance = .data$xg >= 0.3
+    )
+
+  # Aggregate per team per match
+  team_shots |>
+    dplyr::group_by(.data$team, .data$match_date) |>
+    dplyr::summarise(
+      n_shots = dplyr::n(),
+      xg_total = sum(.data$xg, na.rm = TRUE),
+      xg_per_shot = mean(.data$xg, na.rm = TRUE),
+      big_chances = sum(.data$is_big_chance, na.rm = TRUE),
+      open_play_xg = sum(.data$xg[.data$is_open_play], na.rm = TRUE),
+      open_play_xg_pct = dplyr::if_else(
+        .data$xg_total > 0,
+        .data$open_play_xg / .data$xg_total,
+        NA_real_
+      ),
+      goals_from_shots = sum(.data$is_goal, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+
+#' Compute rolling shot quality features
+#'
+#' Applies rolling window to per-match shot quality metrics.
+#' Captures build-up quality dimensions that total xG doesn't measure:
+#' chance quality (xG per shot), big chance creation, and open-play
+#' vs set-piece balance.
+#'
+#' @param shot_quality_df Output from [compute_shot_quality()].
+#' @param window Integer. Rolling window size (default 5).
+#' @return A tibble with rolling averages of shot quality metrics.
+#' @family features
+#' @export
+rolling_shot_quality <- function(shot_quality_df, window = 5L) {
+  rlang::check_required(shot_quality_df)
+
+  shot_quality_df |>
+    dplyr::arrange(.data$team, .data$match_date) |>
+    dplyr::group_by(.data$team) |>
+    dplyr::mutate(
+      rolling_xg_per_shot = dplyr::lag(
+        slider_mean(.data$xg_per_shot, window), default = NA_real_
+      ),
+      rolling_big_chances = dplyr::lag(
+        slider_mean(.data$big_chances, window), default = NA_real_
+      ),
+      rolling_shot_volume = dplyr::lag(
+        slider_mean(.data$n_shots, window), default = NA_real_
+      ),
+      rolling_open_play_pct = dplyr::lag(
+        slider_mean(.data$open_play_xg_pct, window), default = NA_real_
+      )
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::select("team", "match_date",
+                   "rolling_xg_per_shot", "rolling_big_chances",
+                   "rolling_shot_volume", "rolling_open_play_pct")
+}
+
+#' Compute rolling progressive actions from FBref team match logs
+#'
+#' Calculates rolling means of progressive passes completed, progressive
+#' carries, and passes into the final third / penalty area. Captures
+#' build-up quality independently from xG (which only measures shots).
+#'
+#' @param matches_df A tibble with `team`, `match_date`, plus FBref
+#'   passing columns: `prgp` (progressive passes), `prgc` (progressive
+#'   carries), `ppa` (passes into penalty area).
+#' @param window Integer. Rolling window size (default 5).
+#' @return A tibble with `team`, `match_date`, and rolling averages.
+#' @family features
+#' @export
+rolling_progressive <- function(matches_df, window = 5L) {
+  rlang::check_required(matches_df)
+
+  matches_df |>
+    dplyr::arrange(.data$team, .data$match_date) |>
+    dplyr::group_by(.data$team) |>
+    dplyr::mutate(
+      rolling_prgp = dplyr::lag(
+        slider_mean(.data$prgp, window), default = NA_real_
+      ),
+      rolling_prgc = dplyr::lag(
+        slider_mean(.data$prgc, window), default = NA_real_
+      ),
+      rolling_ppa = dplyr::lag(
+        slider_mean(.data$ppa, window), default = NA_real_
+      )
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::select("team", "match_date",
+                   "rolling_prgp", "rolling_prgc", "rolling_ppa")
+}
+
+#' Compute rolling PSxG overperformance
+#'
+#' Post-shot xG (PSxG) measures expected goals given where the shot
+#' was placed on the goalframe. PSxG - xG captures finishing quality
+#' beyond shot creation. A positive value means the team places shots
+#' better than the average shooter from those positions.
+#'
+#' @param matches_df A tibble with `team`, `match_date`, `psxg`
+#'   (post-shot xG), `xg` (pre-shot xG).
+#' @param window Integer. Rolling window size (default 5).
+#' @return A tibble with `team`, `match_date`, `rolling_psxg`,
+#'   `rolling_psxg_overperf` (PSxG - xG).
+#' @family features
+#' @export
+rolling_psxg <- function(matches_df, window = 5L) {
+  rlang::check_required(matches_df)
+
+  matches_df |>
+    dplyr::arrange(.data$team, .data$match_date) |>
+    dplyr::group_by(.data$team) |>
+    dplyr::mutate(
+      rolling_psxg = dplyr::lag(
+        slider_mean(.data$psxg, window), default = NA_real_
+      ),
+      rolling_xg_shot = dplyr::lag(
+        slider_mean(.data$xg, window), default = NA_real_
+      ),
+      rolling_psxg_overperf = .data$rolling_psxg - .data$rolling_xg_shot
+    ) |>
+    dplyr::ungroup() |>
+    dplyr::select("team", "match_date",
+                   "rolling_psxg", "rolling_psxg_overperf")
+}

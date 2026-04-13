@@ -246,6 +246,251 @@ join_xg_to_matches <- function(matches_df, fbref_df) {
   result
 }
 
+#' Fetch FBref team season stats (passing, shooting, possession)
+#'
+#' Downloads team-level season stats from FBref using
+#' `worldfootballR::fb_season_team_stats()`. Returns progressive
+#' passes, progressive carries, passes into penalty area, PSxG, etc.
+#'
+#' @param country Character. Country code ("ENG", "ESP", "GER", "ITA", "FRA").
+#' @param season_end Integer. Season end year.
+#' @param stat_type Character. One of "passing", "shooting", "possession".
+#' @param tier Character. League tier (default "1st").
+#' @return A tibble with team-level season stats.
+#' @family data-acquisition
+#' @export
+fetch_fbref_season_stats <- function(country,
+                                     season_end,
+                                     stat_type = "passing",
+                                     tier = "1st") {
+  rlang::check_installed("worldfootballR",
+    reason = "to fetch FBref team stats")
+  rlang::check_required(country)
+  rlang::check_required(season_end)
+
+  valid_types <- c("passing", "shooting", "possession",
+                    "defense", "goal_shot_creation", "misc")
+  stat_type <- match.arg(stat_type, valid_types)
+
+  cli::cli_alert("Fetching FBref {.val {stat_type}} for {.val {country}} {.val {season_end}}")
+
+  tryCatch(
+    worldfootballR::fb_season_team_stats(
+      country = country,
+      gender = "M",
+      season_end_year = as.integer(season_end),
+      tier = tier,
+      stat_type = stat_type,
+      time_pause = 5
+    ),
+    error = function(e) {
+      cli::cli_warn("Failed to fetch {stat_type}: {conditionMessage(e)}")
+      tibble::tibble()
+    }
+  )
+}
+
+#' Fetch FBref team match log stats for all teams in a league-season
+#'
+#' Downloads per-match team stats (passing, shooting) using
+#' `worldfootballR::fb_team_match_log_stats()`. This provides
+#' match-level progressive passes, PSxG, etc. needed for rolling features.
+#'
+#' @param country Character. Country code.
+#' @param season_end Integer. Season end year.
+#' @param stat_type Character. "passing" or "shooting".
+#' @param tier Character. League tier (default "1st").
+#' @param delay Numeric. Seconds between requests (default 5).
+#' @return A tibble with per-match team stats.
+#' @family data-acquisition
+#' @export
+fetch_fbref_team_match_logs <- function(country,
+                                        season_end,
+                                        stat_type = "passing",
+                                        tier = "1st",
+                                        delay = 5) {
+  rlang::check_installed("worldfootballR",
+    reason = "to fetch FBref team match logs")
+
+  valid_types <- c("passing", "shooting", "keeper", "defense",
+                    "passing_types", "gca", "misc")
+  stat_type <- match.arg(stat_type, valid_types)
+
+  # Get team URLs for the league-season
+  team_urls <- tryCatch(
+    worldfootballR::fb_teams_urls(
+      country = country,
+      gender = "M",
+      season_end_year = as.integer(season_end),
+      tier = tier
+    ),
+    error = function(e) {
+      cli::cli_warn("Failed to get team URLs: {conditionMessage(e)}")
+      character(0)
+    }
+  )
+
+  if (length(team_urls) == 0L) {
+    cli::cli_warn("No team URLs found for {.val {country}} {.val {season_end}}")
+    return(tibble::tibble())
+  }
+
+  cli::cli_alert("Fetching {.val {stat_type}} match logs for {.val {length(team_urls)}} teams")
+
+  result <- tryCatch(
+    worldfootballR::fb_team_match_log_stats(
+      team_urls = team_urls,
+      stat_type = stat_type,
+      time_pause = delay
+    ),
+    error = function(e) {
+      cli::cli_warn("Failed to fetch match logs: {conditionMessage(e)}")
+      tibble::tibble()
+    }
+  )
+
+  if (nrow(result) > 0L) {
+    cli::cli_alert_success("Fetched {.val {nrow(result)}} match log rows")
+  }
+
+  result
+}
+
+#' Fetch FBref passing + shooting match logs for multiple league-seasons
+#'
+#' Batch fetches match-level team stats for progressive passes, carries,
+#' PSxG, and passes into penalty area. Rate-limited to respect FBref ToS.
+#'
+#' @param leagues Character vector of country codes.
+#' @param seasons Integer vector of season end years.
+#' @param delay Numeric. Seconds between team requests (default 5).
+#' @return A list with `passing` and `shooting` tibbles.
+#' @family data-acquisition
+#' @export
+fetch_fbref_advanced_all <- function(leagues = c("ENG", "ESP", "GER",
+                                                  "ITA", "FRA"),
+                                     seasons = 2018:2025,
+                                     delay = 5) {
+  grid <- tidyr::expand_grid(country = leagues, season_end = seasons)
+
+  passing_all <- vector("list", nrow(grid))
+  shooting_all <- vector("list", nrow(grid))
+
+  for (i in seq_len(nrow(grid))) {
+    cli::cli_alert("({i}/{nrow(grid)}) {grid$country[[i]]} {grid$season_end[[i]]}")
+
+    passing_all[[i]] <- tryCatch(
+      fetch_fbref_team_match_logs(
+        country = grid$country[[i]],
+        season_end = grid$season_end[[i]],
+        stat_type = "passing",
+        delay = delay
+      ),
+      error = function(e) tibble::tibble()
+    )
+
+    Sys.sleep(2)
+
+    shooting_all[[i]] <- tryCatch(
+      fetch_fbref_team_match_logs(
+        country = grid$country[[i]],
+        season_end = grid$season_end[[i]],
+        stat_type = "shooting",
+        delay = delay
+      ),
+      error = function(e) tibble::tibble()
+    )
+  }
+
+  list(
+    passing = dplyr::bind_rows(passing_all),
+    shooting = dplyr::bind_rows(shooting_all)
+  )
+}
+
+#' Standardise FBref team match log columns for progressive stats
+#'
+#' Extracts and renames the key columns from FBref passing and shooting
+#' match logs to a consistent format for joining to match data.
+#'
+#' @param passing_df Raw passing match log from [fetch_fbref_team_match_logs()].
+#' @param shooting_df Raw shooting match log from [fetch_fbref_team_match_logs()].
+#' @return A tibble with `team`, `match_date`, `prgp`, `prgc`, `ppa`,
+#'   `psxg`, `xg` per team per match.
+#' @family data-acquisition
+#' @export
+standardise_fbref_advanced <- function(passing_df, shooting_df) {
+  # FBref column names vary by worldfootballR version
+  # Common passing columns: Team, Date, Cmp (completed passes),
+  #   PrgP (progressive passes), PrgC (progressive carries via possession),
+  #   1/3 (passes into final third), PPA (passes into penalty area)
+  # Common shooting columns: PSxG (post-shot xG), xG
+
+  pass_cols <- c("PrgP" = "prgp", "Cmp" = "pass_cmp",
+                  "PPA" = "ppa")
+  # Progressive carries come from possession stat_type, not passing
+  # but some versions include PrgC in passing logs
+
+  pass_result <- tibble::tibble()
+  if (is.data.frame(passing_df) && nrow(passing_df) > 0L) {
+    pass_result <- passing_df |>
+      standardise_log_columns(pass_cols)
+  }
+
+  shot_cols <- c("PSxG" = "psxg", "xG" = "xg")
+  shot_result <- tibble::tibble()
+  if (is.data.frame(shooting_df) && nrow(shooting_df) > 0L) {
+    shot_result <- shooting_df |>
+      standardise_log_columns(shot_cols)
+  }
+
+  # Merge on team + date
+  if (nrow(pass_result) > 0L && nrow(shot_result) > 0L) {
+    dplyr::full_join(pass_result, shot_result,
+                      by = c("team", "match_date"))
+  } else if (nrow(pass_result) > 0L) {
+    pass_result
+  } else {
+    shot_result
+  }
+}
+
+#' Standardise FBref match log column names
+#'
+#' @param df Raw FBref match log.
+#' @param col_map Named character vector of old = new column mappings.
+#' @return Tibble with team, match_date, and renamed stat columns.
+#' @noRd
+standardise_log_columns <- function(df, col_map) {
+  # Find the date and team columns (names vary across versions)
+  date_col <- intersect(c("Date", "date", "Match_Date"), names(df))[1]
+  team_col <- intersect(c("Team", "Squad", "team"), names(df))[1]
+
+  if (is.na(date_col) || is.na(team_col)) {
+    cli::cli_warn("Cannot find date/team columns in FBref match log")
+    return(tibble::tibble())
+  }
+
+  # Rename available columns
+  available <- intersect(names(col_map), names(df))
+  if (length(available) == 0L) {
+    cli::cli_warn("None of expected columns found: {.val {names(col_map)}}")
+    return(tibble::tibble())
+  }
+
+  result <- df |>
+    dplyr::transmute(
+      team = .data[[team_col]],
+      match_date = as.Date(.data[[date_col]])
+    )
+
+  for (old in available) {
+    result[[col_map[[old]]]] <- as.numeric(df[[old]])
+  }
+
+  result
+}
+
 #' Build team name mapping for FBref to football-data.co.uk
 #'
 #' @return Named character vector mapping variations to canonical names.
