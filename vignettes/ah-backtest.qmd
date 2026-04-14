@@ -1,0 +1,237 @@
+---
+title: "AH Backtest: P&L, Drawdown & CLV"
+subtitle: "Walk-forward Asian Handicap evaluation across 4 models and 6 seasons"
+format:
+  html:
+    theme: darkly
+    toc: true
+    toc-location: right
+    toc-depth: 3
+    page-layout: full
+    code-fold: true
+    include-in-header:
+      text: |
+        <script>document.documentElement.setAttribute('data-bs-theme','dark');</script>
+        <style>html,body{background:#000!important;color:#fff!important;}</style>
+        <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+        <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+vignette: >
+  %\VignetteIndexEntry{AH Backtest: P&L, Drawdown & CLV}
+  %\VignetteEngine{quarto::html}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(targets)
+library(htmltools)
+library(DT)
+library(dplyr)
+library(plotly)
+
+if (file.exists(here::here("_targets"))) {
+  tar_config_set(store = here::here("_targets"))
+}
+
+safe_tar_read <- function(name) {
+  result <- tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+  if (is.null(result)) {
+    rds_path <- system.file(file.path("extdata", "vignettes", paste0(name, ".rds")), package = "footbet")
+    if (!nzchar(rds_path) || !file.exists(rds_path))
+      rds_path <- here::here("inst", "extdata", "vignettes", paste0(name, ".rds"))
+    if (file.exists(rds_path)) result <- readRDS(rds_path)
+  }
+  if (is.null(result)) {
+    htmltools::div(style = "background: #dc3545; color: white; padding: 1em; border-radius: 4px;",
+      htmltools::p(paste0("[MISSING EVIDENCE] Target `", name, "` not found.")))
+  } else result
+}
+```
+
+::: {.callout-note}
+## Online documentation
+This vignette shows pre-computed results from the targets pipeline.
+All data comes from walk-forward evaluation: models trained on seasons 1516--1920, rolled forward month-by-month through 2425.
+:::
+
+## Summary
+
+The Asian Handicap (AH) market is more interesting than 1X2 for model evaluation because the vig is lower and the closing line is a precise benchmark. Four models are compared: GLM (Poisson baseline), Ranger (random forest), xG-Kalman-DC (xG + Kalman filter + Dixon-Coles correction), and Intersection (bets where GLM and Ranger agree).
+
+```{r ah-summary-table}
+summary_df <- safe_tar_read("vig_ah_summary_table")
+if (is.data.frame(summary_df)) {
+  DT::datatable(
+    summary_df,
+    rownames = FALSE,
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: left; color: #ccc;",
+      paste0("AH walk-forward results across 6 seasons (1920--2425). ",
+             "ROI after 2% transaction cost + 1% slippage. ",
+             "Intersection (GLM ∩ Ranger agreement) achieves the best flat-stake ROI (-0.3%). ",
+             "Sharpe ratios are negative for all models — no model generates risk-adjusted returns. ",
+             "Max drawdown in currency units (£10 flat stake).")
+    ),
+    options = list(pageLength = 10, dom = "t", scrollX = TRUE)
+  )
+} else summary_df
+```
+
+## Equity Curves
+
+```{r ah-equity-curves}
+eq_data <- safe_tar_read("vig_ah_equity_curves")
+if (is.data.frame(eq_data)) {
+  flat_data <- eq_data |> filter(staking == "flat")
+
+  colors <- c(GLM = "#3498db", Ranger = "#2ecc71",
+              xGK = "#e74c3c", Intersection = "#f39c12")
+
+  p <- plot_ly()
+  for (m in unique(flat_data$model)) {
+    md <- flat_data |> filter(model == m)
+    p <- add_trace(p, data = md, x = ~bet_num, y = ~cum_pnl,
+                   type = "scatter", mode = "lines",
+                   name = m, line = list(color = colors[[m]], width = 1.5),
+                   hovertemplate = paste0("<b>", m, "</b><br>",
+                                         "Bet #%{x:.0f}<br>",
+                                         "Cum P&L: £%{y:.0f}<extra></extra>"))
+  }
+  p <- layout(p,
+    title = list(text = "AH Cumulative P&L (flat £10 stake)",
+                 font = list(color = "white")),
+    xaxis = list(title = "Bet number", color = "white",
+                 rangeslider = list(visible = TRUE)),
+    yaxis = list(title = "Cumulative P&L (£)", color = "white"),
+    paper_bgcolor = "black", plot_bgcolor = "black",
+    font = list(color = "white"),
+    legend = list(font = list(color = "white"),
+                  bgcolor = "rgba(0,0,0,0.8)")
+  ) |> config(scrollZoom = TRUE)
+  p
+} else eq_data
+```
+
+*Cumulative P&L for 4 AH models using flat £10 stakes across ~5,000--6,000 bets per model over 6 seasons (1920--2425). Blue = GLM Poisson baseline; green = Ranger random forest; red = xG-Kalman-DC (worst); orange = Intersection (GLM ∩ Ranger, best). The Intersection model stays closest to zero throughout, consistent with -0.3% ROI. The xGK model shows a sustained downtrend from season 2122 onward. Range slider at bottom for zooming into specific periods. Source: `ah_walkforward_all` target with walk-forward month-by-month retraining.*
+
+## Drawdown
+
+```{r ah-drawdown}
+dd_data <- safe_tar_read("vig_ah_drawdown")
+if (is.data.frame(dd_data)) {
+  flat_dd <- dd_data |> filter(staking == "flat")
+
+  colors <- c(GLM = "#3498db", Ranger = "#2ecc71",
+              xGK = "#e74c3c", Intersection = "#f39c12")
+
+  p <- plot_ly()
+  for (m in unique(flat_dd$model)) {
+    md <- flat_dd |> filter(model == m)
+    p <- add_trace(p, data = md, x = ~bet_num, y = ~drawdown,
+                   type = "scatter", mode = "lines",
+                   fill = "tozeroy",
+                   name = m, line = list(color = colors[[m]], width = 1),
+                   fillcolor = paste0(colors[[m]], "33"),
+                   hovertemplate = paste0("<b>", m, "</b><br>",
+                                         "Bet #%{x:.0f}<br>",
+                                         "Drawdown: £%{y:.0f}<extra></extra>"))
+  }
+  p <- layout(p,
+    title = list(text = "AH Drawdown (underwater from peak, flat stake)",
+                 font = list(color = "white")),
+    xaxis = list(title = "Bet number", color = "white"),
+    yaxis = list(title = "Drawdown (£)", color = "white"),
+    paper_bgcolor = "black", plot_bgcolor = "black",
+    font = list(color = "white"),
+    legend = list(font = list(color = "white"),
+                  bgcolor = "rgba(0,0,0,0.8)")
+  ) |> config(scrollZoom = TRUE)
+  p
+} else dd_data
+```
+
+*Underwater plot showing how far each model drops from its peak cumulative P&L. The xGK model (red) reaches a maximum drawdown of £3,355 — the deepest sustained decline. Intersection (orange) has the shallowest drawdown at £512, reflecting its conservative bet selection (only bets where GLM and Ranger agree). GLM and Ranger show similar drawdown profiles (~£1,300). Source: derived from `ah_walkforward_all` cumulative P&L.*
+
+## CLV Per League
+
+Closing Line Value measures whether the model's price at bet time beats the closing line — a positive CLV means the model identifies prices that move in its favour.
+
+```{r ah-clv-table}
+clv_df <- safe_tar_read("vig_ah_clv_table")
+if (is.data.frame(clv_df)) {
+  DT::datatable(
+    clv_df,
+    rownames = FALSE,
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: left; color: #ccc;",
+      paste0("CLV in probability points (pp) per league. ",
+             "Ranger CLV is positive in 7/9 leagues; Ensemble in all 5 top leagues. ",
+             "D1 (Bundesliga) shows the strongest Ranger CLV (+1.28pp) and ROI (+16.3%). ",
+             "Beat-close rate (btc) > 50% confirms the model systematically beats the closing line. ",
+             "Despite positive CLV, most leagues show negative ROI — the vig eats the edge. ",
+             "Source: `oos_ah_ranger_clv_summary`, `oos_ah_ensemble_clv_summary`.")
+    ),
+    options = list(pageLength = 15, dom = "t", scrollX = TRUE)
+  ) |> DT::formatRound(columns = c("ranger_clv", "ranger_btc",
+                                      "ensemble_clv", "ensemble_btc"),
+                         digits = 3)
+} else clv_df
+```
+
+## Per-Season Breakdown
+
+```{r ah-season-heatmap}
+season_df <- safe_tar_read("vig_ah_season_heatmap")
+if (is.data.frame(season_df)) {
+  colors <- c(GLM = "#3498db", Ranger = "#2ecc71",
+              xGK = "#e74c3c", Intersection = "#f39c12")
+  p <- plot_ly(season_df, x = ~test_season, y = ~roi_pct,
+               color = ~model, colors = colors,
+               type = "bar",
+               hovertemplate = paste0("<b>%{fullData.name}</b><br>",
+                                     "Season: %{x}<br>",
+                                     "ROI: %{y:.1f}%<extra></extra>"))
+  p <- layout(p,
+    barmode = "group",
+    title = list(text = "AH ROI by Season (flat stake)",
+                 font = list(color = "white")),
+    xaxis = list(title = "Test Season", color = "white"),
+    yaxis = list(title = "ROI (%)", color = "white",
+                 zeroline = TRUE, zerolinecolor = "white",
+                 zerolinewidth = 1),
+    paper_bgcolor = "black", plot_bgcolor = "black",
+    font = list(color = "white"),
+    legend = list(font = list(color = "white"),
+                  bgcolor = "rgba(0,0,0,0.8)",
+                  y = 1.02, yanchor = "bottom",
+                  orientation = "h")
+  ) |> config(scrollZoom = TRUE)
+  p
+} else season_df
+```
+
+*ROI by model and season for flat-stake AH bets. Season 2223 is the only period where GLM (+0.7%) and Intersection (+2.1%) show positive returns. The xGK model (red) is consistently negative across all seasons. Ranger shows high variance: +1.5% in 2223 but -5.2% in 2425. No model is consistently profitable across all 6 seasons. Source: `ah_walkforward_by_season` target.*
+
+## Methodology
+
+### Walk-Forward Setup
+
+- **Training**: Expanding window starting from season 1516, retrained monthly
+- **Testing**: Next month's matches (out-of-sample)
+- **Markets**: Asian Handicap -0.5 (equivalent to match winner with no draw)
+- **Edge threshold**: Model probability > devigged closing line probability + 3%
+- **Staking**: Flat £10 per bet, or quarter-Kelly scaled by edge
+
+### CLV Definition
+
+$$\text{CLV} = \frac{P_{\text{bet}}}{P_{\text{close}}} - 1$$
+
+Where $P_{\text{bet}}$ is the model's probability at bet time and $P_{\text{close}}$ is the devigged closing line probability. Positive CLV means the model's price moved in its favour — the market agreed with the bet.
+
+### Leakage Controls
+
+All rolling features use `dplyr::lag()` to exclude the current match. The 7-day as-of cutoff (`apply_asof_cutoff()`) ensures features are available at bet decision time — see [#82](https://github.com/JohnGavin/footbet/issues/82) for the full leakage analysis.
+
+```{r build-info, echo = FALSE, results = "asis"}
+safe_tar_read("vig_build_info")
+```

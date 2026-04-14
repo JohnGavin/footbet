@@ -1570,6 +1570,89 @@ plan_vignette_outputs <- list(
   ),
 
 # ============================================================================
+# AH BACKTEST VIGNETTE TARGETS (#88)
+# ============================================================================
+
+  # Equity curve data (cumulative P&L per model × staking)
+  targets::tar_target(
+    vig_ah_equity_curves,
+    {
+      ah_walkforward_all |>
+        dplyr::arrange(.data$model, .data$staking, .data$match_id) |>
+        dplyr::group_by(.data$model, .data$staking) |>
+        dplyr::mutate(
+          cum_pnl = cumsum(.data$net),
+          bet_num = dplyr::row_number()
+        ) |>
+        dplyr::ungroup()
+    }
+  ),
+
+  # Drawdown data (underwater from peak)
+  targets::tar_target(
+    vig_ah_drawdown,
+    {
+      vig_ah_equity_curves |>
+        dplyr::group_by(.data$model, .data$staking) |>
+        dplyr::mutate(
+          peak = cummax(.data$cum_pnl),
+          drawdown = .data$cum_pnl - .data$peak
+        ) |>
+        dplyr::ungroup()
+    }
+  ),
+
+  # Summary comparison table for AH models
+  targets::tar_target(
+    vig_ah_summary_table,
+    ah_walkforward_summary |>
+      dplyr::mutate(
+        roi_pct = round(.data$roi_pct, 1),
+        win_rate = round(.data$win_rate, 1),
+        sharpe = round(.data$sharpe, 3),
+        max_dd = round(.data$max_dd, 0)
+      ) |>
+      dplyr::select("model", "staking", "n_bets", "roi_pct",
+                      "win_rate", "sharpe", "max_dd")
+  ),
+
+  # Per-season heatmap data
+  targets::tar_target(
+    vig_ah_season_heatmap,
+    ah_walkforward_by_season |>
+      dplyr::filter(.data$staking == "flat") |>
+      dplyr::mutate(
+        roi_pct = round(.data$roi_pct, 1),
+        label = paste0(.data$model, " (", .data$test_season, ")")
+      )
+  ),
+
+  # CLV per league (combined Ranger + Ensemble)
+  targets::tar_target(
+    vig_ah_clv_table,
+    {
+      ranger_clv <- oos_ah_ranger_clv_summary |>
+        dplyr::filter(.data$league_code != "ALL") |>
+        dplyr::select("league_code", "n_bets",
+                       ranger_clv = "mean_clv",
+                       ranger_btc = "beat_close_rate",
+                       ranger_roi = "roi_pct")
+
+      ensemble_clv <- oos_ah_ensemble_clv_summary |>
+        dplyr::filter(.data$league_code != "ALL") |>
+        dplyr::select("league_code",
+                       ensemble_clv = "mean_clv",
+                       ensemble_btc = "beat_close_rate",
+                       ensemble_roi = "roi_pct")
+
+      dplyr::full_join(ranger_clv, ensemble_clv, by = "league_code") |>
+        dplyr::mutate(
+          dplyr::across(dplyr::where(is.numeric), \(x) round(x, 3))
+        )
+    }
+  ),
+
+# ============================================================================
 # NOTE: tar_visnetwork() cannot run inside a target - it's an introspection
 # function that must be called directly in the vignette. Do NOT add
 # vig_targets_dag target here.
