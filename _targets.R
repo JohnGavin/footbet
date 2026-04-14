@@ -44,6 +44,7 @@ c(
   plan_oagd,
   plan_xgk,
   plan_ranger_1x2,
+  plan_xgboost_1x2,
   plan_vignette_outputs,
   plan_pkgdown(),      # pkgdown site build + stage docs/
   plan_pkgctx()        # ctx.yaml cache audit + refresh

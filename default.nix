@@ -90,6 +90,7 @@ let
       usethis
       withr
       worldfootballR
+      xgboost
       yaml;
   };
       

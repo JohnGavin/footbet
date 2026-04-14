@@ -1669,3 +1669,162 @@ ranger_walkforward_cv <- function(fm,
 
   dplyr::bind_rows(results)
 }
+
+# ============================================================================
+# XGBOOST WALK-FORWARD CV
+# ============================================================================
+
+#' Walk-forward CV for XGBoost (1X2 multi-class)
+#'
+#' Fits XGBoost per fold using `multi:softprob` objective with temporal
+#' early stopping (last 20% of training as validation). Uses median
+#' imputation from training data only (no test leakage).
+#'
+#' @param fm Feature matrix (wide format) with `match_date`, `ftr`,
+#'   and numeric feature columns.
+#' @param feature_cols Character vector of feature column names.
+#' @param train_months Integer. Training window (default 24).
+#' @param test_months Integer. Test period (default 1).
+#' @param league_code Character. League label for output.
+#' @param nrounds Integer. Max boosting rounds (default 200).
+#' @param early_stopping Integer. Early stopping patience (default 15).
+#' @param eta Numeric. Learning rate (default 0.05).
+#' @param max_depth Integer. Tree depth (default 4).
+#' @return A tibble with one row per fold and scoring metrics.
+#' @family evaluation
+#' @export
+xgboost_walkforward_cv <- function(fm,
+                                    feature_cols,
+                                    train_months = 24L,
+                                    test_months = 1L,
+                                    league_code = NA_character_,
+                                    nrounds = 200L,
+                                    early_stopping = 15L,
+                                    eta = 0.05,
+                                    max_depth = 4L) {
+  rlang::check_installed("xgboost", reason = "for XGBoost CV")
+  rlang::check_required(fm)
+  rlang::check_required(feature_cols)
+
+  dates <- sort(unique(fm$match_date))
+  splits <- walk_forward_splits(dates, train_months, test_months)
+  if (length(splits) == 0L) return(tibble::tibble())
+
+  available <- intersect(feature_cols, names(fm))
+  if (length(available) < 2L) return(tibble::tibble())
+
+  params <- list(
+    objective = "multi:softprob",
+    eval_metric = "mlogloss",
+    num_class = 3L,
+    eta = eta,
+    max_depth = max_depth,
+    min_child_weight = 3,
+    subsample = 0.8,
+    colsample_bytree = 0.8,
+    gamma = 0.1
+  )
+
+  results <- vector("list", length(splits))
+
+  for (k in seq_along(splits)) {
+    sp <- splits[[k]]
+
+    train_df <- fm[fm$match_date >= sp$train_start &
+                     fm$match_date < sp$test_start, ]
+    test_df <- fm[fm$match_date >= sp$test_start &
+                    fm$match_date < sp$test_end, ]
+
+    if (nrow(train_df) < 100L || nrow(test_df) == 0L) next
+
+    # Prepare matrices with median imputation (train medians only)
+    train_x <- as.matrix(train_df[, available])
+    test_x <- as.matrix(test_df[, available])
+    storage.mode(train_x) <- "double"
+    storage.mode(test_x) <- "double"
+
+    for (j in seq_len(ncol(train_x))) {
+      med <- stats::median(train_x[, j], na.rm = TRUE)
+      if (is.na(med)) med <- 0
+      train_x[is.na(train_x[, j]), j] <- med
+      test_x[is.na(test_x[, j]), j] <- med
+    }
+
+    # Labels: H=0, D=1, A=2
+    train_y <- as.integer(factor(train_df$ftr, levels = c("H", "D", "A"))) - 1L
+    valid_train <- !is.na(train_y)
+    train_x <- train_x[valid_train, , drop = FALSE]
+    train_y <- train_y[valid_train]
+
+    test_ftr <- test_df$ftr
+    valid_test <- !is.na(test_ftr)
+    test_x <- test_x[valid_test, , drop = FALSE]
+    test_ftr <- test_ftr[valid_test]
+
+    if (nrow(train_x) < 100L || nrow(test_x) == 0L) next
+
+    # Temporal validation split (last 20% of training window)
+    n_train <- nrow(train_x)
+    val_size <- ceiling(n_train * 0.2)
+    val_idx <- seq(n_train - val_size + 1L, n_train)
+    tr_idx <- seq_len(n_train - val_size)
+
+    dtrain <- xgboost::xgb.DMatrix(
+      data = train_x[tr_idx, , drop = FALSE],
+      label = train_y[tr_idx]
+    )
+    dval <- xgboost::xgb.DMatrix(
+      data = train_x[val_idx, , drop = FALSE],
+      label = train_y[val_idx]
+    )
+    dtest <- xgboost::xgb.DMatrix(data = test_x)
+
+    model <- tryCatch(
+      xgboost::xgb.train(
+        params = params,
+        data = dtrain,
+        nrounds = nrounds,
+        watchlist = list(val = dval),
+        early_stopping_rounds = early_stopping,
+        verbose = 0L
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(model)) next
+
+    raw_preds <- stats::predict(model, dtest)
+    pred_matrix <- matrix(raw_preds, ncol = 3L, byrow = TRUE)
+    pred_h <- pred_matrix[, 1]
+    pred_d <- pred_matrix[, 2]
+    pred_a <- pred_matrix[, 3]
+    best_iter <- model$best_iteration
+    rm(model, dtrain, dval, dtest, train_x, test_x)
+
+    prob_actual <- dplyr::case_when(
+      test_ftr == "H" ~ pred_h,
+      test_ftr == "D" ~ pred_d,
+      test_ftr == "A" ~ pred_a,
+      TRUE ~ NA_real_
+    )
+    prob_actual <- prob_actual[!is.na(prob_actual)]
+    if (length(prob_actual) == 0L) next
+
+    results[[k]] <- tibble::tibble(
+      fold = k,
+      n_train = length(tr_idx),
+      n_test = sum(valid_test),
+      log_loss = log_loss(prob_actual),
+      brier = brier_1x2(pred_h, pred_d, pred_a, test_ftr),
+      rps = rps_1x2(pred_h, pred_d, pred_a, test_ftr),
+      train_start = sp$train_start,
+      test_start = sp$test_start,
+      test_end = sp$test_end,
+      league_code = league_code,
+      best_nrounds = best_iter %||% nrounds
+    )
+    rm(pred_matrix, pred_h, pred_d, pred_a, prob_actual)
+    if (k %% 10L == 0L) gc(verbose = FALSE)
+  }
+
+  dplyr::bind_rows(results)
+}
