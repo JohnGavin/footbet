@@ -248,3 +248,7 @@ the following columns:
 | `p_over25` / `p_under25` | Pinnacle over/under 2.5 goals odds |
 
 : Columns produced by `parse_fd_odds()`. Pinnacle odds serve as the sharp-market benchmark. {.striped}
+
+```{r build-info, echo = FALSE, results = "asis"}
+safe_tar_read("vig_build_info")
+```

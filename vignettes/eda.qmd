@@ -270,3 +270,7 @@ safe_tar_read("vig_elo_spread_plot")
 **Key Finding:** Top divisions have wider Elo spreads (more competitive
 imbalance). Division 2 leagues show more compressed rating distributions.
 :::
+
+```{r build-info, echo = FALSE, results = "asis"}
+safe_tar_read("vig_build_info")
+```

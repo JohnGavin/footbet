@@ -192,3 +192,7 @@ The `qc_summary` target combines all QC checks into a single report. The
 pipeline computes total matches parsed, odds rows, completeness percentage,
 Pinnacle coverage, and anomaly count. These targets serve as data
 contracts --- downstream model targets depend on QC to ensure data quality.
+
+```{r build-info, echo = FALSE, results = "asis"}
+safe_tar_read("vig_build_info")
+```

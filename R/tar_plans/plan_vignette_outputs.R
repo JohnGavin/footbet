@@ -1574,5 +1574,63 @@ plan_vignette_outputs <- list(
 # function that must be called directly in the vignette. Do NOT add
 # vig_targets_dag target here.
 # ============================================================================
+
+# ============================================================================
+# BUILD-INFO FOOTER (#87)
+# Same format as historical/drif.html: pkg version | Git SHA | R ver | Built
+# ============================================================================
+
+  targets::tar_target(
+    vig_build_info,
+    {
+      # GitHub remote URL
+      gh_url <- tryCatch({
+        remote <- system("git remote get-url origin 2>/dev/null", intern = TRUE)
+        sub("\\.git$", "", sub("^git@github\\.com:", "https://github.com/", remote))
+      }, error = function(e) NULL)
+
+      # Git SHA
+      git_sha_short <- tryCatch(
+        system("git rev-parse --short HEAD 2>/dev/null", intern = TRUE),
+        error = function(e) "N/A"
+      )
+      git_sha_full <- tryCatch(
+        system("git rev-parse HEAD 2>/dev/null", intern = TRUE),
+        error = function(e) git_sha_short
+      )
+
+      # Package version
+      pkg_ver <- tryCatch(
+        as.character(utils::packageVersion("footbet")),
+        error = function(e) {
+          desc <- tryCatch(read.dcf("DESCRIPTION", "Version"), error = function(e2) "dev")
+          as.character(desc)
+        }
+      )
+
+      r_ver <- as.character(getRversion())
+      build_time <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+
+      # Build linked markdown
+      ver_link <- if (!is.null(gh_url)) {
+        sprintf("[%s](%s/releases/tag/v%s)", pkg_ver, gh_url, pkg_ver)
+      } else pkg_ver
+
+      sha_link <- if (!is.null(gh_url) && git_sha_short != "N/A") {
+        sprintf("[`%s`](%s/commit/%s)", git_sha_short, gh_url, git_sha_full)
+      } else sprintf("`%s`", git_sha_short)
+
+      r_link <- sprintf(
+        "[%s](https://cran.r-project.org/doc/manuals/r-release/NEWS.html)",
+        r_ver
+      )
+
+      sprintf(
+        "\n---\n\n**footbet** %s | **Git** %s | **R** %s | **Built** %s\n",
+        ver_link, sha_link, r_link, build_time
+      )
+    }
+  ),
+
   NULL
 )

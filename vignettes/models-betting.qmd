@@ -332,3 +332,7 @@ if (is.data.frame(oos_league)) {
 ```
 
 *Out-of-sample ROI by league. E0 (Premier League) is closest to breakeven at -2.1%, while I2 (Serie B) is worst at -20.1%. No league is profitable after costs. Top 5 and 2nd Tier leagues show similar patterns. The variation in ROI across leagues suggests league-specific models or features might improve performance, but the fundamental barrier is the Pinnacle spread. See [issue #67](https://github.com/JohnGavin/footbet/issues/67) for the test-period evaluation and [issue #43](https://github.com/JohnGavin/footbet/issues/43) for copula model investigation.*
+
+```{r build-info, echo = FALSE, results = "asis"}
+safe_tar_read("vig_build_info")
+```

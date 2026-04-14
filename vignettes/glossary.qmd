@@ -115,3 +115,7 @@ See [issue #43](https://github.com/JohnGavin/footbet/issues/43) for the planned 
 **Package functions:** `?target_leagues`, `?parse_fd_csv`, `?devig_shin`, `?fit_dixon_coles`, `?kelly_stake`, `?closing_line_value`, `?betting_sharpe_ratio`
 
 **External:** [football-data.co.uk](https://www.football-data.co.uk/) | [Pinnacle](https://www.pinnacle.com/) | [Dixon & Coles (1997)](https://doi.org/10.1111/1467-9876.00065) | [goalmodel](https://cran.r-project.org/package=goalmodel)
+
+```{r build-info, echo = FALSE, results = "asis"}
+safe_tar_read("vig_build_info")
+```
