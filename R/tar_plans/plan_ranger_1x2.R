@@ -20,12 +20,21 @@ plan_ranger_1x2 <- list(
       fm <- feature_matrix
 
       # Add shot quality features (Understat, per-team rolling)
-      # Need to pivot from long (team, date) to wide (home_*, away_*)
-      sq <- rolling_shot_quality_5
+      # Normalise Understat team names to match football-data.co.uk
+      team_map <- build_team_name_map()
+      sq <- rolling_shot_quality_5 |>
+        dplyr::mutate(team_norm = normalise_team_name(.data$team, team_map))
+
+      # Also normalise feature_matrix team names for matching
+      fm <- fm |>
+        dplyr::mutate(
+          home_norm = normalise_team_name(.data$home_team, team_map),
+          away_norm = normalise_team_name(.data$away_team, team_map)
+        )
 
       home_sq <- sq |>
         dplyr::select(
-          team = "team", match_date = "match_date",
+          team_norm = "team_norm", match_date = "match_date",
           home_xg_per_shot = "rolling_xg_per_shot",
           home_big_chances = "rolling_big_chances",
           home_shot_volume = "rolling_shot_volume",
@@ -33,7 +42,7 @@ plan_ranger_1x2 <- list(
         )
       away_sq <- sq |>
         dplyr::select(
-          team = "team", match_date = "match_date",
+          team_norm = "team_norm", match_date = "match_date",
           away_xg_per_shot = "rolling_xg_per_shot",
           away_big_chances = "rolling_big_chances",
           away_shot_volume = "rolling_shot_volume",
@@ -42,9 +51,10 @@ plan_ranger_1x2 <- list(
 
       fm |>
         dplyr::left_join(home_sq,
-          by = c("home_team" = "team", "match_date")) |>
+          by = c("home_norm" = "team_norm", "match_date")) |>
         dplyr::left_join(away_sq,
-          by = c("away_team" = "team", "match_date"))
+          by = c("away_norm" = "team_norm", "match_date")) |>
+        dplyr::select(-"home_norm", -"away_norm")
     }
   ),
 

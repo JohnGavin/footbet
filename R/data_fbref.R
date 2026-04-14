@@ -565,7 +565,25 @@ build_team_name_map <- function() {
     "Toulouse FC" = "Toulouse",
     "FC Lorient" = "Lorient",
     "FC Metz" = "Metz",
-    "Clermont Foot" = "Clermont"
+    "Clermont Foot" = "Clermont",
+    # Understat-specific name variations
+    "Atletico Madrid" = "Ath Madrid",
+    "Real Sociedad" = "Sociedad",
+    "Paris Saint Germain" = "Paris SG",
+    "Borussia M.Gladbach" = "M'gladbach",
+    "Borussia Monchengladbach" = "M'gladbach",
+    "Mainz 05" = "Mainz",
+    "Espanyol" = "Espanol",
+    "FC Cologne" = "FC Koln",
+    "Koln" = "FC Koln",
+    "Saint-Etienne" = "St Etienne",
+    "Saint Etienne" = "St Etienne",
+    "Hertha Berlin" = "Hertha",
+    "Parma Calcio 1913" = "Parma",
+    "Wolverhampton" = "Wolves",
+    "Sheffield Utd" = "Sheffield Utd",
+    "Nott'ham Forest" = "Nott'm Forest",
+    "Nottingham Forest" = "Nott'm Forest"
   )
 }
 

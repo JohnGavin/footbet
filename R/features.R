@@ -2090,11 +2090,12 @@ compute_shot_quality <- function(shots_df) {
   # Resolve team name from h_a indicator
   team_shots <- shots_df |>
     dplyr::mutate(
+      side = dplyr::coalesce(.data$h_a, .data$home_away),
       team = dplyr::if_else(
-        .data$h_a == "h" | .data$home_away == "h",
+        .data$side == "h",
         .data$home_team, .data$away_team
       ),
-      match_date = as.Date(.data$date),
+      match_date = as.Date(as.character(.data$date)),
       xg = as.numeric(.data$xG),
       is_goal = .data$result == "Goal",
       is_open_play = .data$situation == "OpenPlay",
