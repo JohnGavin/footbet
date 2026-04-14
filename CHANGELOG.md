@@ -2,6 +2,38 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-14 — Ranger + XGBoost 1X2 walk-forward CV (#86)
+
+### Completed
+- Ranger 1X2 walk-forward CV with enriched features (SoT + shot quality)
+- XGBoost 1X2 walk-forward CV (core + enriched)
+- Full model comparison table: GLM vs xG vs Ranger vs XGBoost
+- Fixed compute_shot_quality: coalesce(h_a, home_away) for Understat
+- Extended team name map for Understat spellings
+- Added xgboost to default.nix
+
+### Failed Approaches
+- **XGBoost 1X2**: 1.19 log-loss (vs GLM 1.02). Near-prior predictions.
+  Per-league training folds too small (300-400 matches) for gradient
+  boosting. Pooled (all leagues) with conservative params (eta=0.02,
+  max_depth=3) also fails: 1.21. Early stopping never triggers.
+  Conclusion: XGBoost not competitive at this data volume.
+
+### Accuracy / Metrics (5 top leagues, walk-forward CV)
+| Model | Log-loss | Brier |
+|---|---:|---:|
+| GLM + xG cut7 | 1.005 | 0.592 |
+| Ranger enriched | 1.014 | 0.605 |
+| GLM goals-only | 1.018 | 0.593 |
+| Ranger core | 1.030 | 0.614 |
+| XGBoost enriched | 1.191 | 0.728 |
+
+### Known Limitations
+- Ranger enriched beats GLM goals-only on log-loss but not Brier
+- Shot quality features help Ranger (+1.6%) but not GLM (-4.2%)
+- XGBoost needs much more data or a different problem formulation
+- brms still needs Stan compiled in nix-shell (#86 remaining)
+
 ## 2026-04-13 — New features: SoT ratio + shot quality (ElHabr gap analysis)
 
 ### Completed
