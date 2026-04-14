@@ -1552,3 +1552,120 @@ collect_fold_predictions_single <- function(long_df,
 
   dplyr::bind_rows(all_preds)
 }
+
+# ============================================================================
+# RANGER WALK-FORWARD CV
+# ============================================================================
+
+#' Walk-forward CV for Ranger random forest (1X2 classification)
+#'
+#' Fits a probability forest per fold using `ranger::ranger()` with
+#' `probability = TRUE`. Evaluates 1X2 predictions with log-loss,
+#' Brier, and RPS — same metrics as [evaluate_glm_baseline()].
+#'
+#' Ranger handles correlated features and nonlinear interactions
+#' naturally, so shot quality features that hurt the Poisson GLM
+#' can be included safely.
+#'
+#' @param fm Feature matrix (wide format, one row per match) with
+#'   `match_date`, `ftr`, and numeric feature columns.
+#' @param feature_cols Character vector of feature column names.
+#' @param train_months Integer. Training window (default 24).
+#' @param test_months Integer. Test period (default 1).
+#' @param league_code Character. League label for output.
+#' @param num_trees Integer. Number of trees (default 500).
+#' @return A tibble with one row per fold and scoring metrics.
+#' @family evaluation
+#' @export
+ranger_walkforward_cv <- function(fm,
+                                   feature_cols,
+                                   train_months = 24L,
+                                   test_months = 1L,
+                                   league_code = NA_character_,
+                                   num_trees = 500L) {
+  rlang::check_installed("ranger", reason = "for random forest CV")
+  rlang::check_required(fm)
+  rlang::check_required(feature_cols)
+
+  dates <- sort(unique(fm$match_date))
+  splits <- walk_forward_splits(dates, train_months, test_months)
+
+  if (length(splits) == 0L) return(tibble::tibble())
+
+  available <- intersect(feature_cols, names(fm))
+  if (length(available) < 2L) {
+    cli::cli_warn("Fewer than 2 features available for Ranger.")
+    return(tibble::tibble())
+  }
+
+  results <- vector("list", length(splits))
+
+  for (k in seq_along(splits)) {
+    sp <- splits[[k]]
+
+    train_df <- fm[fm$match_date >= sp$train_start &
+                     fm$match_date < sp$test_start, ]
+    test_df <- fm[fm$match_date >= sp$test_start &
+                    fm$match_date < sp$test_end, ]
+
+    if (nrow(train_df) < 50L || nrow(test_df) == 0L) next
+
+    # Prepare data — drop rows with NA in features or target
+    train_df$ftr_factor <- factor(train_df$ftr, levels = c("H", "D", "A"))
+    train_clean <- train_df[, c("ftr_factor", available)] |>
+      tidyr::drop_na()
+    test_clean <- test_df[, c("match_id", "ftr", available)] |>
+      tidyr::drop_na()
+
+    if (nrow(train_clean) < 50L || nrow(test_clean) == 0L) next
+
+    # Fit probability forest
+    rf <- tryCatch(
+      ranger::ranger(
+        ftr_factor ~ .,
+        data = train_clean,
+        num.trees = num_trees,
+        probability = TRUE,
+        seed = 42L
+      ),
+      error = function(e) NULL
+    )
+    if (is.null(rf)) next
+
+    # Predict
+    preds <- stats::predict(rf, test_clean[, available])$predictions
+    rm(rf, train_clean)
+
+    pred_h <- preds[, "H"]
+    pred_d <- preds[, "D"]
+    pred_a <- preds[, "A"]
+    actual <- test_clean$ftr
+
+    # Compute prob of actual outcome for log-loss
+    prob_actual <- dplyr::case_when(
+      actual == "H" ~ pred_h,
+      actual == "D" ~ pred_d,
+      actual == "A" ~ pred_a,
+      TRUE ~ NA_real_
+    )
+    prob_actual <- prob_actual[!is.na(prob_actual)]
+    if (length(prob_actual) == 0L) next
+
+    results[[k]] <- tibble::tibble(
+      fold = k,
+      n_train = nrow(train_df),
+      n_test = nrow(test_clean),
+      log_loss = log_loss(prob_actual),
+      brier = brier_1x2(pred_h, pred_d, pred_a, actual),
+      rps = rps_1x2(pred_h, pred_d, pred_a, actual),
+      train_start = sp$train_start,
+      test_start = sp$test_start,
+      test_end = sp$test_end,
+      league_code = league_code
+    )
+    rm(preds, test_clean, pred_h, pred_d, pred_a, prob_actual)
+    if (k %% 10L == 0L) gc(verbose = FALSE)
+  }
+
+  dplyr::bind_rows(results)
+}
