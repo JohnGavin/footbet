@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
 // Default to dark mode if no preference stored
 // =================================================================
 
-if (!localStorage.getItem('theme')) {
-  document.documentElement.setAttribute('data-bs-theme', 'dark');
-}
+// Force dark mode always — our plotly plots have black backgrounds
+// and our CSS is designed for dark theme only
+document.documentElement.setAttribute('data-bs-theme', 'dark');
+localStorage.setItem('theme', 'dark');

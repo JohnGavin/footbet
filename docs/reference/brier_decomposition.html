@@ -15,7 +15,7 @@ better (more informative forecasts).
 Uncertainty: Inherent difficulty of the prediction task based on
 outcome distribution. Cannot be improved by the model.
 
-"><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&amp;display=swap" rel="stylesheet"></head><body>
+"><script>localStorage.setItem('theme','dark');document.documentElement.setAttribute('data-bs-theme','dark');</script><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&amp;display=swap" rel="stylesheet"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -36,7 +36,13 @@ outcome distribution. Cannot be improved by the model.
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guide</h6></li>
-    <li><a class="dropdown-item" href="../articles/football-analytics.html">Football Betting Analytics</a></li>
+    <li><a class="dropdown-item" href="../articles/data-sources.html">Data Sources &amp; Coverage</a></li>
+    <li><a class="dropdown-item" href="../articles/data-cleaning.html">Data Cleaning &amp; QC</a></li>
+    <li><a class="dropdown-item" href="../articles/eda.html">Exploratory Data Analysis</a></li>
+    <li><a class="dropdown-item" href="../articles/models-betting.html">Models &amp; Betting Strategy</a></li>
+    <li><a class="dropdown-item" href="../articles/ah-backtest.html">AH Backtest: P&amp;L, Drawdown &amp; CLV</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -107,16 +113,22 @@ Journal of Applied Meteorology, 12(4), 595-600.</p>
 <code><a href="brier_decomposition_1x2.html">brier_decomposition_1x2()</a></code>,
 <code><a href="closing_line_value.html">closing_line_value()</a></code>,
 <code><a href="clv_1x2.html">clv_1x2()</a></code>,
+<code><a href="collect_fold_predictions.html">collect_fold_predictions()</a></code>,
 <code><a href="compute_ensemble_weights.html">compute_ensemble_weights()</a></code>,
+<code><a href="consensus_implied.html">consensus_implied()</a></code>,
 <code><a href="evaluate_glm_baseline.html">evaluate_glm_baseline()</a></code>,
+<code><a href="evaluate_market_baselines.html">evaluate_market_baselines()</a></code>,
 <code><a href="evaluate_xgboost.html">evaluate_xgboost()</a></code>,
 <code><a href="log_loss.html">log_loss()</a></code>,
 <code><a href="pinnacle_implied.html">pinnacle_implied()</a></code>,
+<code><a href="ranger_walkforward_cv.html">ranger_walkforward_cv()</a></code>,
+<code><a href="reliability_curve_data.html">reliability_curve_data()</a></code>,
 <code><a href="rps_1x2.html">rps_1x2()</a></code>,
 <code><a href="summarise_betting_performance.html">summarise_betting_performance()</a></code>,
 <code><a href="summarise_clv.html">summarise_clv()</a></code>,
 <code><a href="summarise_cv.html">summarise_cv()</a></code>,
-<code><a href="walk_forward_splits.html">walk_forward_splits()</a></code></p></div>
+<code><a href="walk_forward_splits.html">walk_forward_splits()</a></code>,
+<code><a href="xgboost_walkforward_cv.html">xgboost_walkforward_cv()</a></code></p></div>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
@@ -135,7 +147,14 @@ Journal of Applied Meteorology, 12(4), 595-600.</p>
 
 
 
-
-
-  </body></html>
+  <script>
+  fetch(window.location.href, {method: 'HEAD'}).then(function(r) {
+    var lm = r.headers.get('Last-Modified');
+    if (lm) {
+      document.querySelectorAll('.pkgdown-footer-left p').forEach(function(el) {
+        el.textContent = 'Deployed: ' + lm;
+      });
+    }
+  });
+</script></body></html>
 

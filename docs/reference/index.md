@@ -8,10 +8,17 @@ Download and parse match data from various sources
   : Download all target league/season combinations
 - [`download_fd_csv()`](https://johngavin.github.io/footbet/reference/download_fd_csv.md)
   : Download a CSV from football-data.co.uk
+- [`fetch_fbref_advanced_all()`](https://johngavin.github.io/footbet/reference/fetch_fbref_advanced_all.md)
+  : Fetch FBref passing + shooting match logs for multiple
+  league-seasons
 - [`fetch_fbref_all()`](https://johngavin.github.io/footbet/reference/fetch_fbref_all.md)
   : Fetch FBref data for multiple leagues and seasons
 - [`fetch_fbref_matches()`](https://johngavin.github.io/footbet/reference/fetch_fbref_matches.md)
   : Fetch match-level xG data from FBref
+- [`fetch_fbref_season_stats()`](https://johngavin.github.io/footbet/reference/fetch_fbref_season_stats.md)
+  : Fetch FBref team season stats (passing, shooting, possession)
+- [`fetch_fbref_team_match_logs()`](https://johngavin.github.io/footbet/reference/fetch_fbref_team_match_logs.md)
+  : Fetch FBref team match log stats for all teams in a league-season
 - [`fetch_league_injuries()`](https://johngavin.github.io/footbet/reference/fetch_league_injuries.md)
   : Fetch current league injuries from Transfermarkt
 - [`fetch_league_suspensions()`](https://johngavin.github.io/footbet/reference/fetch_league_suspensions.md)
@@ -26,6 +33,8 @@ Download and parse match data from various sources
   : Parse a football-data.co.uk CSV into standardised format
 - [`parse_fd_odds()`](https://johngavin.github.io/footbet/reference/parse_fd_odds.md)
   : Parse Pinnacle odds columns from a football-data.co.uk CSV
+- [`standardise_fbref_advanced()`](https://johngavin.github.io/footbet/reference/standardise_fbref_advanced.md)
+  : Standardise FBref team match log columns for progressive stats
 
 ## Data Integration
 
@@ -60,12 +69,18 @@ Create predictive features from raw match data
   : Add ratio-normalized features to match data
 - [`add_rest_days()`](https://johngavin.github.io/footbet/reference/add_rest_days.md)
   : Add rest days features to match data
+- [`apply_asof_cutoff()`](https://johngavin.github.io/footbet/reference/apply_asof_cutoff.md)
+  : Apply an as-of cutoff to a per-team, per-date feature series
 - [`compute_elo()`](https://johngavin.github.io/footbet/reference/compute_elo.md)
   : Compute Elo ratings for a league
 - [`compute_gamestate_xg()`](https://johngavin.github.io/footbet/reference/compute_gamestate_xg.md)
   : Compute gamestate-aware xG features
 - [`compute_matches_since()`](https://johngavin.github.io/footbet/reference/compute_matches_since.md)
   : Add matches-since-event features to team data
+- [`compute_rest_days()`](https://johngavin.github.io/footbet/reference/compute_rest_days.md)
+  : Compute rest days for all matches
+- [`compute_shot_quality()`](https://johngavin.github.io/footbet/reference/compute_shot_quality.md)
+  : Compute per-match shot quality features from Understat shot data
 - [`compute_xg_features()`](https://johngavin.github.io/footbet/reference/compute_xg_features.md)
   : Compute all xG-based features
 - [`compute_xg_xag_composite()`](https://johngavin.github.io/footbet/reference/compute_xg_xag_composite.md)
@@ -86,10 +101,16 @@ Create predictive features from raw match data
   : Check key player availability for a team
 - [`league_table()`](https://johngavin.github.io/footbet/reference/league_table.md)
   : Compute league table at a specific date
+- [`leakage_fix`](https://johngavin.github.io/footbet/reference/leakage_fix.md)
+  : Bet-time cutoff: as-of feature joins
+- [`margin_k_factor()`](https://johngavin.github.io/footbet/reference/margin_k_factor.md)
+  : Margin-based K-factor weight
 - [`matches_since_event()`](https://johngavin.github.io/footbet/reference/matches_since_event.md)
   : Compute matches since a specific event
 - [`matches_to_long()`](https://johngavin.github.io/footbet/reference/matches_to_long.md)
   : Convert match results to long format for Poisson modelling
+- [`pinnacle_implied_elo()`](https://johngavin.github.io/footbet/reference/pinnacle_implied_elo.md)
+  : Convert Pinnacle probability to implied Elo rating
 - [`ratio_normalize()`](https://johngavin.github.io/footbet/reference/ratio_normalize.md)
   : Normalize features to ratio form
 - [`reliability_threshold()`](https://johngavin.github.io/footbet/reference/reliability_threshold.md)
@@ -98,8 +119,18 @@ Create predictive features from raw match data
   : Compute days since last match for a team
 - [`rolling_goals()`](https://johngavin.github.io/footbet/reference/rolling_goals.md)
   : Compute rolling goal averages for each team
+- [`rolling_progressive()`](https://johngavin.github.io/footbet/reference/rolling_progressive.md)
+  : Compute rolling progressive actions from FBref team match logs
+- [`rolling_psxg()`](https://johngavin.github.io/footbet/reference/rolling_psxg.md)
+  : Compute rolling PSxG overperformance
+- [`rolling_shot_quality()`](https://johngavin.github.io/footbet/reference/rolling_shot_quality.md)
+  : Compute rolling shot quality features
+- [`rolling_sot()`](https://johngavin.github.io/footbet/reference/rolling_sot.md)
+  : Compute rolling shots-on-target ratio
 - [`rolling_xg()`](https://johngavin.github.io/footbet/reference/rolling_xg.md)
   : Compute rolling xG averages for each team
+- [`seasonal_k()`](https://johngavin.github.io/footbet/reference/seasonal_k.md)
+  : Compute seasonal K-factor
 - [`shrink_team_strength()`](https://johngavin.github.io/footbet/reference/shrink_team_strength.md)
   : Shrink team strength estimates
 - [`team_form_score()`](https://johngavin.github.io/footbet/reference/team_form_score.md)
@@ -141,10 +172,32 @@ Remove bookmaker margin from odds
 
 Fit and predict with Poisson, Dixon-Coles, and Bayesian models
 
+- [`blend_with_market()`](https://johngavin.github.io/footbet/reference/blend_with_market.md)
+  : Blend model predictions with market probabilities
+- [`brms_ah_ci()`](https://johngavin.github.io/footbet/reference/brms_ah_ci.md)
+  : Predict AH cover probability with credible intervals from brms
+- [`brms_converged()`](https://johngavin.github.io/footbet/reference/brms_converged.md)
+  : Check if a brms model has converged
+- [`brms_diagnostics()`](https://johngavin.github.io/footbet/reference/brms_diagnostics.md)
+  : Extract MCMC diagnostics from a brms model
+- [`brms_loo()`](https://johngavin.github.io/footbet/reference/brms_loo.md)
+  : Compute LOO-CV for a brms model
+- [`brms_r2()`](https://johngavin.github.io/footbet/reference/brms_r2.md)
+  : Compute Bayesian R-squared for a brms model
+- [`brms_waic()`](https://johngavin.github.io/footbet/reference/brms_waic.md)
+  : Compute WAIC for a brms model
 - [`correct_score_value()`](https://johngavin.github.io/footbet/reference/correct_score_value.md)
   : Correct score odds value check
 - [`cv_xgboost()`](https://johngavin.github.io/footbet/reference/cv_xgboost.md)
   : Cross-validate XGBoost model
+- [`dc_score_matrix()`](https://johngavin.github.io/footbet/reference/dc_score_matrix.md)
+  : Build Dixon-Coles corrected score matrix
+- [`dc_tau()`](https://johngavin.github.io/footbet/reference/dc_tau.md)
+  : Dixon-Coles correction factor for low-scoring games
+- [`dskellam()`](https://johngavin.github.io/footbet/reference/dskellam.md)
+  : Skellam probability mass function
+- [`edge_credible_interval()`](https://johngavin.github.io/footbet/reference/edge_credible_interval.md)
+  : Compute credible interval on betting edge
 - [`ensemble_predict()`](https://johngavin.github.io/footbet/reference/ensemble_predict.md)
   : Ensemble model predictions
 - [`evaluate_brms()`](https://johngavin.github.io/footbet/reference/evaluate_brms.md)
@@ -159,8 +212,40 @@ Fit and predict with Poisson, Dixon-Coles, and Bayesian models
   : Fit a Poisson GLM baseline model
 - [`fit_xgboost()`](https://johngavin.github.io/footbet/reference/fit_xgboost.md)
   : Fit XGBoost model for match outcome prediction
+- [`kalman`](https://johngavin.github.io/footbet/reference/kalman.md) :
+  Kalman Filter for Dynamic Team Strength Estimation
+- [`kalman_strengths()`](https://johngavin.github.io/footbet/reference/kalman_strengths.md)
+  : Run Kalman filter over a season for one league
+- [`kalman_tune()`](https://johngavin.github.io/footbet/reference/kalman_tune.md)
+  : Tune Kalman filter hyperparameters via innovation log-likelihood
+- [`kalman_update()`](https://johngavin.github.io/footbet/reference/kalman_update.md)
+  : Single-step Kalman update
+- [`lambdas_from_hda()`](https://johngavin.github.io/footbet/reference/lambdas_from_hda.md)
+  : Reverse-engineer Poisson lambdas from 1x2 probabilities
+- [`oagd`](https://johngavin.github.io/footbet/reference/oagd.md) :
+  Opposition-Adjusted Goal Difference (OAGD) Model
+- [`oagd_add_odds()`](https://johngavin.github.io/footbet/reference/oagd_add_odds.md)
+  : Add Pinnacle closing odds to match data
+- [`oagd_fit_window()`](https://johngavin.github.io/footbet/reference/oagd_fit_window.md)
+  : Fit OAGD model on a single matchday window
+- [`oagd_form()`](https://johngavin.github.io/footbet/reference/oagd_form.md)
+  : Compute exponentially-weighted form from residuals
+- [`oagd_match_data()`](https://johngavin.github.io/footbet/reference/oagd_match_data.md)
+  : Prepare match data for OAGD modelling
+- [`oagd_predict`](https://johngavin.github.io/footbet/reference/oagd_predict.md)
+  : OAGD Prediction: Skellam GD Distribution
+- [`oagd_predict_all()`](https://johngavin.github.io/footbet/reference/oagd_predict_all.md)
+  : Batch-predict probabilities for all matches in a dataset
+- [`oagd_predict_match()`](https://johngavin.github.io/footbet/reference/oagd_predict_match.md)
+  : Predict match outcome probabilities from OAGD model
+- [`oagd_residuals()`](https://johngavin.github.io/footbet/reference/oagd_residuals.md)
+  : Compute opposition-adjusted residuals
+- [`oagd_roll_fits()`](https://johngavin.github.io/footbet/reference/oagd_roll_fits.md)
+  : Fit OAGD model across all matchdays in a league-season
 - [`plot_xgb_importance()`](https://johngavin.github.io/footbet/reference/plot_xgb_importance.md)
   : Plot XGBoost feature importance
+- [`predict_ah()`](https://johngavin.github.io/footbet/reference/predict_ah.md)
+  : Predict Asian Handicap cover probability from score matrix
 - [`predict_brms()`](https://johngavin.github.io/footbet/reference/predict_brms.md)
   : Predict match outcome probabilities from a brms Poisson model
 - [`predict_correct_score()`](https://johngavin.github.io/footbet/reference/predict_correct_score.md)
@@ -177,12 +262,16 @@ Fit and predict with Poisson, Dixon-Coles, and Bayesian models
   : Predict 1X2 probabilities for all matches in a dataset
 - [`predict_matches_xgb()`](https://johngavin.github.io/footbet/reference/predict_matches_xgb.md)
   : Predict matches with XGBoost model
+- [`predict_ou()`](https://johngavin.github.io/footbet/reference/predict_ou.md)
+  : Predict Over/Under probability from score matrix
 - [`predict_xgboost()`](https://johngavin.github.io/footbet/reference/predict_xgboost.md)
   : Predict with XGBoost model
 - [`prepare_xgb_features()`](https://johngavin.github.io/footbet/reference/prepare_xgb_features.md)
   : Prepare feature matrix for XGBoost
 - [`score_matrix()`](https://johngavin.github.io/footbet/reference/score_matrix.md)
   : Predict score probabilities from a Poisson model
+- [`score_matrix_probs()`](https://johngavin.github.io/footbet/reference/score_matrix_probs.md)
+  : Extract match probabilities from a score matrix
 - [`score_matrix_to_1x2()`](https://johngavin.github.io/footbet/reference/score_matrix_to_1x2.md)
   : Convert score matrix to 1X2 probabilities
 - [`score_matrix_to_ah()`](https://johngavin.github.io/footbet/reference/score_matrix_to_ah.md)
@@ -191,6 +280,8 @@ Fit and predict with Poisson, Dixon-Coles, and Bayesian models
   : Convert score matrix to over/under 2.5 goals probabilities
 - [`score_probability()`](https://johngavin.github.io/footbet/reference/score_probability.md)
   : Get probability for a specific scoreline
+- [`temporal_split()`](https://johngavin.github.io/footbet/reference/temporal_split.md)
+  : Split matches into train/validate/test periods
 - [`top_scorelines()`](https://johngavin.github.io/footbet/reference/top_scorelines.md)
   : Get top N most likely scorelines
 - [`tune_xgboost()`](https://johngavin.github.io/footbet/reference/tune_xgboost.md)
@@ -214,16 +305,27 @@ Evaluate model performance and calibration
   : Compute closing line value (CLV)
 - [`clv_1x2()`](https://johngavin.github.io/footbet/reference/clv_1x2.md)
   : Compute CLV for 1X2 predictions
+- [`collect_fold_predictions()`](https://johngavin.github.io/footbet/reference/collect_fold_predictions.md)
+  : Collect match-level predictions from walk-forward CV
 - [`compute_ensemble_weights()`](https://johngavin.github.io/footbet/reference/compute_ensemble_weights.md)
   : Compute optimal ensemble weights from historical performance
+- [`consensus_implied()`](https://johngavin.github.io/footbet/reference/consensus_implied.md)
+  : Market consensus implied probabilities (average bookmaker)
 - [`evaluate_glm_baseline()`](https://johngavin.github.io/footbet/reference/evaluate_glm_baseline.md)
   : Run walk-forward evaluation for the Poisson GLM baseline
+- [`evaluate_market_baselines()`](https://johngavin.github.io/footbet/reference/evaluate_market_baselines.md)
+  : Evaluate market baselines (Pinnacle + consensus) against actual
+  results
 - [`evaluate_xgboost()`](https://johngavin.github.io/footbet/reference/evaluate_xgboost.md)
   : Evaluate XGBoost model performance
 - [`log_loss()`](https://johngavin.github.io/footbet/reference/log_loss.md)
   : Compute log loss for probability predictions
 - [`pinnacle_implied()`](https://johngavin.github.io/footbet/reference/pinnacle_implied.md)
   : Compute implied probabilities from Pinnacle odds (benchmark)
+- [`ranger_walkforward_cv()`](https://johngavin.github.io/footbet/reference/ranger_walkforward_cv.md)
+  : Walk-forward CV for Ranger random forest (1X2 classification)
+- [`reliability_curve_data()`](https://johngavin.github.io/footbet/reference/reliability_curve_data.md)
+  : Compute reliability curve data for calibration plots
 - [`rps_1x2()`](https://johngavin.github.io/footbet/reference/rps_1x2.md)
   : Compute Ranked Probability Score for ordered outcomes
 - [`summarise_betting_performance()`](https://johngavin.github.io/footbet/reference/summarise_betting_performance.md)
@@ -234,6 +336,8 @@ Evaluate model performance and calibration
   : Summarise walk-forward evaluation results
 - [`walk_forward_splits()`](https://johngavin.github.io/footbet/reference/walk_forward_splits.md)
   : Create walk-forward time splits
+- [`xgboost_walkforward_cv()`](https://johngavin.github.io/footbet/reference/xgboost_walkforward_cv.md)
+  : Walk-forward CV for XGBoost (1X2 multi-class)
 
 ## Probability Calibration
 
@@ -263,16 +367,42 @@ Discrimination and stability metrics for statistic evaluation
 
 Kelly criterion and bankroll management
 
+- [`ah_bets_from_preds()`](https://johngavin.github.io/footbet/reference/ah_bets_from_preds.md)
+  : Generate AH bets from any prediction dataframe
 - [`apply_guardrails()`](https://johngavin.github.io/footbet/reference/apply_guardrails.md)
   : Apply drawdown guardrails to stake
+- [`attach_clv()`](https://johngavin.github.io/footbet/reference/attach_clv.md)
+  : Attach closing AH prices and compute per-bet CLV
+- [`clv`](https://johngavin.github.io/footbet/reference/clv.md) :
+  Closing Line Value (CLV) diagnostics for Asian Handicap bets
+- [`expanding_clv_window()`](https://johngavin.github.io/footbet/reference/expanding_clv_window.md)
+  : Expanding-window devigged CLV with baseline comparison
 - [`find_value_bets()`](https://johngavin.github.io/footbet/reference/find_value_bets.md)
   : Find value bets across all matches for 1X2 market
 - [`identify_value_bet()`](https://johngavin.github.io/footbet/reference/identify_value_bet.md)
   : Identify value bets from model vs market probabilities
 - [`kelly_fraction()`](https://johngavin.github.io/footbet/reference/kelly_fraction.md)
   : Calculate fractional Kelly stake
+- [`load_closing_ah_prices()`](https://johngavin.github.io/footbet/reference/load_closing_ah_prices.md)
+  : Load closing Asian Handicap prices from raw football-data.co.uk CSVs
+- [`oagd_backtest`](https://johngavin.github.io/footbet/reference/oagd_backtest.md)
+  : OAGD Backtest Harness
+- [`oagd_backtest_league()`](https://johngavin.github.io/footbet/reference/oagd_backtest_league.md)
+  : Run OAGD backtest for one league-season
+- [`oagd_backtest_summary()`](https://johngavin.github.io/footbet/reference/oagd_backtest_summary.md)
+  : Summarise backtest results
+- [`oagd_edge()`](https://johngavin.github.io/footbet/reference/oagd_edge.md)
+  : Compute edge of model probability over implied probability
+- [`oagd_grid()`](https://johngavin.github.io/footbet/reference/oagd_grid.md)
+  : Generate hyperparameter grid for OAGD tuning
+- [`oagd_pnl()`](https://johngavin.github.io/footbet/reference/oagd_pnl.md)
+  : Compute PnL for a single bet
+- [`oagd_stake()`](https://johngavin.github.io/footbet/reference/oagd_stake.md)
+  : Determine stake from edge using tiered thresholds
 - [`simulate_pnl()`](https://johngavin.github.io/footbet/reference/simulate_pnl.md)
   : Simulate betting P&L from a series of value bets
+- [`summarise_ah_clv()`](https://johngavin.github.io/footbet/reference/summarise_ah_clv.md)
+  : Summarise CLV metrics overall and by league
 - [`summarise_pnl()`](https://johngavin.github.io/footbet/reference/summarise_pnl.md)
   : Summarise P&L simulation results
 
@@ -361,6 +491,12 @@ DuckDB storage and retrieval
 
 Interactive plotly visualizations with dark theme
 
+- [`COUNTRY_COLORS`](https://johngavin.github.io/footbet/reference/COUNTRY_COLORS.md)
+  : Country color palette
+- [`TIER_COLORS`](https://johngavin.github.io/footbet/reference/TIER_COLORS.md)
+  : Tier color palette
+- [`add_league_metadata()`](https://johngavin.github.io/footbet/reference/add_league_metadata.md)
+  : Add league tier and country metadata
 - [`add_time_slider()`](https://johngavin.github.io/footbet/reference/add_time_slider.md)
   : Add range slider to time series plotly
 - [`plot_dark_bar()`](https://johngavin.github.io/footbet/reference/plot_dark_bar.md)

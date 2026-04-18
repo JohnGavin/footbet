@@ -13,6 +13,25 @@ format:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(targets)
+
+if (file.exists(here::here("_targets"))) {
+  tar_config_set(store = here::here("_targets"))
+}
+
+safe_tar_read <- function(name) {
+  result <- tryCatch(targets::tar_read_raw(name), error = function(e) NULL)
+  if (is.null(result)) {
+    rds_path <- system.file(file.path("extdata", "vignettes", paste0(name, ".rds")), package = "footbet")
+    if (!nzchar(rds_path) || !file.exists(rds_path))
+      rds_path <- here::here("inst", "extdata", "vignettes", paste0(name, ".rds"))
+    if (file.exists(rds_path)) result <- readRDS(rds_path)
+  }
+  if (is.null(result)) {
+    htmltools::div(style = "background: #dc3545; color: white; padding: 1em; border-radius: 4px;",
+      htmltools::p(paste0("[MISSING EVIDENCE] Target `", name, "` not found.")))
+  } else result
+}
 ```
 
 This glossary defines betting and statistical terms used throughout the

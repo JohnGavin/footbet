@@ -3,7 +3,7 @@
 probabilities. Best for 3-way markets (1X2) where draws create
 asymmetry."><meta property="og:description" content="Estimates the insider trading parameter z and derives fair
 probabilities. Best for 3-way markets (1X2) where draws create
-asymmetry."><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&amp;display=swap" rel="stylesheet"></head><body>
+asymmetry."><script>localStorage.setItem('theme','dark');document.documentElement.setAttribute('data-bs-theme','dark');</script><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&amp;display=swap" rel="stylesheet"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -24,7 +24,13 @@ asymmetry."><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:w
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guide</h6></li>
-    <li><a class="dropdown-item" href="../articles/football-analytics.html">Football Betting Analytics</a></li>
+    <li><a class="dropdown-item" href="../articles/data-sources.html">Data Sources &amp; Coverage</a></li>
+    <li><a class="dropdown-item" href="../articles/data-cleaning.html">Data Cleaning &amp; QC</a></li>
+    <li><a class="dropdown-item" href="../articles/eda.html">Exploratory Data Analysis</a></li>
+    <li><a class="dropdown-item" href="../articles/models-betting.html">Models &amp; Betting Strategy</a></li>
+    <li><a class="dropdown-item" href="../articles/ah-backtest.html">AH Backtest: P&amp;L, Drawdown &amp; CLV</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -93,7 +99,14 @@ asymmetry.</p>
 
 
 
-
-
-  </body></html>
+  <script>
+  fetch(window.location.href, {method: 'HEAD'}).then(function(r) {
+    var lm = r.headers.get('Last-Modified');
+    if (lm) {
+      document.querySelectorAll('.pkgdown-footer-left p').forEach(function(el) {
+        el.textContent = 'Deployed: ' + lm;
+      });
+    }
+  });
+</script></body></html>
 

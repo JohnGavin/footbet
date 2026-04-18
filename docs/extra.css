@@ -175,3 +175,178 @@ caption, figcaption, .figure-caption, .dataTables_caption {
 table.dataTable tbody td {
   cursor: text;
 }
+
+/* =================================================================
+   DT TABLE DARK THEME TEXT COLORS
+   Fix invisible text (black on black) in DT::datatable widgets.
+   Forces light text on dark backgrounds for all DT elements.
+   ================================================================= */
+
+/* Table body text */
+table.dataTable tbody td, table.dataTable tbody th {
+  color: #cccccc !important;
+}
+
+/* Table header text */
+table.dataTable thead th, table.dataTable thead td {
+  color: #ffffff !important;
+}
+
+/* DT filter/search inputs */
+.dataTables_filter input, .dataTables_length select {
+  color: #cccccc !important;
+  background-color: #333333 !important;
+}
+
+/* DT info and pagination text */
+.dataTables_info, .dataTables_paginate {
+  color: #cccccc !important;
+}
+
+/* DT pagination buttons */
+.dataTables_paginate .paginate_button {
+  color: #cccccc !important;
+}
+
+/* DT caption text - ensure visible on dark backgrounds */
+.dataTables_wrapper caption, .dataTables_caption, caption {
+  color: #cccccc !important;
+}
+
+/* DT filter header inputs (column filters) */
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper select {
+  color: #cccccc !important;
+  background-color: #333333 !important;
+  border-color: #555555 !important;
+}
+
+/* DT "Show N entries" label text */
+.dataTables_wrapper .dataTables_length label,
+.dataTables_wrapper .dataTables_filter label {
+  color: #cccccc !important;
+}
+
+/* =================================================================
+   FIX BLANK VERTICAL SPACE AT BOTTOM OF VIGNETTES
+   Prevent excessive height on main content containers and body.
+   ================================================================= */
+
+/* Remove min-height that can cause blank space at bottom */
+main, article, .contents {
+  min-height: unset !important;
+}
+
+/* Prevent body from expanding beyond content */
+html, body {
+  overflow-x: hidden;
+}
+
+/* Fix pkgdown page wrapper creating extra space */
+.page-header, .page-body {
+  min-height: unset !important;
+}
+
+/* Ensure footer stays at bottom of content, not viewport */
+footer, .pkgdown-footer {
+  margin-top: auto;
+}
+
+/* Hide empty TOC sidebar that causes blank vertical space */
+aside.col-md-3, aside.col-md-3 nav {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Remove Quarto after-body script spacer */
+#quarto-html-after-body {
+  display: none !important;
+}
+
+/* =================================================================
+   FORCE DARK BACKGROUND ON ALL PAGE ELEMENTS
+   pkgdown ignores Quarto YAML theme settings — we must force dark
+   via CSS in extra.css which pkgdown DOES load.
+   ================================================================= */
+
+html, body, main, article, .contents, .page-body, .container, .container-fluid {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* All text white */
+p, li, h1, h2, h3, h4, h5, h6, span, em, strong, label, code, pre {
+  color: #ffffff !important;
+}
+a { color: #66b3ff !important; }
+a:hover { color: #99ccff !important; }
+code { background-color: #222 !important; }
+
+/* Tables: black bg, white text, horizontal scroll */
+table, .table, table.dataTable {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+}
+table td, table th, .table td, .table th {
+  color: #ffffff !important;
+  background-color: #000000 !important;
+  border-color: #333 !important;
+}
+table thead th, .table thead th {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  background-color: #111111 !important;
+  border-color: #333 !important;
+}
+table tbody tr:hover td {
+  background-color: #222222 !important;
+}
+.dataTables_wrapper, .cell-output-display {
+  overflow-x: auto !important;
+}
+table { white-space: nowrap; }
+
+/* Callout boxes */
+.callout, .callout-note, .callout-warning, .callout-tip {
+  background-color: #111 !important;
+  border-color: #333 !important;
+  color: #ffffff !important;
+}
+
+/* Navbar and footer dark */
+.navbar, .pkgdown-footer, footer {
+  background-color: #000000 !important;
+}
+
+/* Sidebar / TOC dark */
+.sidebar, #toc, .pkgdown-toc {
+  background-color: #000000 !important;
+}
+
+/* Plotly widget containers — force black background */
+.plotly, .js-plotly-plot, .plot-container,
+.html-widget, .html-fill-item,
+.cell-output-display, .cell {
+  background-color: #000000 !important;
+}
+
+/* Tab pane content (from panel-tabset) */
+.tab-pane, .tab-content, .nav-tabs {
+  background-color: #000000 !important;
+  border-color: #333 !important;
+}
+.nav-tabs .nav-link {
+  color: #ffffff !important;
+}
+.nav-tabs .nav-link.active {
+  background-color: #222 !important;
+  border-color: #333 !important;
+  color: #ffffff !important;
+}
+
+/* DT container and wrapper */
+.dataTables_wrapper {
+  background-color: #000000 !important;
+}

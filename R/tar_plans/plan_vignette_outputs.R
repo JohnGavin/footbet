@@ -1715,5 +1715,125 @@ plan_vignette_outputs <- list(
     }
   ),
 
+# ============================================================================
+# xG CALIBRATION (#84)
+# ============================================================================
+
+  targets::tar_target(
+    vig_xg_per_league,
+    {
+      tryCatch(xg_per_league_comparison, error = function(e) NULL)
+    }
+  ),
+
+  targets::tar_target(
+    vig_dc_vs_glm_xg,
+    {
+      tryCatch(dc_vs_glm_xg_era, error = function(e) NULL)
+    }
+  ),
+
+  targets::tar_target(
+    vig_market_baselines,
+    {
+      tryCatch(
+        market_baselines |>
+          dplyr::filter(.data$league_code %in% c("D1", "E0", "F1", "I1", "SP1")),
+        error = function(e) NULL
+      )
+    }
+  ),
+
+# ============================================================================
+# MODEL LEADERBOARD — unified cross-model comparison for GH Pages
+# Combines 1X2 calibration (model_comparison_with_brms) with AH P&L
+# (vig_ah_summary_table) into a single table matching MODEL_CATALOGUE.md
+# ============================================================================
+
+  targets::tar_target(
+    vig_model_leaderboard,
+    {
+      # 1X2 calibration metrics (log-loss, Brier, RPS)
+      cal <- tryCatch(
+        model_comparison_with_brms |>
+          dplyr::select(
+            "model",
+            log_loss = "mean_log_loss",
+            brier = "mean_brier",
+            rps = "mean_rps",
+            "n_folds"
+          ) |>
+          dplyr::mutate(market = "1X2"),
+        error = function(e) NULL
+      )
+
+      # AH walk-forward P&L (flat staking only for the leaderboard)
+      ah <- tryCatch(
+        vig_ah_summary_table |>
+          dplyr::filter(.data$staking == "flat") |>
+          dplyr::select(
+            "model", "n_bets", "roi_pct", "sharpe", "max_dd"
+          ) |>
+          dplyr::mutate(market = "AH"),
+        error = function(e) NULL
+      )
+
+      # Pinnacle baseline row
+      pinn <- tryCatch({
+        pe <- pinnacle_eval
+        if (is.data.frame(pe) && nrow(pe) > 0L) {
+          tibble::tibble(
+            model = "Pinnacle closing",
+            market = "1X2",
+            log_loss = pe$value[pe$metric == "log_loss"],
+            brier = pe$value[pe$metric == "brier"],
+            rps = pe$value[pe$metric == "rps"],
+            n_folds = NA_integer_
+          )
+        } else NULL
+      }, error = function(e) NULL)
+
+      # Combine calibration rows
+      cal_all <- dplyr::bind_rows(cal, pinn) |>
+        dplyr::mutate(
+          log_loss = round(.data$log_loss, 3),
+          brier = round(.data$brier, 3),
+          rps = round(.data$rps, 3)
+        )
+
+      # Combine AH rows (already rounded in vig_ah_summary_table)
+      if (!is.null(ah) && nrow(ah) > 0L) {
+        leaderboard <- dplyr::bind_rows(
+          cal_all |>
+            dplyr::mutate(
+              n_bets = NA_integer_, roi_pct = NA_real_,
+              sharpe = NA_real_, max_dd = NA_real_
+            ),
+          ah |>
+            dplyr::mutate(
+              log_loss = NA_real_, brier = NA_real_,
+              rps = NA_real_, n_folds = NA_integer_
+            )
+        )
+      } else {
+        leaderboard <- cal_all |>
+          dplyr::mutate(
+            n_bets = NA_integer_, roi_pct = NA_real_,
+            sharpe = NA_real_, max_dd = NA_real_
+          )
+      }
+
+      leaderboard |>
+        dplyr::select(
+          "model", "market", "roi_pct", "n_bets", "sharpe",
+          "max_dd", "log_loss", "brier", "rps", "n_folds"
+        ) |>
+        dplyr::arrange(
+          dplyr::desc(.data$market),
+          dplyr::desc(dplyr::coalesce(.data$roi_pct, 0))
+        )
+    }
+  ),
+
   NULL
 )

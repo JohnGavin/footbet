@@ -6,7 +6,7 @@ vignettes where click/href works with securityLevel: loose.
 ## Usage
 
 ``` r
-wrap_mermaid_html(mermaid_code)
+wrap_mermaid_html(mermaid_code, caption = NULL)
 ```
 
 ## Arguments
@@ -14,6 +14,10 @@ wrap_mermaid_html(mermaid_code)
 - mermaid_code:
 
   Character. Mermaid diagram code.
+
+- caption:
+
+  Optional caption text displayed below the diagram.
 
 ## Value
 

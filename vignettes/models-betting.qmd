@@ -333,6 +333,98 @@ if (is.data.frame(oos_league)) {
 
 *Out-of-sample ROI by league. E0 (Premier League) is closest to breakeven at -2.1%, while I2 (Serie B) is worst at -20.1%. No league is profitable after costs. Top 5 and 2nd Tier leagues show similar patterns. The variation in ROI across leagues suggests league-specific models or features might improve performance, but the fundamental barrier is the Pinnacle spread. See [issue #67](https://github.com/JohnGavin/footbet/issues/67) for the test-period evaluation and [issue #43](https://github.com/JohnGavin/footbet/issues/43) for copula model investigation.*
 
+## xG Calibration (#84)
+
+Rolling xG features improve 1X2 calibration by ~7% log-loss over a goals-only GLM baseline in walk-forward CV. This improvement survives the 7-day bet-time cutoff leakage correction unchanged (cut7 vs cut0 Brier differs by 0.001). The effect is real, not a leakage artefact.
+
+### Per-League xG Improvement
+
+```{r vig-xg-per-league, echo = FALSE}
+xg_pl <- safe_tar_read("vig_xg_per_league")
+if (is.data.frame(xg_pl) && nrow(xg_pl) > 0) {
+  xg_pl |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: top; text-align: left;",
+        "xG cut7 vs goals-only GLM per league. Log-loss, Brier, RPS improvement (%). Walk-forward CV, 24-month train / 1-month test. All 5 top leagues show improvement. Source: plan_xg_features.R."
+      ),
+      options = list(pageLength = 5, dom = "t", scrollX = TRUE)
+    )
+} else {
+  xg_pl
+}
+```
+
+### GLM vs Dixon-Coles vs GLM+xG
+
+```{r vig-dc-vs-glm, echo = FALSE}
+dc_xg <- safe_tar_read("vig_dc_vs_glm_xg")
+if (is.data.frame(dc_xg) && nrow(dc_xg) > 0) {
+  dc_xg |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: top; text-align: left;",
+        "Three-model comparison on xG-era data (top 5 leagues, 2019+). GLM+xG cut7 improves on both GLM baseline and Dixon-Coles. DC adds the low-score correction (rho) but does not use xG features. Source: plan_xg_features.R."
+      ),
+      options = list(pageLength = 5, dom = "t", scrollX = TRUE)
+    )
+} else {
+  dc_xg
+}
+```
+
+*xG features make average predictions better calibrated (real, measurable), but this calibration improvement does not translate to profitable per-match AH bet selection. The closing Pinnacle line has already absorbed what xG knows; the model cannot outbid it by enough to clear vig. See [issue #84](https://github.com/JohnGavin/footbet/issues/84) for the full analysis.*
+
+### Market Baselines (Pinnacle vs Consensus)
+
+```{r vig-market-baselines, echo = FALSE}
+mb <- safe_tar_read("vig_market_baselines")
+if (is.data.frame(mb) && nrow(mb) > 0) {
+  mb |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: top; text-align: left;",
+        "Pinnacle vs consensus (average bookmaker) calibration per league. Pinnacle is ~1% better on log-loss. Both are the benchmarks all models must beat. Source: plan_evaluation.R."
+      ),
+      options = list(pageLength = 10, dom = "t", scrollX = TRUE)
+    )
+} else {
+  mb
+}
+```
+
+## Model Leaderboard
+
+All models evaluated in footbet, ranked by market and performance.
+1X2 models are scored on calibration (log-loss, Brier, RPS).
+AH models are scored on walk-forward P&L (ROI%, Sharpe, max drawdown).
+See also the [AH Backtest vignette](ah-backtest.html) for equity curves and per-season detail.
+
+```{r vig-model-leaderboard, echo = FALSE}
+lb <- safe_tar_read("vig_model_leaderboard")
+if (is.data.frame(lb) && nrow(lb) > 0) {
+  lb |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: top; text-align: left;",
+        paste0(
+          "Unified model leaderboard (", nrow(lb), " entries). ",
+          "1X2: calibration metrics from walk-forward CV (lower = better). ",
+          "AH: flat-stake P&L from 6-season walk-forward (19-20 to 24-25). ",
+          "No model beats Pinnacle closing odds on either market. ",
+          "Source: plan_evaluation.R, plan_brms_1x2.R, plan_vignette_outputs.R."
+        )
+      ),
+      options = list(pageLength = 20, dom = "t", scrollX = TRUE),
+      rownames = FALSE
+    )
+} else {
+  lb
+}
+```
+
+*Cross-model comparison table. Columns: model name, market (1X2 or AH), ROI% (AH only), number of bets (AH) or CV folds (1X2), Sharpe ratio, maximum drawdown, log-loss, Brier score, RPS. 1X2 calibration: brms hierarchical achieves the best log-loss (1.03) among fitted models, but all trail Pinnacle closing (1.01). AH P&L: GLM-Ranger intersection is least bad at +0.3% ROI over 2,106 bets. No systematic edge exists against Pinnacle. Source: walk-forward CV and AH backtest from [football-data.co.uk](https://www.football-data.co.uk/). See [MODEL_CATALOGUE.md](https://github.com/JohnGavin/footbet/blob/main/plans/MODEL_CATALOGUE.md) for full details.*
+
 ```{r build-info, echo = FALSE, results = "asis"}
 safe_tar_read("vig_build_info")
 ```

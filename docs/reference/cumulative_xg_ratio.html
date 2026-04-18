@@ -3,7 +3,7 @@
 This is the key metric from the Tony ElHabr analysis that becomes
 reliable around matchday 9-13."><meta property="og:description" content="Calculates the cumulative xG ratio: team_xG / (team_xG + opponent_xG).
 This is the key metric from the Tony ElHabr analysis that becomes
-reliable around matchday 9-13."><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&amp;display=swap" rel="stylesheet"></head><body>
+reliable around matchday 9-13."><script>localStorage.setItem('theme','dark');document.documentElement.setAttribute('data-bs-theme','dark');</script><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&amp;display=swap" rel="stylesheet"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -24,7 +24,13 @@ reliable around matchday 9-13."><link href="https://fonts.googleapis.com/css2?fa
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guide</h6></li>
-    <li><a class="dropdown-item" href="../articles/football-analytics.html">Football Betting Analytics</a></li>
+    <li><a class="dropdown-item" href="../articles/data-sources.html">Data Sources &amp; Coverage</a></li>
+    <li><a class="dropdown-item" href="../articles/data-cleaning.html">Data Cleaning &amp; QC</a></li>
+    <li><a class="dropdown-item" href="../articles/eda.html">Exploratory Data Analysis</a></li>
+    <li><a class="dropdown-item" href="../articles/models-betting.html">Models &amp; Betting Strategy</a></li>
+    <li><a class="dropdown-item" href="../articles/ah-backtest.html">AH Backtest: P&amp;L, Drawdown &amp; CLV</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -78,9 +84,12 @@ reliable around matchday 9-13.</p>
 <code><a href="add_player_availability.html">add_player_availability()</a></code>,
 <code><a href="add_ratio_features.html">add_ratio_features()</a></code>,
 <code><a href="add_rest_days.html">add_rest_days()</a></code>,
+<code><a href="apply_asof_cutoff.html">apply_asof_cutoff()</a></code>,
 <code><a href="compute_elo.html">compute_elo()</a></code>,
 <code><a href="compute_gamestate_xg.html">compute_gamestate_xg()</a></code>,
 <code><a href="compute_matches_since.html">compute_matches_since()</a></code>,
+<code><a href="compute_rest_days.html">compute_rest_days()</a></code>,
+<code><a href="compute_shot_quality.html">compute_shot_quality()</a></code>,
 <code><a href="compute_xg_features.html">compute_xg_features()</a></code>,
 <code><a href="compute_xg_xag_composite.html">compute_xg_xag_composite()</a></code>,
 <code><a href="devig_odds.html">devig_odds()</a></code>,
@@ -90,13 +99,21 @@ reliable around matchday 9-13.</p>
 <code><a href="h2h_record.html">h2h_record()</a></code>,
 <code><a href="key_players_unavailable.html">key_players_unavailable()</a></code>,
 <code><a href="league_table.html">league_table()</a></code>,
+<code><a href="leakage_fix.html">leakage_fix</a></code>,
+<code><a href="margin_k_factor.html">margin_k_factor()</a></code>,
 <code><a href="matches_since_event.html">matches_since_event()</a></code>,
 <code><a href="matches_to_long.html">matches_to_long()</a></code>,
+<code><a href="pinnacle_implied_elo.html">pinnacle_implied_elo()</a></code>,
 <code><a href="ratio_normalize.html">ratio_normalize()</a></code>,
 <code><a href="reliability_threshold.html">reliability_threshold()</a></code>,
 <code><a href="rest_days.html">rest_days()</a></code>,
 <code><a href="rolling_goals.html">rolling_goals()</a></code>,
+<code><a href="rolling_progressive.html">rolling_progressive()</a></code>,
+<code><a href="rolling_psxg.html">rolling_psxg()</a></code>,
+<code><a href="rolling_shot_quality.html">rolling_shot_quality()</a></code>,
+<code><a href="rolling_sot.html">rolling_sot()</a></code>,
 <code><a href="rolling_xg.html">rolling_xg()</a></code>,
+<code><a href="seasonal_k.html">seasonal_k()</a></code>,
 <code><a href="shrink_team_strength.html">shrink_team_strength()</a></code>,
 <code><a href="team_form_score.html">team_form_score()</a></code>,
 <code><a href="team_position.html">team_position()</a></code>,
@@ -119,7 +136,14 @@ reliable around matchday 9-13.</p>
 
 
 
-
-
-  </body></html>
+  <script>
+  fetch(window.location.href, {method: 'HEAD'}).then(function(r) {
+    var lm = r.headers.get('Last-Modified');
+    if (lm) {
+      document.querySelectorAll('.pkgdown-footer-left p').forEach(function(el) {
+        el.textContent = 'Deployed: ' + lm;
+      });
+    }
+  });
+</script></body></html>
 

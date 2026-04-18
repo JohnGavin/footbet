@@ -105,6 +105,7 @@ articles:
       - data-cleaning
       - eda
       - models-betting
+      - ah-backtest
   - title: Reference
     contents:
       - glossary

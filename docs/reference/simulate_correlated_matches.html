@@ -3,7 +3,7 @@
 This captures scenarios where upsets tend to cluster (e.g., bad weather day,
 referee inconsistency across matches)."><meta property="og:description" content="Models dependence between multiple matches using a Gaussian copula.
 This captures scenarios where upsets tend to cluster (e.g., bad weather day,
-referee inconsistency across matches)."><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&amp;display=swap" rel="stylesheet"></head><body>
+referee inconsistency across matches)."><script>localStorage.setItem('theme','dark');document.documentElement.setAttribute('data-bs-theme','dark');</script><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&amp;display=swap" rel="stylesheet"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -24,7 +24,13 @@ referee inconsistency across matches)."><link href="https://fonts.googleapis.com
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Guide</h6></li>
-    <li><a class="dropdown-item" href="../articles/football-analytics.html">Football Betting Analytics</a></li>
+    <li><a class="dropdown-item" href="../articles/data-sources.html">Data Sources &amp; Coverage</a></li>
+    <li><a class="dropdown-item" href="../articles/data-cleaning.html">Data Cleaning &amp; QC</a></li>
+    <li><a class="dropdown-item" href="../articles/eda.html">Exploratory Data Analysis</a></li>
+    <li><a class="dropdown-item" href="../articles/models-betting.html">Models &amp; Betting Strategy</a></li>
+    <li><a class="dropdown-item" href="../articles/ah-backtest.html">AH Backtest: P&amp;L, Drawdown &amp; CLV</a></li>
+    <li><hr class="dropdown-divider"></li>
+    <li><a class="dropdown-item" href="../articles/index.html">More articles...</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -115,7 +121,14 @@ If matrix, must be valid correlation matrix of size (2 * n_matches).</p></dd>
 
 
 
-
-
-  </body></html>
+  <script>
+  fetch(window.location.href, {method: 'HEAD'}).then(function(r) {
+    var lm = r.headers.get('Last-Modified');
+    if (lm) {
+      document.querySelectorAll('.pkgdown-footer-left p').forEach(function(el) {
+        el.textContent = 'Deployed: ' + lm;
+      });
+    }
+  });
+</script></body></html>
 
