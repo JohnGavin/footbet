@@ -4,9 +4,7 @@ subtitle: "Walk-forward CV, value bets, Kelly staking"
 format:
   html:
     theme: darkly
-    toc: true
-    toc-location: right
-    toc-depth: 3
+    toc: false
     page-layout: full
     code-fold: true
     include-in-header:
@@ -60,6 +58,34 @@ safe_tar_read <- function(name) {
       htmltools::p(paste0("[MISSING EVIDENCE] Target `", name, "` not found.")))
   } else result
 }
+
+dark_dt <- function(data, caption = "", ...) {
+  nums <- sapply(data, is.numeric)
+  data[nums] <- lapply(data[nums], function(x) {
+    if (all(x == floor(x), na.rm = TRUE)) x  # integers stay as-is
+    else if (max(abs(x), na.rm = TRUE) > 1) round(x, 3)  # scores
+    else round(x, 4)  # probabilities
+  })
+  DT::datatable(
+    data,
+    caption = caption,
+    options = list(
+      pageLength = 20,
+      dom = "t",
+      scrollX = TRUE,
+      initComplete = DT::JS(
+        "function(settings, json) {",
+        "  $(this.api().table().container()).css({'background-color': '#1a1a2e', 'color': '#e0e0e0'});",
+        "  $(this.api().table().header()).css({'background-color': '#16213e', 'color': '#e0e0e0'});",
+        "  $('td', this.api().table().body()).css({'background-color': '#1a1a2e', 'color': '#e0e0e0'});",
+        "}"
+      )
+    ),
+    escape = FALSE,
+    rownames = FALSE,
+    ...
+  )
+}
 ```
 
 ```{=html}
@@ -92,12 +118,18 @@ See also: [Data Sources](data-sources.html) |
 
 ---
 
-## Leaderboard {.tabset}
+## Leaderboard
 
 All models evaluated in footbet, ranked by market and performance.
 1X2 models are scored on calibration (log-loss, Brier, RPS).
 AH models are scored on walk-forward P&L (ROI%, Sharpe, max drawdown).
 See also the [AH Backtest vignette](ah-backtest.html) for equity curves and per-season detail.
+
+::: {.callout-note}
+Brier scores for 3-outcome football (1X2) range from 0 (perfect) to 2 (worst). A naive model predicting equal 1/3 probabilities scores 0.667. All models here score below 0.667, confirming they outperform random guessing — though the margin is slim.
+:::
+
+:::{.panel-tabset}
 
 ### Calibration (1X2)
 
@@ -113,22 +145,19 @@ if (is.data.frame(lb_cal) && nrow(lb_cal) > 0) {
         TRUE ~ model
       )
     )
-  lb_cal_dt |>
-    DT::datatable(
-      escape = FALSE,
-      caption = htmltools::tags$caption(
-        style = "caption-side: top; text-align: left;",
-        paste0(
-          "1X2 calibration leaderboard (", nrow(lb_cal), " models). ",
-          "Metrics from walk-forward CV (lower = better). ",
-          "Pinnacle closing odds are the benchmark all models must beat. ",
-          "Model names link to their detail sections. ",
-          "Source: plan_evaluation.R, plan_brms_1x2.R."
-        )
-      ),
-      options = list(pageLength = 20, dom = "t", scrollX = TRUE),
-      rownames = FALSE
+  dark_dt(
+    lb_cal_dt,
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: left;",
+      paste0(
+        "1X2 calibration leaderboard (", nrow(lb_cal), " models). ",
+        "Metrics from walk-forward CV (lower = better). ",
+        "Pinnacle closing odds are the benchmark all models must beat. ",
+        "Model names link to their detail sections. ",
+        "Source: plan_evaluation.R, plan_brms_1x2.R."
+      )
     )
+  )
 } else {
   lb_cal
 }
@@ -141,20 +170,18 @@ if (is.data.frame(lb_cal) && nrow(lb_cal) > 0) {
 ```{r vig-leaderboard-pnl, echo = FALSE}
 lb_pnl <- safe_tar_read("vig_leaderboard_pnl")
 if (is.data.frame(lb_pnl) && nrow(lb_pnl) > 0) {
-  lb_pnl |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: top; text-align: left;",
-        paste0(
-          "AH P&L leaderboard (", nrow(lb_pnl), " models, flat staking). ",
-          "Walk-forward backtest over 6 seasons (19-20 to 24-25). ",
-          "No model achieves persistent positive ROI. ",
-          "Source: plan_ranger_1x2.R, plan_vignette_outputs.R."
-        )
-      ),
-      options = list(pageLength = 20, dom = "t", scrollX = TRUE),
-      rownames = FALSE
+  dark_dt(
+    lb_pnl,
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: left;",
+      paste0(
+        "AH P&L leaderboard (", nrow(lb_pnl), " models, flat staking). ",
+        "Walk-forward backtest over 6 seasons (19-20 to 24-25). ",
+        "No model achieves persistent positive ROI. ",
+        "Source: plan_ranger_1x2.R, plan_vignette_outputs.R."
+      )
     )
+  )
 } else {
   lb_pnl
 }
@@ -162,9 +189,11 @@ if (is.data.frame(lb_pnl) && nrow(lb_pnl) > 0) {
 
 *AH walk-forward P&L leaderboard. Columns: model, ROI% (flat staking), number of bets, Sharpe ratio, maximum drawdown, win rate. GLM-Ranger intersection is least bad at +0.3% ROI over 2,106 bets. No systematic edge exists against Pinnacle. Source: [football-data.co.uk](https://www.football-data.co.uk/) AH odds. See [AH Backtest vignette](ah-backtest.html) for equity curves and per-season breakdowns.*
 
+:::
+
 ---
 
-## Cross-Validation {.tabset}
+## Cross-Validation
 
 Football data is time-ordered, so standard k-fold CV would leak future
 information. The pipeline uses **walk-forward** (expanding window) splits:
@@ -172,6 +201,8 @@ information. The pipeline uses **walk-forward** (expanding window) splits:
 - **Training window**: 24 months of historical matches
 - **Test window**: 1 month of subsequent matches
 - The window slides forward by 1 month for each fold
+
+:::{.panel-tabset}
 
 ### Walk-Forward Design
 
@@ -214,7 +245,7 @@ as benchmark. All are **proper scoring rules** --- lower is better.
 safe_tar_read("vig_cv_metrics_plot")
 ```
 
-*Cross-validation scoring metrics by fold. Three panels (log-loss, Brier, RPS), each showing one metric across all walk-forward folds. X-axis: CV fold number. Y-axis: metric value (lower = better). Lines: GLM Poisson (blue), Dixon-Coles (purple), Pinnacle benchmark (grey dashed). Dixon-Coles slightly outperforms GLM on most folds, but both trail Pinnacle closing odds. Source: walk-forward CV on [football-data.co.uk](https://www.football-data.co.uk/) match data. See [Glossary > Performance Metrics](glossary.html).*
+*Cross-validation scoring metrics by fold. Three panels (log-loss, Brier, RPS), each showing one metric across all walk-forward folds. X-axis: CV fold number. Y-axis: metric value (lower = better). Dots: GLM Poisson (blue), Dixon-Coles (purple), Pinnacle benchmark (grey dashed). Dixon-Coles slightly outperforms GLM on most folds, but both trail Pinnacle closing odds. Legend entries are clickable — click to show/hide individual models. Source: walk-forward CV on [football-data.co.uk](https://www.football-data.co.uk/) match data. See [Glossary > Performance Metrics](glossary.html).*
 
 ```{r vig-model-comparison-test}
 safe_tar_read("vig_model_comparison_test")
@@ -232,14 +263,13 @@ Pinnacle on most folds.
 ```{r vig-model-comparison-table}
 model_comp <- safe_tar_read("vig_model_comparison_table")
 if (is.data.frame(model_comp)) {
-  model_comp |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "Model comparison (3 d.p.). log_loss, brier, rps: lower = better; all are proper scoring rules but are not directly comparable across models fitted on different data subsets. edge: model mean log-loss minus Pinnacle mean log-loss (positive = worse than Pinnacle)."
-      ),
-      options = list(pageLength = 10, dom = "t")
+  dark_dt(
+    model_comp,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "Model comparison (3 d.p.). log_loss, brier, rps: lower = better; all are proper scoring rules but are not directly comparable across models fitted on different data subsets. edge: model mean log-loss minus Pinnacle mean log-loss (positive = worse than Pinnacle)."
     )
+  )
 } else {
   model_comp
 }
@@ -247,9 +277,13 @@ if (is.data.frame(model_comp)) {
 
 *Summary model comparison table. Columns: model (GLM/Dixon-Coles/Pinnacle), mean log-loss, mean Brier score, mean RPS, edge vs Pinnacle (%). Lower scoring metrics indicate better calibration. Positive edge means the model outperforms Pinnacle on average. Dixon-Coles achieves the lowest log-loss among the fitted models. The edge column quantifies how close each model comes to the sharp-market benchmark. Source: aggregated CV results from [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Performance Metrics](glossary.html).*
 
+:::
+
 ---
 
-## Betting Strategy {.tabset}
+## Betting Strategy
+
+:::{.panel-tabset}
 
 ### Value Bets
 
@@ -263,15 +297,13 @@ market's implied probability by a minimum edge threshold:
 ```{r vig-value-bets-summary}
 vb_summary <- safe_tar_read("vig_value_bets_summary")
 if (is.data.frame(vb_summary)) {
-  vb_summary |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "Value bet summary. Columns: outcome (H/D/A = Home/Draw/Away win), league_code, n_bets (count of qualifying bets), mean_edge (mean of model_prob - devigged_market_prob), mean_odds (mean decimal odds at bet time), mean_kelly (mean quarter-Kelly stake fraction). Edge threshold: >3%. Odds filter: 1.50-10.00."
-      ),
-
-      options = list(pageLength = 15, dom = "tip", scrollX = TRUE)
+  dark_dt(
+    vb_summary,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "Value bet summary. Columns: outcome (H/D/A = Home/Draw/Away win), league_code, n_bets (count of qualifying bets), mean_edge (mean of model_prob - devigged_market_prob), mean_odds (mean decimal odds at bet time), mean_kelly (mean quarter-Kelly stake fraction). Edge threshold: >3%. Odds filter: 1.50-10.00."
     )
+  )
 } else {
   vb_summary
 }
@@ -321,9 +353,18 @@ safe_tar_read("vig_kelly_stake_distribution")
 
 *Distribution of Kelly stake sizes. X-axis: stake as percentage of bankroll. Y-axis: frequency count. Most stakes fall between 0.5-2% of bankroll due to the quarter-Kelly scaling and 3% cap. The distribution is right-skewed, with very few bets reaching the 3% maximum. Smaller stakes correspond to lower-edge bets. Source: simulated staking on [football-data.co.uk](https://www.football-data.co.uk/) value bets. See [Glossary > Kelly Criterion](glossary.html) and [Glossary > Edge](glossary.html).*
 
+::: {.callout-note}
+## Cap Impact
+Approximately one-third of value bets hit the 3% cap, meaning the Kelly criterion provides minimal practical variation in bet sizing for those bets. See [issue #93](https://github.com/JohnGavin/footbet/issues/93) for alternatives including tiered caps and fractional Kelly approaches.
+:::
+
+:::
+
 ---
 
-## P&L & Risk {.tabset}
+## P&L & Risk
+
+:::{.panel-tabset}
 
 ### Equity Curve
 
@@ -335,7 +376,7 @@ slippage, flat £10 stakes.
 safe_tar_read("vig_pnl_curve_realistic")
 ```
 
-*Simulated bankroll (realistic scenario). Y-axis: log scale. Assumptions: 2% transaction cost, 1% odds slippage, flat £10 per bet. Starting bankroll: 1,000. Source: GLM value bets on [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Kelly Criterion](glossary.html) and [issue #66](https://github.com/JohnGavin/footbet/issues/66).*
+*GLM Poisson flat-stake P&L. Simulated bankroll (realistic scenario). Y-axis: log scale. Assumptions: 2% transaction cost, 1% odds slippage, flat £10 per bet. Starting bankroll: 1,000. Early volatility reflects smaller sample and higher variance in initial seasons. Recent flatness suggests the market has become more efficient, with Pinnacle odds leaving less exploitable edge. Source: GLM value bets on [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Kelly Criterion](glossary.html) and [issue #66](https://github.com/JohnGavin/footbet/issues/66).*
 
 ### Drawdown
 
@@ -343,7 +384,7 @@ safe_tar_read("vig_pnl_curve_realistic")
 safe_tar_read("vig_drawdown_plot")
 ```
 
-*Drawdown over time. X-axis: date. Y-axis: drawdown percentage (0% = at peak, negative = below peak). Red shading = drawdown depth. The deepest trough represents the maximum drawdown — worst-case loss from peak bankroll. Source: quarter-Kelly P&L simulation on [football-data.co.uk](https://www.football-data.co.uk/) data. See [Glossary > Maximum Drawdown](glossary.html).*
+*GLM Poisson strategy drawdown over time. X-axis: date. Y-axis: drawdown percentage (0% = at peak, negative = below peak). Red shading = drawdown depth. The deepest trough represents the maximum drawdown — worst-case loss from peak bankroll. Source: quarter-Kelly P&L simulation on [football-data.co.uk](https://www.football-data.co.uk/) data. See [Glossary > Maximum Drawdown](glossary.html).*
 
 ::: {.callout-warning}
 **Caveat:** Real-world constraints not fully captured here include account limits
@@ -356,14 +397,13 @@ approximates Pinnacle's spread. See [issue #66](https://github.com/JohnGavin/foo
 ```{r vig-pnl-summary-table}
 pnl_summary <- safe_tar_read("vig_pnl_summary_table")
 if (is.data.frame(pnl_summary)) {
-  pnl_summary |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "P&L summary: realistic scenario (2% cost, 1% slippage, flat £10 stakes). Rows: one metric per row."
-      ),
-      options = list(pageLength = 20, dom = "t", scrollX = TRUE)
+  dark_dt(
+    pnl_summary,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "P&L summary: realistic scenario (2% cost, 1% slippage, flat £10 stakes). Rows: one metric per row."
     )
+  )
 } else {
   pnl_summary
 }
@@ -371,9 +411,13 @@ if (is.data.frame(pnl_summary)) {
 
 *P&L summary (realistic scenario). See [issue #66](https://github.com/JohnGavin/footbet/issues/66) for assumptions.*
 
+:::
+
 ---
 
-## Out-of-Sample {.tabset}
+## Out-of-Sample
+
+:::{.panel-tabset}
 
 All results in this vignette are out-of-sample. Two evaluation frameworks
 are in use and it is worth distinguishing them:
@@ -397,14 +441,13 @@ come from Framework A fixed-split backtests.
 ```{r vig-oos-comparison}
 oos <- safe_tar_read("vig_oos_comparison")
 if (is.data.frame(oos)) {
-  oos |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "Framework A OOS P&L: train 2015-2020, validate 2021-2023. Realistic = 2% cost, 1% slippage, flat £10 stakes."
-      ),
-      options = list(pageLength = 10, dom = "t", scrollX = TRUE)
+  dark_dt(
+    oos,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "Framework A OOS P&L: train 2015-2020, validate 2021-2023. Realistic = 2% cost, 1% slippage, flat £10 stakes."
     )
+  )
 } else {
   oos
 }
@@ -417,14 +460,13 @@ if (is.data.frame(oos)) {
 ```{r vig-oos-by-league}
 oos_league <- safe_tar_read("vig_oos_by_league")
 if (is.data.frame(oos_league)) {
-  oos_league |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "OOS ROI by league. Flat £10, 2% cost, 1% slippage. No league is profitable."
-      ),
-      options = list(pageLength = 10, dom = "t", scrollX = TRUE)
+  dark_dt(
+    oos_league,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "OOS ROI by league. Flat £10, 2% cost, 1% slippage. No league is profitable."
     )
+  )
 } else {
   oos_league
 }
@@ -439,14 +481,13 @@ Rolling xG features improve 1X2 calibration by ~7% log-loss over a goals-only GL
 ```{r vig-xg-per-league, echo = FALSE}
 xg_pl <- safe_tar_read("vig_xg_per_league")
 if (is.data.frame(xg_pl) && nrow(xg_pl) > 0) {
-  xg_pl |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: top; text-align: left;",
-        "xG cut7 vs goals-only GLM per league. Log-loss, Brier, RPS improvement (%). Walk-forward CV, 24-month train / 1-month test. All 5 top leagues show improvement. Source: plan_xg_features.R."
-      ),
-      options = list(pageLength = 5, dom = "t", scrollX = TRUE)
+  dark_dt(
+    xg_pl,
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: left;",
+      "xG cut7 vs goals-only GLM per league. Log-loss, Brier, RPS improvement (%). Walk-forward CV, 24-month train / 1-month test. All 5 top leagues show improvement. Source: plan_xg_features.R."
     )
+  )
 } else {
   xg_pl
 }
@@ -455,14 +496,13 @@ if (is.data.frame(xg_pl) && nrow(xg_pl) > 0) {
 ```{r vig-dc-vs-glm, echo = FALSE}
 dc_xg <- safe_tar_read("vig_dc_vs_glm_xg")
 if (is.data.frame(dc_xg) && nrow(dc_xg) > 0) {
-  dc_xg |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: top; text-align: left;",
-        "Three-model comparison on xG-era data (top 5 leagues, 2019+). GLM+xG cut7 improves on both GLM baseline and Dixon-Coles. DC adds the low-score correction (rho) but does not use xG features. Source: plan_xg_features.R."
-      ),
-      options = list(pageLength = 5, dom = "t", scrollX = TRUE)
+  dark_dt(
+    dc_xg,
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: left;",
+      "Three-model comparison on xG-era data (top 5 leagues, 2019+). GLM+xG cut7 improves on both GLM baseline and Dixon-Coles. DC adds the low-score correction (rho) but does not use xG features. Source: plan_xg_features.R."
     )
+  )
 } else {
   dc_xg
 }
@@ -475,18 +515,19 @@ if (is.data.frame(dc_xg) && nrow(dc_xg) > 0) {
 ```{r vig-market-baselines, echo = FALSE}
 mb <- safe_tar_read("vig_market_baselines")
 if (is.data.frame(mb) && nrow(mb) > 0) {
-  mb |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: top; text-align: left;",
-        "Pinnacle vs consensus (average bookmaker) calibration per league. Pinnacle is ~1% better on log-loss. Both are the benchmarks all models must beat. Source: plan_evaluation.R."
-      ),
-      options = list(pageLength = 10, dom = "t", scrollX = TRUE)
+  dark_dt(
+    mb,
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: left;",
+      "Pinnacle vs consensus (average bookmaker) calibration per league. Pinnacle is ~1% better on log-loss. Both are the benchmarks all models must beat. Source: plan_evaluation.R."
     )
+  )
 } else {
   mb
 }
 ```
+
+:::
 
 ---
 

@@ -1214,8 +1214,7 @@ plan_vignette_outputs <- list(
             legendgroup = mdl,
             showlegend = (m == "log_loss"),
             type = "scatter",
-            mode = "lines+markers",
-            line = list(color = colors[[mdl]], width = 2),
+            mode = "markers",
             marker = list(color = colors[[mdl]], size = 6),
             hovertemplate = paste0(
               mdl, "<br>Fold: %{x:.0f}<br>",
