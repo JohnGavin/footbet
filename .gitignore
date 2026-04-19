@@ -41,3 +41,5 @@ covr_report/
 # Claude Code ephemeral files
 .claude/CURRENT_WORK.md
 .claude/worktrees/
+inst/extdata/vignettes/vig_shrinkage_plot.rds
+inst/extdata/vignettes/vig_prior_sensitivity.rds
