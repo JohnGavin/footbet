@@ -302,12 +302,8 @@ plan_models_brms <- list(
         ))
       }
 
-      # Subset data for speed
+      # Subset data for speed (matches_long already has match_date)
       long_sub <- matches_long |>
-        dplyr::left_join(
-          dplyr::select(parsed_matches, match_id, match_date),
-          by = "match_id"
-        ) |>
         dplyr::filter(match_date >= max(match_date, na.rm = TRUE) - 365)
 
       # Three prior widths
