@@ -60,10 +60,13 @@ safe_tar_read <- function(name) {
 }
 
 dark_dt <- function(data, caption = "", ...) {
-  # Identify numeric columns for JS-level formatting
-  num_cols <- names(data)[sapply(data, is.numeric)]
+  # Identify numeric columns for JS-level formatting (skip list columns)
+  is_num <- sapply(data, function(x) is.numeric(x) && !is.list(x))
+  num_cols <- names(data)[is_num]
   # Separate integer vs decimal columns
-  int_cols <- num_cols[sapply(data[num_cols], function(x) all(x == floor(x), na.rm = TRUE))]
+  int_cols <- if (length(num_cols) > 0) {
+    num_cols[sapply(data[num_cols], function(x) all(x == floor(x), na.rm = TRUE))]
+  } else character(0)
   score_cols <- setdiff(num_cols, int_cols)
 
   dt <- DT::datatable(
