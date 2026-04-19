@@ -76,11 +76,12 @@ dark_dt <- function(data, caption = "", ...) {
       pageLength = 20,
       dom = "t",
       scrollX = TRUE,
+      autoWidth = TRUE,
       initComplete = DT::JS(
         "function(settings, json) {",
-        "  $(this.api().table().container()).css({'background-color': '#1a1a2e', 'color': '#e0e0e0'});",
-        "  $(this.api().table().header()).css({'background-color': '#16213e', 'color': '#e0e0e0'});",
-        "  $('td', this.api().table().body()).css({'background-color': '#1a1a2e', 'color': '#e0e0e0'});",
+        "  $(this.api().table().container()).css({'background-color': '#000000', 'color': '#ffffff'});",
+        "  $(this.api().table().header()).css({'background-color': '#000000', 'color': '#ffffff', 'border-bottom': '1px solid #444'});",
+        "  $('td', this.api().table().body()).css({'background-color': '#000000', 'color': '#ffffff', 'border-bottom': '1px solid #222'});",
         "}"
       )
     ),
@@ -142,6 +143,30 @@ Brier scores for 3-outcome football (1X2) range from 0 (perfect) to 2 (worst). A
 
 :::{.panel-tabset}
 
+### P&L (AH)
+
+```{r vig-leaderboard-pnl, echo = FALSE}
+lb_pnl <- safe_tar_read("vig_leaderboard_pnl")
+if (is.data.frame(lb_pnl) && nrow(lb_pnl) > 0) {
+  dark_dt(
+    lb_pnl,
+    caption = htmltools::tags$caption(
+      style = "caption-side: top; text-align: left;",
+      paste0(
+        "AH P&L leaderboard (", nrow(lb_pnl), " models, flat staking). ",
+        "Walk-forward backtest over 6 seasons (19-20 to 24-25). ",
+        "No model achieves persistent positive ROI. ",
+        "Source: plan_ranger_1x2.R, plan_vignette_outputs.R."
+      )
+    )
+  )
+} else {
+  lb_pnl
+}
+```
+
+*AH walk-forward P&L leaderboard. Columns: model, ROI% (flat staking), number of bets, Sharpe ratio, maximum drawdown, win rate. GLM-Ranger intersection is least bad at -0.3% ROI over 3,940 bets. No systematic edge exists against Pinnacle. Source: [football-data.co.uk](https://www.football-data.co.uk/) AH odds. See [AH Backtest vignette](ah-backtest.html) for equity curves and per-season breakdowns.*
+
 ### Calibration (1X2)
 
 ```{r vig-leaderboard-calibration, echo = FALSE}
@@ -175,30 +200,6 @@ if (is.data.frame(lb_cal) && nrow(lb_cal) > 0) {
 ```
 
 *1X2 model calibration. Columns: model (links to detail section), log-loss, Brier score, RPS (all lower = better), number of CV folds. brms hierarchical achieves the best log-loss among fitted models, but all trail Pinnacle closing odds. Source: walk-forward CV on [football-data.co.uk](https://www.football-data.co.uk/). See [MODEL_CATALOGUE.md](https://github.com/JohnGavin/footbet/blob/main/plans/MODEL_CATALOGUE.md).*
-
-### P&L (AH)
-
-```{r vig-leaderboard-pnl, echo = FALSE}
-lb_pnl <- safe_tar_read("vig_leaderboard_pnl")
-if (is.data.frame(lb_pnl) && nrow(lb_pnl) > 0) {
-  dark_dt(
-    lb_pnl,
-    caption = htmltools::tags$caption(
-      style = "caption-side: top; text-align: left;",
-      paste0(
-        "AH P&L leaderboard (", nrow(lb_pnl), " models, flat staking). ",
-        "Walk-forward backtest over 6 seasons (19-20 to 24-25). ",
-        "No model achieves persistent positive ROI. ",
-        "Source: plan_ranger_1x2.R, plan_vignette_outputs.R."
-      )
-    )
-  )
-} else {
-  lb_pnl
-}
-```
-
-*AH walk-forward P&L leaderboard. Columns: model, ROI% (flat staking), number of bets, Sharpe ratio, maximum drawdown, win rate. GLM-Ranger intersection is least bad at +0.3% ROI over 2,106 bets. No systematic edge exists against Pinnacle. Source: [football-data.co.uk](https://www.football-data.co.uk/) AH odds. See [AH Backtest vignette](ah-backtest.html) for equity curves and per-season breakdowns.*
 
 :::
 
