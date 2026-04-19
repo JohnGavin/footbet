@@ -1,12 +1,9 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-
-<meta charset="utf-8">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta charset="UTF-8">
 <meta name="generator" content="quarto-1.8.26">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-
-
 <title>Models &amp; Betting Strategy</title>
 <style>
 code{white-space: pre-wrap;}
@@ -21,38 +18,18 @@ ul.task-list li input[type="checkbox"] {
   vertical-align: middle;
 }
 </style>
-
-
-<script src="models-betting_files/libs/clipboard/clipboard.min.js"></script>
-<script src="models-betting_files/libs/quarto-html/quarto.js" type="module"></script>
-<script src="models-betting_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="models-betting_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="models-betting_files/libs/quarto-html/popper.min.js"></script>
-<script src="models-betting_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="models-betting_files/libs/quarto-html/anchor.min.js"></script>
-<link href="models-betting_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<script src="models-betting_files/libs/clipboard/clipboard.min.js"></script><script src="models-betting_files/libs/quarto-html/quarto.js" type="module"></script><script src="models-betting_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script><script src="models-betting_files/libs/quarto-html/axe/axe-check.js" type="module"></script><script src="models-betting_files/libs/quarto-html/popper.min.js"></script><script src="models-betting_files/libs/quarto-html/tippy.umd.min.js"></script><script src="models-betting_files/libs/quarto-html/anchor.min.js"></script><link href="models-betting_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="models-betting_files/libs/quarto-html/quarto-syntax-highlighting-dark-b758ccaa5987ceb1b75504551e579abf.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="models-betting_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="models-betting_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<script src="models-betting_files/libs/bootstrap/bootstrap.min.js"></script><link href="models-betting_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="models-betting_files/libs/bootstrap/bootstrap-48f2e52f2ae9d8c0881564f8dd096b5f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
 <link href="models-betting_files/libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet">
-<script src="models-betting_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
-<script src="models-betting_files/libs/plotly-binding-4.12.0/plotly.js"></script>
-<script src="models-betting_files/libs/typedarray-0.1/typedarray.min.js"></script>
-<script src="models-betting_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
-<link href="models-betting_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
-<script src="models-betting_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
-<link href="models-betting_files/libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
-<script src="models-betting_files/libs/plotly-main-2.25.2/plotly-latest.min.js"></script>
-<link href="models-betting_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
-<script src="models-betting_files/libs/datatables-binding-0.34.0/datatables.js"></script>
-<link href="models-betting_files/libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
+<script src="models-betting_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script><script src="models-betting_files/libs/plotly-binding-4.12.0/plotly.js"></script><script src="models-betting_files/libs/typedarray-0.1/typedarray.min.js"></script><script src="models-betting_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script><link href="models-betting_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+<script src="models-betting_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script><link href="models-betting_files/libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
+<script src="models-betting_files/libs/plotly-main-2.25.2/plotly-latest.min.js"></script><link href="models-betting_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
+<script src="models-betting_files/libs/datatables-binding-0.34.0/datatables.js"></script><link href="models-betting_files/libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
 <link href="models-betting_files/libs/dt-core-1.13.6/css/jquery.dataTables.extra.css" rel="stylesheet">
-<script src="models-betting_files/libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script>
-<script>document.documentElement.setAttribute('data-bs-theme','dark');</script>
-<style>html,body{background:#000!important;color:#fff!important;}</style>
-<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
-<script>
+<script src="models-betting_files/libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script><script>document.documentElement.setAttribute('data-bs-theme','dark');</script><style>html,body{background:#000!important;color:#fff!important;}</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script><script>
   mermaid.initialize({
     startOnLoad: true,
     securityLevel: 'loose',
@@ -67,12 +44,7 @@ ul.task-list li input[type="checkbox"] {
       tertiaryColor: '#333333'
     }
   });
-</script>
-
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
-
-<script type="text/javascript">
+</script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script><script type="text/javascript">
 const typesetMath = (el) => {
   if (window.MathJax) {
     // MathJax Typeset
@@ -98,54 +70,57 @@ window.Quarto = {
   typesetMath
 };
 </script>
-
 </head>
-
 <body class="quarto-light">
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-full">
 <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-  <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
+  <nav id="TOC" role="doc-toc" class="toc-active"><h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#cross-validation" id="toc-cross-validation" class="nav-link active" data-scroll-target="#cross-validation">Cross-Validation</a>
+<li>
+<a href="#cross-validation" id="toc-cross-validation" class="nav-link active" data-scroll-target="#cross-validation">Cross-Validation</a>
   <ul class="collapse">
-  <li><a href="#glm-poisson" id="toc-glm-poisson" class="nav-link" data-scroll-target="#glm-poisson">GLM Poisson</a></li>
+<li><a href="#glm-poisson" id="toc-glm-poisson" class="nav-link" data-scroll-target="#glm-poisson">GLM Poisson</a></li>
   <li><a href="#dixon-coles" id="toc-dixon-coles" class="nav-link" data-scroll-target="#dixon-coles">Dixon-Coles</a></li>
   <li><a href="#cv-metrics" id="toc-cv-metrics" class="nav-link" data-scroll-target="#cv-metrics">CV Metrics</a></li>
   <li><a href="#model-comparison" id="toc-model-comparison" class="nav-link" data-scroll-target="#model-comparison">Model Comparison</a></li>
-  </ul></li>
-  <li><a href="#betting-strategy" id="toc-betting-strategy" class="nav-link" data-scroll-target="#betting-strategy">Betting Strategy</a>
+  </ul>
+</li>
+  <li>
+<a href="#betting-strategy" id="toc-betting-strategy" class="nav-link" data-scroll-target="#betting-strategy">Betting Strategy</a>
   <ul class="collapse">
-  <li><a href="#value-bets" id="toc-value-bets" class="nav-link" data-scroll-target="#value-bets">Value Bets</a></li>
+<li><a href="#value-bets" id="toc-value-bets" class="nav-link" data-scroll-target="#value-bets">Value Bets</a></li>
   <li><a href="#edge-distribution" id="toc-edge-distribution" class="nav-link" data-scroll-target="#edge-distribution">Edge Distribution</a></li>
   <li><a href="#kelly-staking" id="toc-kelly-staking" class="nav-link" data-scroll-target="#kelly-staking">Kelly Staking</a></li>
-  </ul></li>
-  <li><a href="#pl" id="toc-pl" class="nav-link" data-scroll-target="#pl">P&amp;L</a>
+  </ul>
+</li>
+  <li>
+<a href="#pl" id="toc-pl" class="nav-link" data-scroll-target="#pl">P&amp;L</a>
   <ul class="collapse">
-  <li><a href="#pl-simulation" id="toc-pl-simulation" class="nav-link" data-scroll-target="#pl-simulation">P&amp;L Simulation</a></li>
+<li><a href="#pl-simulation" id="toc-pl-simulation" class="nav-link" data-scroll-target="#pl-simulation">P&amp;L Simulation</a></li>
   <li><a href="#drawdown" id="toc-drawdown" class="nav-link" data-scroll-target="#drawdown">Drawdown</a></li>
   <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
-  </ul></li>
-  <li><a href="#out-of-sample-evaluation" id="toc-out-of-sample-evaluation" class="nav-link" data-scroll-target="#out-of-sample-evaluation">Out-of-Sample Evaluation</a>
+  </ul>
+</li>
+  <li>
+<a href="#out-of-sample-evaluation" id="toc-out-of-sample-evaluation" class="nav-link" data-scroll-target="#out-of-sample-evaluation">Out-of-Sample Evaluation</a>
   <ul class="collapse">
-  <li><a href="#out-of-sample-by-league" id="toc-out-of-sample-by-league" class="nav-link" data-scroll-target="#out-of-sample-by-league">Out-of-Sample by League</a></li>
-  </ul></li>
-  <li><a href="#xg-calibration-84" id="toc-xg-calibration-84" class="nav-link" data-scroll-target="#xg-calibration-84">xG Calibration (#84)</a>
+<li><a href="#out-of-sample-by-league" id="toc-out-of-sample-by-league" class="nav-link" data-scroll-target="#out-of-sample-by-league">Out-of-Sample by League</a></li>
+  </ul>
+</li>
+  <li>
+<a href="#xg-calibration-84" id="toc-xg-calibration-84" class="nav-link" data-scroll-target="#xg-calibration-84">xG Calibration (#84)</a>
   <ul class="collapse">
-  <li><a href="#per-league-xg-improvement" id="toc-per-league-xg-improvement" class="nav-link" data-scroll-target="#per-league-xg-improvement">Per-League xG Improvement</a></li>
+<li><a href="#per-league-xg-improvement" id="toc-per-league-xg-improvement" class="nav-link" data-scroll-target="#per-league-xg-improvement">Per-League xG Improvement</a></li>
   <li><a href="#glm-vs-dixon-coles-vs-glmxg" id="toc-glm-vs-dixon-coles-vs-glmxg" class="nav-link" data-scroll-target="#glm-vs-dixon-coles-vs-glmxg">GLM vs Dixon-Coles vs GLM+xG</a></li>
   <li><a href="#market-baselines-pinnacle-vs-consensus" id="toc-market-baselines-pinnacle-vs-consensus" class="nav-link" data-scroll-target="#market-baselines-pinnacle-vs-consensus">Market Baselines (Pinnacle vs Consensus)</a></li>
-  </ul></li>
-  <li><a href="#model-leaderboard" id="toc-model-leaderboard" class="nav-link" data-scroll-target="#model-leaderboard">Model Leaderboard</a></li>
   </ul>
-</nav>
+</li>
+  <li><a href="#model-leaderboard" id="toc-model-leaderboard" class="nav-link" data-scroll-target="#model-leaderboard">Model Leaderboard</a></li>
+  </ul></nav>
 </div>
-<main class="content column-page-left" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
+<main class="content column-page-left" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block default"><div class="quarto-title">
 <h1 class="title">Models &amp; Betting Strategy</h1>
 <p class="subtitle lead">Walk-forward CV, value bets, Kelly staking</p>
 </div>
@@ -161,13 +136,8 @@ window.Quarto = {
   
 
 
-</header>
-
-
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script>document.documentElement.setAttribute('data-bs-theme', 'dark');</script>
-<style>
+</header><link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script><script>document.documentElement.setAttribute('data-bs-theme', 'dark');</script><style>
 body, .page-body, main, article, .contents { background-color: #000000 !important; color: #ffffff !important; }
 table, .table, table.dataTable { background-color: #000000 !important; color: #ffffff !important; }
 table td, table th, .table td, .table th { color: #ffffff !important; background-color: #000000 !important; border-color: #333 !important; }
@@ -185,12 +155,13 @@ code { background-color: #222 !important; }
 .callout { background-color: #111 !important; border-color: #333 !important; }
 </style>
 <p>Part 4 of the <a href="https://johngavin.github.io/footbet/">footbet</a> analytics guide. See also: <a href="data-sources.html">Data Sources</a> | <a href="data-cleaning.html">Data Cleaning</a> | <a href="eda.html">EDA</a> | <a href="glossary.html">Glossary</a></p>
-<section id="cross-validation" class="level2">
-<h2 class="anchored" data-anchor-id="cross-validation">Cross-Validation</h2>
+<section id="cross-validation" class="level2"><h2 class="anchored" data-anchor-id="cross-validation">Cross-Validation</h2>
 <p>Football data is time-ordered, so standard k-fold CV would leak future information. The pipeline uses <strong>walk-forward</strong> (expanding window) splits:</p>
 <ul>
-<li><strong>Training window</strong>: 24 months of historical matches</li>
-<li><strong>Test window</strong>: 1 month of subsequent matches</li>
+<li>
+<strong>Training window</strong>: 24 months of historical matches</li>
+<li>
+<strong>Test window</strong>: 1 month of subsequent matches</li>
 <li>The window slides forward by 1 month for each fold</li>
 </ul>
 <div class="mermaid">
@@ -214,23 +185,19 @@ linkStyle default stroke:#CC0000,stroke-width:3px
 </div>
 <p style="text-align:left;font-size:0.9em;color:#cccccc;margin-top:0.5em;user-select:text;-webkit-user-select:text;">Walk-forward cross-validation: 24-month rolling training window, 1-month test. Each fold fits GLM and Dixon-Coles per league.</p>
 <p><em>Walk-forward cross-validation diagram. X-axis: time (months). Y-axis: CV fold index. Blue shading = training window (24 months), orange shading = test window (1 month). Each row represents one fold, with the window sliding forward by one month. This design prevents future data from leaking into model training — a critical requirement for time-series prediction. Source: <a href="https://johngavin.github.io/footbet/">footbet</a> pipeline. See <a href="glossary.html">Glossary &gt; Cross-Validation</a>.</em></p>
-<section id="glm-poisson" class="level3">
-<h3 class="anchored" data-anchor-id="glm-poisson">GLM Poisson</h3>
+<section id="glm-poisson" class="level3"><h3 class="anchored" data-anchor-id="glm-poisson">GLM Poisson</h3>
 <p>The baseline model is a <a href="https://en.wikipedia.org/wiki/Poisson_regression">Poisson regression</a> for goal counts, following Maher (1982):</p>
 <p><span class="math display">\[\text{goals}_{ij} \sim \text{Poisson}(\lambda_{ij})\]</span></p>
 <p><span class="math display">\[\log(\lambda_{ij}) = \mu + \alpha_i + \beta_j + \gamma \cdot \mathbb{1}[\text{home}]\]</span></p>
 <p>where <span class="math inline">\(\alpha_i\)</span> is team <span class="math inline">\(i\)</span>’s attack strength, <span class="math inline">\(\beta_j\)</span> is team <span class="math inline">\(j\)</span>’s defence weakness, and <span class="math inline">\(\gamma\)</span> captures home advantage.</p>
-</section>
-<section id="dixon-coles" class="level3">
-<h3 class="anchored" data-anchor-id="dixon-coles">Dixon-Coles</h3>
+</section><section id="dixon-coles" class="level3"><h3 class="anchored" data-anchor-id="dixon-coles">Dixon-Coles</h3>
 <p>Dixon &amp; Coles (1997) extend the Poisson model with:</p>
 <ol type="1">
-<li><strong>Correlation correction</strong>: A parameter <span class="math inline">\(\rho\)</span> adjusts the joint probability of low-scoring outcomes (0-0, 1-0, 0-1, 1-1)</li>
-<li><strong>Time-decay weights</strong>: Recent matches receive higher weight via exponential decay (<span class="math inline">\(\xi = 0.003\)</span>, ~1-year half-life)</li>
-</ol>
-</section>
-<section id="cv-metrics" class="level3">
-<h3 class="anchored" data-anchor-id="cv-metrics">CV Metrics</h3>
+<li>
+<strong>Correlation correction</strong>: A parameter <span class="math inline">\(\rho\)</span> adjusts the joint probability of low-scoring outcomes (0-0, 1-0, 0-1, 1-1)</li>
+<li>
+<strong>Time-decay weights</strong>: Recent matches receive higher weight via exponential decay (<span class="math inline">\(\xi = 0.003\)</span>, ~1-year half-life)</li>
+</ol></section><section id="cv-metrics" class="level3"><h3 class="anchored" data-anchor-id="cv-metrics">CV Metrics</h3>
 <p>Log-loss, Brier score, and RPS per CV fold for both models, with Pinnacle as benchmark. All are <strong>proper scoring rules</strong> — lower is better.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -261,9 +228,7 @@ Note
 <p><strong>Key Finding:</strong> Dixon-Coles slightly outperforms GLM. Both models trail Pinnacle on most folds.</p>
 </div>
 </div>
-</section>
-<section id="model-comparison" class="level3">
-<h3 class="anchored" data-anchor-id="model-comparison">Model Comparison</h3>
+</section><section id="model-comparison" class="level3"><h3 class="anchored" data-anchor-id="model-comparison">Model Comparison</h3>
 <div class="cell">
 <div class="cell-output-display">
 <div class="datatables html-widget html-fill-item" id="htmlwidget-a45f9092928d5a301146" style="width:100%;height:auto;"></div>
@@ -271,17 +236,16 @@ Note
 </div>
 </div>
 <p><em>Summary model comparison table. Columns: model (GLM/Dixon-Coles/Pinnacle), mean log-loss, mean Brier score, mean RPS, edge vs Pinnacle (%). Lower scoring metrics indicate better calibration. Positive edge means the model outperforms Pinnacle on average. Dixon-Coles achieves the lowest log-loss among the fitted models. The edge column quantifies how close each model comes to the sharp-market benchmark. Source: aggregated CV results from <a href="https://www.football-data.co.uk/">football-data.co.uk</a>. See <a href="glossary.html">Glossary &gt; Performance Metrics</a>.</em></p>
-</section>
-</section>
-<section id="betting-strategy" class="level2">
-<h2 class="anchored" data-anchor-id="betting-strategy">Betting Strategy</h2>
-<section id="value-bets" class="level3">
-<h3 class="anchored" data-anchor-id="value-bets">Value Bets</h3>
+</section></section><section id="betting-strategy" class="level2"><h2 class="anchored" data-anchor-id="betting-strategy">Betting Strategy</h2>
+<section id="value-bets" class="level3"><h3 class="anchored" data-anchor-id="value-bets">Value Bets</h3>
 <p>A <strong>value bet</strong> exists when the model’s estimated probability exceeds the market’s implied probability by a minimum edge threshold:</p>
 <ul>
-<li><strong>Minimum edge</strong>: 3% (model_prob - market_prob &gt; 0.03)</li>
-<li><strong>Odds filter</strong>: Only bets between 1.50 and 10.00 decimal odds</li>
-<li><strong>Devigged odds</strong>: Market probabilities via Shin (1993) method</li>
+<li>
+<strong>Minimum edge</strong>: 3% (model_prob - market_prob &gt; 0.03)</li>
+<li>
+<strong>Odds filter</strong>: Only bets between 1.50 and 10.00 decimal odds</li>
+<li>
+<strong>Devigged odds</strong>: Market probabilities via Shin (1993) method</li>
 </ul>
 <div class="cell">
 <div class="cell-output-display">
@@ -290,9 +254,7 @@ Note
 </div>
 </div>
 <p><em>Value bet summary table. Columns: league code, outcome (H/D/A), number of value bets identified, mean edge (%), hit rate (%), ROI (%). Edge = model probability minus Shin-devigged market probability. Home value bets tend to be more frequent; draw value bets show the highest mean edge but lowest hit rate. Away value bets are rarest due to lower model confidence. Source: Dixon-Coles model applied to <a href="https://www.football-data.co.uk/">football-data.co.uk</a> with Pinnacle odds. See <a href="glossary.html">Glossary &gt; Value Bet</a> and <a href="glossary.html">Glossary &gt; Edge</a>.</em></p>
-</section>
-<section id="edge-distribution" class="level3">
-<h3 class="anchored" data-anchor-id="edge-distribution">Edge Distribution</h3>
+</section><section id="edge-distribution" class="level3"><h3 class="anchored" data-anchor-id="edge-distribution">Edge Distribution</h3>
 <div class="cell">
 <div class="cell-output-display">
 <div class="plotly html-widget html-fill-item" id="htmlwidget-d4a8b66a0a4a5f417e8c" style="width:100%;height:464px;"></div>
@@ -313,14 +275,14 @@ Note
 <p><strong>Key Finding:</strong> Most edges cluster at 3-8%. Large edges (&gt;15%) are rare and may signal model error.</p>
 </div>
 </div>
-</section>
-<section id="kelly-staking" class="level3">
-<h3 class="anchored" data-anchor-id="kelly-staking">Kelly Staking</h3>
+</section><section id="kelly-staking" class="level3"><h3 class="anchored" data-anchor-id="kelly-staking">Kelly Staking</h3>
 <p>The pipeline uses <strong>quarter Kelly</strong> staking with guardrails:</p>
 <p><span class="math display">\[f^* = \frac{1}{4} \cdot \frac{p \cdot (b + 1) - 1}{b}\]</span></p>
 <ul>
-<li><strong>Max stake</strong>: 3% of current bankroll per bet</li>
-<li><strong>Drawdown halt</strong>: Stakes halved when bankroll drops 20% from peak</li>
+<li>
+<strong>Max stake</strong>: 3% of current bankroll per bet</li>
+<li>
+<strong>Drawdown halt</strong>: Stakes halved when bankroll drops 20% from peak</li>
 </ul>
 <div class="mermaid">
 %%{init: {'theme': 'dark', 'themeVariables': {'background': '#000000','primaryColor': '#999999','primaryTextColor': '#000000','primaryBorderColor': '#CC0000','lineColor': '#CC0000','secondaryColor': '#333333','tertiaryColor': '#333333'}}}%%
@@ -348,12 +310,8 @@ linkStyle default stroke:#CC0000,stroke-width:3px
 </div>
 </div>
 <p><em>Distribution of Kelly stake sizes. X-axis: stake as percentage of bankroll. Y-axis: frequency count. Most stakes fall between 0.5-2% of bankroll due to the quarter-Kelly scaling and 3% cap. The distribution is right-skewed, with very few bets reaching the 3% maximum. Smaller stakes correspond to lower-edge bets. Source: simulated staking on <a href="https://www.football-data.co.uk/">football-data.co.uk</a> value bets. See <a href="glossary.html">Glossary &gt; Kelly Criterion</a> and <a href="glossary.html">Glossary &gt; Edge</a>.</em></p>
-</section>
-</section>
-<section id="pl" class="level2">
-<h2 class="anchored" data-anchor-id="pl">P&amp;L</h2>
-<section id="pl-simulation" class="level3">
-<h3 class="anchored" data-anchor-id="pl-simulation">P&amp;L Simulation</h3>
+</section></section><section id="pl" class="level2"><h2 class="anchored" data-anchor-id="pl">P&amp;L</h2>
+<section id="pl-simulation" class="level3"><h3 class="anchored" data-anchor-id="pl-simulation">P&amp;L Simulation</h3>
 <p>The bankroll curve below shows the simulated profit &amp; loss trajectory for all GLM value bets, staked with quarter Kelly and drawdown guardrails.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -362,9 +320,7 @@ linkStyle default stroke:#CC0000,stroke-width:3px
 </div>
 </div>
 <p><em>Bankroll comparison: optimistic vs realistic. Blue dotted line = optimistic (no transaction costs, quarter-Kelly compounding). Orange solid line = realistic (2% transaction cost, 1% odds slippage, tiered stakes £5-25 based on predicted edge). Edge tiers: &lt;3% → £5, 3-5% → £10, 5-8% → £15, 8-12% → £20, &gt;12% → £25. Y-axis: log scale. The optimistic scenario shows compound growth from 1,000 to millions — a backtest artefact. The realistic scenario accounts for the bookmaker’s spread and uses edge-proportional staking: higher-confidence bets get larger stakes. Source: GLM value bets on <a href="https://www.football-data.co.uk/">football-data.co.uk</a>. See <a href="glossary.html">Glossary &gt; Kelly Criterion</a> and <a href="https://github.com/JohnGavin/footbet/issues/66">issue #66</a>.</em></p>
-</section>
-<section id="drawdown" class="level3">
-<h3 class="anchored" data-anchor-id="drawdown">Drawdown</h3>
+</section><section id="drawdown" class="level3"><h3 class="anchored" data-anchor-id="drawdown">Drawdown</h3>
 <div class="cell">
 <div class="cell-output-display">
 <div class="plotly html-widget html-fill-item" id="htmlwidget-085cf3d036e309a4a02b" style="width:100%;height:464px;"></div>
@@ -385,9 +341,7 @@ Warning
 <p><strong>Caveat:</strong> The optimistic scenario (no costs, Kelly compounding) produces unrealistic returns. Real-world constraints include: 2-4% transaction costs (Pinnacle spread), account limits on profitable bettors, odds slippage, and backtesting bias. See <a href="https://github.com/JohnGavin/footbet/issues/66">issue #66</a>.</p>
 </div>
 </div>
-</section>
-<section id="summary" class="level3">
-<h3 class="anchored" data-anchor-id="summary">Summary</h3>
+</section><section id="summary" class="level3"><h3 class="anchored" data-anchor-id="summary">Summary</h3>
 <div class="cell">
 <div class="cell-output-display">
 <div class="datatables html-widget html-fill-item" id="htmlwidget-1e20a3b0daadcaf7a98b" style="width:100%;height:auto;"></div>
@@ -395,10 +349,7 @@ Warning
 </div>
 </div>
 <p><em>P&amp;L comparison table. See <a href="https://github.com/JohnGavin/footbet/issues/66">issue #66</a> for assumptions.</em></p>
-</section>
-</section>
-<section id="out-of-sample-evaluation" class="level2">
-<h2 class="anchored" data-anchor-id="out-of-sample-evaluation">Out-of-Sample Evaluation</h2>
+</section></section><section id="out-of-sample-evaluation" class="level2"><h2 class="anchored" data-anchor-id="out-of-sample-evaluation">Out-of-Sample Evaluation</h2>
 <p>The in-sample results above are misleading because the model was developed by looking at the full dataset. A true test requires fitting the model on PAST data only and evaluating on FUTURE data it has never seen.</p>
 <p><strong>Design:</strong> Train on 2015-2020 (5 seasons), evaluate on 2021-2023 (validate period). The test period (2024-2026) is reserved for a final one-shot evaluation (<a href="https://github.com/JohnGavin/footbet/issues/67">issue #67</a>).</p>
 <div class="cell">
@@ -408,8 +359,7 @@ Warning
 </div>
 </div>
 <p><em>Out-of-sample comparison using flat £10 stakes with 2% transaction cost and 1% slippage. The model finds value bets at 30% win rate (similar to in-sample), but the ROI is -9.3% out-of-sample vs +422% in-sample. The edge from the model (~5-10%) is consumed by the bookmaker’s margin (~2-4%) plus slippage.</em></p>
-<section id="out-of-sample-by-league" class="level3">
-<h3 class="anchored" data-anchor-id="out-of-sample-by-league">Out-of-Sample by League</h3>
+<section id="out-of-sample-by-league" class="level3"><h3 class="anchored" data-anchor-id="out-of-sample-by-league">Out-of-Sample by League</h3>
 <div class="cell">
 <div class="cell-output-display">
 <div class="datatables html-widget html-fill-item" id="htmlwidget-7269b82a8f334c7dc5cc" style="width:100%;height:auto;"></div>
@@ -417,13 +367,9 @@ Warning
 </div>
 </div>
 <p><em>Out-of-sample ROI by league. E0 (Premier League) is closest to breakeven at -2.1%, while I2 (Serie B) is worst at -20.1%. No league is profitable after costs. Top 5 and 2nd Tier leagues show similar patterns. The variation in ROI across leagues suggests league-specific models or features might improve performance, but the fundamental barrier is the Pinnacle spread. See <a href="https://github.com/JohnGavin/footbet/issues/67">issue #67</a> for the test-period evaluation and <a href="https://github.com/JohnGavin/footbet/issues/43">issue #43</a> for copula model investigation.</em></p>
-</section>
-</section>
-<section id="xg-calibration-84" class="level2">
-<h2 class="anchored" data-anchor-id="xg-calibration-84">xG Calibration (#84)</h2>
+</section></section><section id="xg-calibration-84" class="level2"><h2 class="anchored" data-anchor-id="xg-calibration-84">xG Calibration (#84)</h2>
 <p>Rolling xG features improve 1X2 calibration by ~7% log-loss over a goals-only GLM baseline in walk-forward CV. This improvement survives the 7-day bet-time cutoff leakage correction unchanged (cut7 vs cut0 Brier differs by 0.001). The effect is real, not a leakage artefact.</p>
-<section id="per-league-xg-improvement" class="level3">
-<h3 class="anchored" data-anchor-id="per-league-xg-improvement">Per-League xG Improvement</h3>
+<section id="per-league-xg-improvement" class="level3"><h3 class="anchored" data-anchor-id="per-league-xg-improvement">Per-League xG Improvement</h3>
 <div class="cell">
 <div class="cell-output-display">
 <div style="background: #dc3545; color: white; padding: 1em; border-radius: 4px;">
@@ -431,9 +377,7 @@ Warning
 </div>
 </div>
 </div>
-</section>
-<section id="glm-vs-dixon-coles-vs-glmxg" class="level3">
-<h3 class="anchored" data-anchor-id="glm-vs-dixon-coles-vs-glmxg">GLM vs Dixon-Coles vs GLM+xG</h3>
+</section><section id="glm-vs-dixon-coles-vs-glmxg" class="level3"><h3 class="anchored" data-anchor-id="glm-vs-dixon-coles-vs-glmxg">GLM vs Dixon-Coles vs GLM+xG</h3>
 <div class="cell">
 <div class="cell-output-display">
 <div style="background: #dc3545; color: white; padding: 1em; border-radius: 4px;">
@@ -442,9 +386,7 @@ Warning
 </div>
 </div>
 <p><em>xG features make average predictions better calibrated (real, measurable), but this calibration improvement does not translate to profitable per-match AH bet selection. The closing Pinnacle line has already absorbed what xG knows; the model cannot outbid it by enough to clear vig. See <a href="https://github.com/JohnGavin/footbet/issues/84">issue #84</a> for the full analysis.</em></p>
-</section>
-<section id="market-baselines-pinnacle-vs-consensus" class="level3">
-<h3 class="anchored" data-anchor-id="market-baselines-pinnacle-vs-consensus">Market Baselines (Pinnacle vs Consensus)</h3>
+</section><section id="market-baselines-pinnacle-vs-consensus" class="level3"><h3 class="anchored" data-anchor-id="market-baselines-pinnacle-vs-consensus">Market Baselines (Pinnacle vs Consensus)</h3>
 <div class="cell">
 <div class="cell-output-display">
 <div style="background: #dc3545; color: white; padding: 1em; border-radius: 4px;">
@@ -452,10 +394,7 @@ Warning
 </div>
 </div>
 </div>
-</section>
-</section>
-<section id="model-leaderboard" class="level2">
-<h2 class="anchored" data-anchor-id="model-leaderboard">Model Leaderboard</h2>
+</section></section><section id="model-leaderboard" class="level2"><h2 class="anchored" data-anchor-id="model-leaderboard">Model Leaderboard</h2>
 <p>All models evaluated in footbet, ranked by market and performance. 1X2 models are scored on calibration (log-loss, Brier, RPS). AH models are scored on walk-forward P&amp;L (ROI%, Sharpe, max drawdown). See also the <a href="ah-backtest.html">AH Backtest vignette</a> for equity curves and per-season detail.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -465,11 +404,7 @@ Warning
 </div>
 <p><em>Cross-model comparison table. Columns: model name, market (1X2 or AH), ROI% (AH only), number of bets (AH) or CV folds (1X2), Sharpe ratio, maximum drawdown, log-loss, Brier score, RPS. 1X2 calibration: brms hierarchical achieves the best log-loss (1.03) among fitted models, but all trail Pinnacle closing (1.01). AH P&amp;L: GLM-Ranger intersection is least bad at +0.3% ROI over 2,106 bets. No systematic edge exists against Pinnacle. Source: walk-forward CV and AH backtest from <a href="https://www.football-data.co.uk/">football-data.co.uk</a>. See <a href="https://github.com/JohnGavin/footbet/blob/main/plans/MODEL_CATALOGUE.md">MODEL_CATALOGUE.md</a> for full details.</em></p>
 <p>[1] “—*footbet<strong> <a href="https://github.com/JohnGavin/footbet/releases/tag/v0.1.0">0.1.0</a> | </strong>Git<strong> <a href="https://github.com/JohnGavin/footbet/commit/5f9af312e630dcbcab4c58bbd70bc6071fafbfac"><code>5f9af31</code></a> | </strong>R<strong> <a href="https://cran.r-project.org/doc/manuals/r-release/NEWS.html">4.5.2</a> | </strong>Built** 2026-04-14 16:54:14”</p>
-</section>
-
-</main>
-<!-- /main column -->
-<script id="quarto-html-after-body" type="application/javascript">
+</section></main><!-- /main column --><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
     const anchorJS = new window.AnchorJS();
@@ -874,4 +809,5 @@ Warning
 
 
 
-</body></html>
+</body>
+</html>

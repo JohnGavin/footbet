@@ -1,5 +1,9 @@
 # Data Sources & Coverage
 
+# Data Sources & Coverage
+
+Football-data.co.uk CSV pipeline
+
 Part 1 of the [footbet](https://johngavin.github.io/footbet/) analytics
 guide. See also: [Data
 Cleaning](https://johngavin.github.io/footbet/articles/data-cleaning.md)
@@ -19,13 +23,11 @@ regarded as the sharpest bookmaker in the industry.
 
 The URL pattern is
 `https://www.football-data.co.uk/mmz4281/{season}/{league}.csv`, where
-[season](https://github.com/agbarnett/season) is a 4-digit code (e.g.,
-`2324` for 2023-24) and `{league}` is a 2-character code (e.g., `E0` for
-the English Premier League).
+`{season}` is a 4-digit code (e.g., `2324` for 2023-24) and `{league}`
+is a 2-character code (e.g., `E0` for the English Premier League).
 
-[`footbet::target_leagues()`](https://johngavin.github.io/footbet/reference/target_leagues.md)
-returns 10 leagues covering the top 2 divisions of the “big five”
-European football countries.
+`footbet::target_leagues()` returns 10 leagues covering the top 2
+divisions of the “big five” European football countries.
 
 ## Data Pipeline Overview
 
@@ -49,13 +51,11 @@ Data pipeline: CSV download → parsing → validation → modelling →
 evaluation. Nodes link to package functions.
 
 *Data pipeline flowchart showing the end-to-end processing stages. Nodes
-represent pipeline steps: CSV download, parsing via
-[`parse_fd_csv()`](https://johngavin.github.io/footbet/reference/parse_fd_csv.md),
-odds extraction via
-[`parse_fd_odds()`](https://johngavin.github.io/footbet/reference/parse_fd_odds.md),
-quality control, and model fitting. Red arrows indicate data flow
-direction. The pipeline is implemented as a targets DAG (directed
-acyclic graph) ensuring reproducibility and incremental builds. Source:
+represent pipeline steps: CSV download, parsing via `parse_fd_csv()`,
+odds extraction via `parse_fd_odds()`, quality control, and model
+fitting. Red arrows indicate data flow direction. The pipeline is
+implemented as a targets DAG (directed acyclic graph) ensuring
+reproducibility and incremental builds. Source:
 [footbet](https://johngavin.github.io/footbet/) package architecture.
 See [Glossary \> Data
 Terminology](https://johngavin.github.io/footbet/articles/glossary.html#data-terminology).*
@@ -99,11 +99,10 @@ Source: [football-data.co.uk](https://www.football-data.co.uk/). See
 [Glossary \> Data
 Terminology](https://johngavin.github.io/footbet/articles/glossary.html#data-terminology).*
 
-> **Note**
->
-> **Key Finding:** Division 1 leagues (E0, D1, I1, SP1, F1) have ~380
-> matches/season. Division 2 leagues have more (~460-550
-> matches/season).
+Note
+
+**Key Finding:** Division 1 leagues (E0, D1, I1, SP1, F1) have ~380
+matches/season. Division 2 leagues have more (~460-550 matches/season).
 
 ## Pinnacle Odds
 
@@ -128,9 +127,8 @@ Overround](https://johngavin.github.io/footbet/articles/glossary.md).*
 
 ## Column Schema
 
-After parsing,
-[`footbet::parse_fd_csv()`](https://johngavin.github.io/footbet/reference/parse_fd_csv.md)
-produces a standardised tibble with the following columns:
+After parsing, `footbet::parse_fd_csv()` produces a standardised tibble
+with the following columns:
 
 | Column | Description | Type |
 |----|----|----|
@@ -150,23 +148,19 @@ produces a standardised tibble with the following columns:
 | `hy` / `ay` | Home/away yellow cards | integer |
 | `hr` / `ar` | Home/away red cards | integer |
 
-Columns produced by
-[`parse_fd_csv()`](https://johngavin.github.io/footbet/reference/parse_fd_csv.md).
-See
+Columns produced by `parse_fd_csv()`. See
 [Glossary](https://johngavin.github.io/footbet/articles/glossary.html#data-terminology)
 for definitions.
 
-[`footbet::parse_fd_odds()`](https://johngavin.github.io/footbet/reference/parse_fd_odds.md)
-extracts Pinnacle closing odds:
+`footbet::parse_fd_odds()` extracts Pinnacle closing odds:
 
 | Column                   | Description                                |
 |--------------------------|--------------------------------------------|
 | `psh` / `psd` / `psa`    | Pinnacle closing 1X2 odds (Home/Draw/Away) |
 | `p_over25` / `p_under25` | Pinnacle over/under 2.5 goals odds         |
 
-Columns produced by
-[`parse_fd_odds()`](https://johngavin.github.io/footbet/reference/parse_fd_odds.md).
-Pinnacle odds serve as the sharp-market benchmark.
+Columns produced by `parse_fd_odds()`. Pinnacle odds serve as the
+sharp-market benchmark.
 
 \[1\] “—\*footbet
 **[0.1.0](https://github.com/JohnGavin/footbet/releases/tag/v0.1.0) \|**

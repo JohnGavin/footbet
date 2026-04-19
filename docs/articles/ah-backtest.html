@@ -1,12 +1,9 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-
-<meta charset="utf-8">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta charset="UTF-8">
 <meta name="generator" content="quarto-1.8.26">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-
-
 <title>AH Backtest: P&amp;L, Drawdown &amp; CLV</title>
 <style>
 code{white-space: pre-wrap;}
@@ -21,43 +18,19 @@ ul.task-list li input[type="checkbox"] {
   vertical-align: middle;
 }
 </style>
-
-
-<script src="ah-backtest_files/libs/clipboard/clipboard.min.js"></script>
-<script src="ah-backtest_files/libs/quarto-html/quarto.js" type="module"></script>
-<script src="ah-backtest_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="ah-backtest_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="ah-backtest_files/libs/quarto-html/popper.min.js"></script>
-<script src="ah-backtest_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="ah-backtest_files/libs/quarto-html/anchor.min.js"></script>
-<link href="ah-backtest_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<script src="ah-backtest_files/libs/clipboard/clipboard.min.js"></script><script src="ah-backtest_files/libs/quarto-html/quarto.js" type="module"></script><script src="ah-backtest_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script><script src="ah-backtest_files/libs/quarto-html/axe/axe-check.js" type="module"></script><script src="ah-backtest_files/libs/quarto-html/popper.min.js"></script><script src="ah-backtest_files/libs/quarto-html/tippy.umd.min.js"></script><script src="ah-backtest_files/libs/quarto-html/anchor.min.js"></script><link href="ah-backtest_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="ah-backtest_files/libs/quarto-html/quarto-syntax-highlighting-dark-b758ccaa5987ceb1b75504551e579abf.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="ah-backtest_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="ah-backtest_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<script src="ah-backtest_files/libs/bootstrap/bootstrap.min.js"></script><link href="ah-backtest_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="ah-backtest_files/libs/bootstrap/bootstrap-48f2e52f2ae9d8c0881564f8dd096b5f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
 <link href="ah-backtest_files/libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet">
-<script src="ah-backtest_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
-<link href="ah-backtest_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
-<script src="ah-backtest_files/libs/datatables-binding-0.34.0/datatables.js"></script>
-<script src="ah-backtest_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
-<link href="ah-backtest_files/libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
+<script src="ah-backtest_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script><link href="ah-backtest_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
+<script src="ah-backtest_files/libs/datatables-binding-0.34.0/datatables.js"></script><script src="ah-backtest_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script><link href="ah-backtest_files/libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
 <link href="ah-backtest_files/libs/dt-core-1.13.6/css/jquery.dataTables.extra.css" rel="stylesheet">
-<script src="ah-backtest_files/libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script>
-<link href="ah-backtest_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
-<script src="ah-backtest_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
-<script src="ah-backtest_files/libs/plotly-binding-4.12.0/plotly.js"></script>
-<script src="ah-backtest_files/libs/typedarray-0.1/typedarray.min.js"></script>
-<link href="ah-backtest_files/libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
-<script src="ah-backtest_files/libs/plotly-main-2.25.2/plotly-latest.min.js"></script>
-<script>document.documentElement.setAttribute('data-bs-theme','dark');</script>
-<style>html,body{background:#000!important;color:#fff!important;}</style>
+<script src="ah-backtest_files/libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script><link href="ah-backtest_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+<script src="ah-backtest_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script><script src="ah-backtest_files/libs/plotly-binding-4.12.0/plotly.js"></script><script src="ah-backtest_files/libs/typedarray-0.1/typedarray.min.js"></script><link href="ah-backtest_files/libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
+<script src="ah-backtest_files/libs/plotly-main-2.25.2/plotly-latest.min.js"></script><script>document.documentElement.setAttribute('data-bs-theme','dark');</script><style>html,body{background:#000!important;color:#fff!important;}</style>
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-
-  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
-
-<script type="text/javascript">
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script><script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script><script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script><script type="text/javascript">
 const typesetMath = (el) => {
   if (window.MathJax) {
     // MathJax Typeset
@@ -83,35 +56,30 @@ window.Quarto = {
   typesetMath
 };
 </script>
-
 </head>
-
 <body class="quarto-light">
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-full">
 <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-  <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
+  <nav id="TOC" role="doc-toc" class="toc-active"><h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#summary" id="toc-summary" class="nav-link active" data-scroll-target="#summary">Summary</a></li>
+<li><a href="#summary" id="toc-summary" class="nav-link active" data-scroll-target="#summary">Summary</a></li>
   <li><a href="#equity-curves" id="toc-equity-curves" class="nav-link" data-scroll-target="#equity-curves">Equity Curves</a></li>
   <li><a href="#drawdown" id="toc-drawdown" class="nav-link" data-scroll-target="#drawdown">Drawdown</a></li>
   <li><a href="#clv-per-league" id="toc-clv-per-league" class="nav-link" data-scroll-target="#clv-per-league">CLV Per League</a></li>
   <li><a href="#per-season-breakdown" id="toc-per-season-breakdown" class="nav-link" data-scroll-target="#per-season-breakdown">Per-Season Breakdown</a></li>
-  <li><a href="#methodology" id="toc-methodology" class="nav-link" data-scroll-target="#methodology">Methodology</a>
+  <li>
+<a href="#methodology" id="toc-methodology" class="nav-link" data-scroll-target="#methodology">Methodology</a>
   <ul class="collapse">
-  <li><a href="#walk-forward-setup" id="toc-walk-forward-setup" class="nav-link" data-scroll-target="#walk-forward-setup">Walk-Forward Setup</a></li>
+<li><a href="#walk-forward-setup" id="toc-walk-forward-setup" class="nav-link" data-scroll-target="#walk-forward-setup">Walk-Forward Setup</a></li>
   <li><a href="#clv-definition" id="toc-clv-definition" class="nav-link" data-scroll-target="#clv-definition">CLV Definition</a></li>
   <li><a href="#leakage-controls" id="toc-leakage-controls" class="nav-link" data-scroll-target="#leakage-controls">Leakage Controls</a></li>
-  </ul></li>
   </ul>
-</nav>
+</li>
+  </ul></nav>
 </div>
-<main class="content column-page-left" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
+<main class="content column-page-left" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block default"><div class="quarto-title">
 <h1 class="title">AH Backtest: P&amp;L, Drawdown &amp; CLV</h1>
 <p class="subtitle lead">Walk-forward Asian Handicap evaluation across 4 models and 6 seasons</p>
 </div>
@@ -127,10 +95,7 @@ window.Quarto = {
   
 
 
-</header>
-
-
-<div class="callout callout-style-default callout-note callout-titled">
+</header><div class="callout callout-style-default callout-note callout-titled">
 <div class="callout-header d-flex align-content-center">
 <div class="callout-icon-container">
 <i class="callout-icon"></i>
@@ -143,8 +108,7 @@ window.Quarto = {
 <p>This vignette shows pre-computed results from the targets pipeline. All data comes from walk-forward evaluation: models trained on seasons 1516–1920, rolled forward month-by-month through 2425.</p>
 </div>
 </div>
-<section id="summary" class="level2">
-<h2 class="anchored" data-anchor-id="summary">Summary</h2>
+<section id="summary" class="level2"><h2 class="anchored" data-anchor-id="summary">Summary</h2>
 <p>The Asian Handicap (AH) market is more interesting than 1X2 for model evaluation because the vig is lower and the closing line is a precise benchmark. Four models are compared: GLM (Poisson baseline), Ranger (random forest), xG-Kalman-DC (xG + Kalman filter + Dixon-Coles correction), and Intersection (bets where GLM and Ranger agree).</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -152,9 +116,7 @@ window.Quarto = {
 <script type="application/json" data-for="htmlwidget-d373ce06a0672e7ce246">{"x":{"filter":"none","vertical":false,"caption":"<caption style=\"caption-side: top; text-align: left; color: #ccc;\">AH walk-forward results across 6 seasons (1920--2425). ROI after 2% transaction cost + 1% slippage. Intersection (GLM ∩ Ranger agreement) achieves the best flat-stake ROI (-0.3%). Sharpe ratios are negative for all models — no model generates risk-adjusted returns. Max drawdown in currency units (£10 flat stake).<\/caption>","data":[["GLM","GLM","Intersection","Intersection","Ranger","Ranger","xGK","xGK"],["flat","kelly","flat","kelly","flat","kelly","flat","kelly"],[5214,5214,3940,3940,5963,5963,4450,4450],[-2.1,-1.4,-0.3,-0.1,-1.8,-1.8,-7.4,-7.2],[51.9,51.9,52.9,52.9,52,52,48.8,48.8],[-0.022,-0.014,-0.003,-0.001,-0.018,-0.018,-0.076,-0.074],[1341,4003,512,2126,1337,5340,3355,15300]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>model<\/th>\n      <th>staking<\/th>\n      <th>n_bets<\/th>\n      <th>roi_pct<\/th>\n      <th>win_rate<\/th>\n      <th>sharpe<\/th>\n      <th>max_dd<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":10,"dom":"t","scrollX":true,"columnDefs":[{"className":"dt-right","targets":[2,3,4,5,6]},{"name":"model","targets":0},{"name":"staking","targets":1},{"name":"n_bets","targets":2},{"name":"roi_pct","targets":3},{"name":"win_rate","targets":4},{"name":"sharpe","targets":5},{"name":"max_dd","targets":6}],"order":[],"autoWidth":false,"orderClasses":false}},"evals":[],"jsHooks":[]}</script>
 </div>
 </div>
-</section>
-<section id="equity-curves" class="level2">
-<h2 class="anchored" data-anchor-id="equity-curves">Equity Curves</h2>
+</section><section id="equity-curves" class="level2"><h2 class="anchored" data-anchor-id="equity-curves">Equity Curves</h2>
 <div class="cell">
 <div class="cell-output-display">
 <div class="plotly html-widget html-fill-item" id="htmlwidget-862a247f27ae791f17f4" style="width:100%;height:464px;"></div>
@@ -162,9 +124,7 @@ window.Quarto = {
 </div>
 </div>
 <p><em>Cumulative P&amp;L for 4 AH models using flat £10 stakes across ~5,000–6,000 bets per model over 6 seasons (1920–2425). Blue = GLM Poisson baseline; green = Ranger random forest; red = xG-Kalman-DC (worst); orange = Intersection (GLM ∩ Ranger, best). The Intersection model stays closest to zero throughout, consistent with -0.3% ROI. The xGK model shows a sustained downtrend from season 2122 onward. Range slider at bottom for zooming into specific periods. Source: <code>ah_walkforward_all</code> target with walk-forward month-by-month retraining.</em></p>
-</section>
-<section id="drawdown" class="level2">
-<h2 class="anchored" data-anchor-id="drawdown">Drawdown</h2>
+</section><section id="drawdown" class="level2"><h2 class="anchored" data-anchor-id="drawdown">Drawdown</h2>
 <div class="cell">
 <div class="cell-output-display">
 <div class="plotly html-widget html-fill-item" id="htmlwidget-97e2b5a2253275398b96" style="width:100%;height:464px;"></div>
@@ -172,9 +132,7 @@ window.Quarto = {
 </div>
 </div>
 <p><em>Underwater plot showing how far each model drops from its peak cumulative P&amp;L. The xGK model (red) reaches a maximum drawdown of £3,355 — the deepest sustained decline. Intersection (orange) has the shallowest drawdown at £512, reflecting its conservative bet selection (only bets where GLM and Ranger agree). GLM and Ranger show similar drawdown profiles (~£1,300). Source: derived from <code>ah_walkforward_all</code> cumulative P&amp;L.</em></p>
-</section>
-<section id="clv-per-league" class="level2">
-<h2 class="anchored" data-anchor-id="clv-per-league">CLV Per League</h2>
+</section><section id="clv-per-league" class="level2"><h2 class="anchored" data-anchor-id="clv-per-league">CLV Per League</h2>
 <p>Closing Line Value measures whether the model’s price at bet time beats the closing line — a positive CLV means the model identifies prices that move in its favour.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -182,9 +140,7 @@ window.Quarto = {
 <script type="application/json" data-for="htmlwidget-c9b74b13547d6c82490c">{"x":{"filter":"none","vertical":false,"caption":"<caption style=\"caption-side: top; text-align: left; color: #ccc;\">CLV in probability points (pp) per league. Ranger CLV is positive in 7/9 leagues; Ensemble in all 5 top leagues. D1 (Bundesliga) shows the strongest Ranger CLV (+1.28pp) and ROI (+16.3%). Beat-close rate (btc) &gt; 50% confirms the model systematically beats the closing line. Despite positive CLV, most leagues show negative ROI — the vig eats the edge. Source: `oos_ah_ranger_clv_summary`, `oos_ah_ensemble_clv_summary`.<\/caption>","data":[[],[],[],[],[],[],[],[]],"container":"<table class=\"display\">\n  <thead>\n    <tr>\n      <th>league_code<\/th>\n      <th>n_bets<\/th>\n      <th>ranger_clv<\/th>\n      <th>ranger_btc<\/th>\n      <th>ranger_roi<\/th>\n      <th>ensemble_clv<\/th>\n      <th>ensemble_btc<\/th>\n      <th>ensemble_roi<\/th>\n    <\/tr>\n  <\/thead>\n<\/table>","options":{"pageLength":15,"dom":"t","scrollX":true,"columnDefs":[{"targets":2,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 3, 3, \",\", \".\", null);\n  }"},{"targets":3,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 3, 3, \",\", \".\", null);\n  }"},{"targets":5,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 3, 3, \",\", \".\", null);\n  }"},{"targets":6,"render":"function(data, type, row, meta) {\n    return type !== 'display' ? data : DTWidget.formatRound(data, 3, 3, \",\", \".\", null);\n  }"},{"className":"dt-right","targets":[1,2,3,4,5,6,7]},{"name":"league_code","targets":0},{"name":"n_bets","targets":1},{"name":"ranger_clv","targets":2},{"name":"ranger_btc","targets":3},{"name":"ranger_roi","targets":4},{"name":"ensemble_clv","targets":5},{"name":"ensemble_btc","targets":6},{"name":"ensemble_roi","targets":7}],"order":[],"autoWidth":false,"orderClasses":false,"lengthMenu":[10,15,25,50,100]}},"evals":["options.columnDefs.0.render","options.columnDefs.1.render","options.columnDefs.2.render","options.columnDefs.3.render"],"jsHooks":[]}</script>
 </div>
 </div>
-</section>
-<section id="per-season-breakdown" class="level2">
-<h2 class="anchored" data-anchor-id="per-season-breakdown">Per-Season Breakdown</h2>
+</section><section id="per-season-breakdown" class="level2"><h2 class="anchored" data-anchor-id="per-season-breakdown">Per-Season Breakdown</h2>
 <div class="cell">
 <div class="cell-output-display">
 <div class="plotly html-widget html-fill-item" id="htmlwidget-d4212e572ba637a9609b" style="width:100%;height:464px;"></div>
@@ -192,34 +148,26 @@ window.Quarto = {
 </div>
 </div>
 <p><em>ROI by model and season for flat-stake AH bets. Season 2223 is the only period where GLM (+0.7%) and Intersection (+2.1%) show positive returns. The xGK model (red) is consistently negative across all seasons. Ranger shows high variance: +1.5% in 2223 but -5.2% in 2425. No model is consistently profitable across all 6 seasons. Source: <code>ah_walkforward_by_season</code> target.</em></p>
-</section>
-<section id="methodology" class="level2">
-<h2 class="anchored" data-anchor-id="methodology">Methodology</h2>
-<section id="walk-forward-setup" class="level3">
-<h3 class="anchored" data-anchor-id="walk-forward-setup">Walk-Forward Setup</h3>
+</section><section id="methodology" class="level2"><h2 class="anchored" data-anchor-id="methodology">Methodology</h2>
+<section id="walk-forward-setup" class="level3"><h3 class="anchored" data-anchor-id="walk-forward-setup">Walk-Forward Setup</h3>
 <ul>
-<li><strong>Training</strong>: Expanding window starting from season 1516, retrained monthly</li>
-<li><strong>Testing</strong>: Next month’s matches (out-of-sample)</li>
-<li><strong>Markets</strong>: Asian Handicap -0.5 (equivalent to match winner with no draw)</li>
-<li><strong>Edge threshold</strong>: Model probability &gt; devigged closing line probability + 3%</li>
-<li><strong>Staking</strong>: Flat £10 per bet, or quarter-Kelly scaled by edge</li>
-</ul>
-</section>
-<section id="clv-definition" class="level3">
-<h3 class="anchored" data-anchor-id="clv-definition">CLV Definition</h3>
+<li>
+<strong>Training</strong>: Expanding window starting from season 1516, retrained monthly</li>
+<li>
+<strong>Testing</strong>: Next month’s matches (out-of-sample)</li>
+<li>
+<strong>Markets</strong>: Asian Handicap -0.5 (equivalent to match winner with no draw)</li>
+<li>
+<strong>Edge threshold</strong>: Model probability &gt; devigged closing line probability + 3%</li>
+<li>
+<strong>Staking</strong>: Flat £10 per bet, or quarter-Kelly scaled by edge</li>
+</ul></section><section id="clv-definition" class="level3"><h3 class="anchored" data-anchor-id="clv-definition">CLV Definition</h3>
 <p><span class="math display">\[\text{CLV} = \frac{P_{\text{bet}}}{P_{\text{close}}} - 1\]</span></p>
 <p>Where <span class="math inline">\(P_{\text{bet}}\)</span> is the model’s probability at bet time and <span class="math inline">\(P_{\text{close}}\)</span> is the devigged closing line probability. Positive CLV means the model’s price moved in its favour — the market agreed with the bet.</p>
-</section>
-<section id="leakage-controls" class="level3">
-<h3 class="anchored" data-anchor-id="leakage-controls">Leakage Controls</h3>
+</section><section id="leakage-controls" class="level3"><h3 class="anchored" data-anchor-id="leakage-controls">Leakage Controls</h3>
 <p>All rolling features use <code>dplyr::lag()</code> to exclude the current match. The 7-day as-of cutoff (<code>apply_asof_cutoff()</code>) ensures features are available at bet decision time — see <a href="https://github.com/JohnGavin/footbet/issues/82">#82</a> for the full leakage analysis.</p>
 <p>[1] “—*footbet<strong> <a href="https://github.com/JohnGavin/footbet/releases/tag/v0.1.0">0.1.0</a> | </strong>Git<strong> <a href="https://github.com/JohnGavin/footbet/commit/5f9af312e630dcbcab4c58bbd70bc6071fafbfac"><code>5f9af31</code></a> | </strong>R<strong> <a href="https://cran.r-project.org/doc/manuals/r-release/NEWS.html">4.5.2</a> | </strong>Built** 2026-04-14 16:54:14”</p>
-</section>
-</section>
-
-</main>
-<!-- /main column -->
-<script id="quarto-html-after-body" type="application/javascript">
+</section></section></main><!-- /main column --><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
     const anchorJS = new window.AnchorJS();
@@ -624,4 +572,5 @@ window.Quarto = {
 
 
 
-</body></html>
+</body>
+</html>

@@ -1,12 +1,9 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-
-<meta charset="utf-8">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta charset="UTF-8">
 <meta name="generator" content="quarto-1.8.26">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-
-
 <title>Data Cleaning &amp; QC</title>
 <style>
 code{white-space: pre-wrap;}
@@ -21,60 +18,33 @@ ul.task-list li input[type="checkbox"] {
   vertical-align: middle;
 }
 </style>
-
-
-<script src="data-cleaning_files/libs/clipboard/clipboard.min.js"></script>
-<script src="data-cleaning_files/libs/quarto-html/quarto.js" type="module"></script>
-<script src="data-cleaning_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="data-cleaning_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="data-cleaning_files/libs/quarto-html/popper.min.js"></script>
-<script src="data-cleaning_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="data-cleaning_files/libs/quarto-html/anchor.min.js"></script>
-<link href="data-cleaning_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<script src="data-cleaning_files/libs/clipboard/clipboard.min.js"></script><script src="data-cleaning_files/libs/quarto-html/quarto.js" type="module"></script><script src="data-cleaning_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script><script src="data-cleaning_files/libs/quarto-html/axe/axe-check.js" type="module"></script><script src="data-cleaning_files/libs/quarto-html/popper.min.js"></script><script src="data-cleaning_files/libs/quarto-html/tippy.umd.min.js"></script><script src="data-cleaning_files/libs/quarto-html/anchor.min.js"></script><link href="data-cleaning_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="data-cleaning_files/libs/quarto-html/quarto-syntax-highlighting-dark-b758ccaa5987ceb1b75504551e579abf.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="data-cleaning_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="data-cleaning_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<script src="data-cleaning_files/libs/bootstrap/bootstrap.min.js"></script><link href="data-cleaning_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="data-cleaning_files/libs/bootstrap/bootstrap-48f2e52f2ae9d8c0881564f8dd096b5f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
 <link href="data-cleaning_files/libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet">
-<script src="data-cleaning_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
-<script src="data-cleaning_files/libs/plotly-binding-4.12.0/plotly.js"></script>
-<script src="data-cleaning_files/libs/typedarray-0.1/typedarray.min.js"></script>
-<script src="data-cleaning_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
-<link href="data-cleaning_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
-<script src="data-cleaning_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
-<link href="data-cleaning_files/libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
-<script src="data-cleaning_files/libs/plotly-main-2.25.2/plotly-latest.min.js"></script>
-<link href="data-cleaning_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
-<script src="data-cleaning_files/libs/datatables-binding-0.34.0/datatables.js"></script>
-<link href="data-cleaning_files/libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
+<script src="data-cleaning_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script><script src="data-cleaning_files/libs/plotly-binding-4.12.0/plotly.js"></script><script src="data-cleaning_files/libs/typedarray-0.1/typedarray.min.js"></script><script src="data-cleaning_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script><link href="data-cleaning_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+<script src="data-cleaning_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script><link href="data-cleaning_files/libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
+<script src="data-cleaning_files/libs/plotly-main-2.25.2/plotly-latest.min.js"></script><link href="data-cleaning_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
+<script src="data-cleaning_files/libs/datatables-binding-0.34.0/datatables.js"></script><link href="data-cleaning_files/libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
 <link href="data-cleaning_files/libs/dt-core-1.13.6/css/jquery.dataTables.extra.css" rel="stylesheet">
-<script src="data-cleaning_files/libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script>
-<script>document.documentElement.setAttribute('data-bs-theme','dark');</script>
-<style>html,body{background:#000!important;color:#fff!important;}</style>
-
-
+<script src="data-cleaning_files/libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script><script>document.documentElement.setAttribute('data-bs-theme','dark');</script><style>html,body{background:#000!important;color:#fff!important;}</style>
 </head>
-
 <body class="quarto-light">
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-full">
 <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-  <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
+  <nav id="TOC" role="doc-toc" class="toc-active"><h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#match-completeness" id="toc-match-completeness" class="nav-link active" data-scroll-target="#match-completeness">Match Completeness</a></li>
+<li><a href="#match-completeness" id="toc-match-completeness" class="nav-link active" data-scroll-target="#match-completeness">Match Completeness</a></li>
   <li><a href="#pinnacle-coverage" id="toc-pinnacle-coverage" class="nav-link" data-scroll-target="#pinnacle-coverage">Pinnacle Coverage</a></li>
   <li><a href="#missing-data" id="toc-missing-data" class="nav-link" data-scroll-target="#missing-data">Missing Data</a></li>
   <li><a href="#anomaly-detection" id="toc-anomaly-detection" class="nav-link" data-scroll-target="#anomaly-detection">Anomaly Detection</a></li>
   <li><a href="#qc-summary" id="toc-qc-summary" class="nav-link" data-scroll-target="#qc-summary">QC Summary</a></li>
-  </ul>
-</nav>
+  </ul></nav>
 </div>
-<main class="content column-page-left" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
+<main class="content column-page-left" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block default"><div class="quarto-title">
 <h1 class="title">Data Cleaning &amp; QC</h1>
 <p class="subtitle lead">Automated quality control pipeline</p>
 </div>
@@ -90,13 +60,8 @@ ul.task-list li input[type="checkbox"] {
   
 
 
-</header>
-
-
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script>document.documentElement.setAttribute('data-bs-theme', 'dark');</script>
-<style>
+</header><link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script><script>document.documentElement.setAttribute('data-bs-theme', 'dark');</script><style>
 body, .page-body, main, article, .contents { background-color: #000000 !important; color: #ffffff !important; }
 table, .table, table.dataTable { background-color: #000000 !important; color: #ffffff !important; }
 table td, table th, .table td, .table th { color: #ffffff !important; background-color: #000000 !important; border-color: #333 !important; }
@@ -115,8 +80,7 @@ code { background-color: #222 !important; }
 </style>
 <p>Part 2 of the <a href="https://johngavin.github.io/footbet/">footbet</a> analytics guide. See also: <a href="data-sources.html">Data Sources</a> | <a href="eda.html">EDA</a> | <a href="models-betting.html">Models &amp; Betting</a> | <a href="glossary.html">Glossary</a></p>
 <p>The footbet pipeline includes automated quality control checks that run after data parsing. This section summarises the QC outputs.</p>
-<section id="match-completeness" class="level2">
-<h2 class="anchored" data-anchor-id="match-completeness">Match Completeness</h2>
+<section id="match-completeness" class="level2"><h2 class="anchored" data-anchor-id="match-completeness">Match Completeness</h2>
 <p>The chart below shows the percentage of matches per league-season with a valid full-time result (FTR). A value below 100% indicates matches where the result is missing — typically from ongoing or postponed fixtures in the current season.</p>
 <div class="cell">
 <div class="cell-output cell-output-stdout">
@@ -142,15 +106,16 @@ Note
 <p><strong>Key Finding:</strong> Most historical league-seasons achieve 100% completeness. Current season shows partial data (matches not yet played).</p>
 </div>
 </div>
-</section>
-<section id="pinnacle-coverage" class="level2">
-<h2 class="anchored" data-anchor-id="pinnacle-coverage">Pinnacle Coverage</h2>
+</section><section id="pinnacle-coverage" class="level2"><h2 class="anchored" data-anchor-id="pinnacle-coverage">Pinnacle Coverage</h2>
 <p>Pinnacle odds are the primary benchmark for model evaluation. The chart shows the percentage of matches with all three Pinnacle 1X2 closing odds present.</p>
 <p>Coverage gaps arise from:</p>
 <ul>
-<li><strong>Division 2 leagues</strong>: Pinnacle may not offer odds for lower divisions</li>
-<li><strong>Feed breaks</strong>: The football-data.co.uk Pinnacle feed experienced a break from mid-2025</li>
-<li><strong>Early seasons</strong>: Pinnacle data availability improves in more recent seasons</li>
+<li>
+<strong>Division 2 leagues</strong>: Pinnacle may not offer odds for lower divisions</li>
+<li>
+<strong>Feed breaks</strong>: The football-data.co.uk Pinnacle feed experienced a break from mid-2025</li>
+<li>
+<strong>Early seasons</strong>: Pinnacle data availability improves in more recent seasons</li>
 </ul>
 <div class="cell">
 <div class="cell-output-display">
@@ -172,9 +137,7 @@ Note
 <p><strong>Key Finding:</strong> Top divisions have near-100% coverage from ~2016 onward. Division 2 coverage is variable. 0% coverage indicates feed breaks or no Pinnacle market.</p>
 </div>
 </div>
-</section>
-<section id="missing-data" class="level2">
-<h2 class="anchored" data-anchor-id="missing-data">Missing Data</h2>
+</section><section id="missing-data" class="level2"><h2 class="anchored" data-anchor-id="missing-data">Missing Data</h2>
 <p>The chart below shows the percentage of missing values for each column across all parsed matches. Match statistics (shots, corners, cards) are more frequently missing than core fields.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -191,15 +154,17 @@ Note
 </div>
 </div>
 <p><em>Missing data counts by variable. Columns: variable name, description, number of missing values, percentage missing, leagues most affected. Core fields (match_date, home_team, away_team, fthg, ftag, ftr) are nearly always present. Match statistics (hs, hst, hc, hf, hy, hr and their away equivalents) have higher missingness, particularly in seasons before detailed statistics were collected. Pinnacle odds columns (psh, psd, psa) are missing for league-seasons without Pinnacle coverage. Source: <a href="https://www.football-data.co.uk/">football-data.co.uk</a> parsed data. See <a href="glossary.html#match-statistics">Glossary &gt; Match Statistics</a> and <a href="glossary.html#data-terminology">Glossary &gt; Data Terminology</a>.</em></p>
-</section>
-<section id="anomaly-detection" class="level2">
-<h2 class="anchored" data-anchor-id="anomaly-detection">Anomaly Detection</h2>
+</section><section id="anomaly-detection" class="level2"><h2 class="anchored" data-anchor-id="anomaly-detection">Anomaly Detection</h2>
 <p>The pipeline flags matches with:</p>
 <ul>
-<li><strong>Extreme scorelines</strong>: Total goals &gt; 10 (very rare, may indicate data entry errors)</li>
-<li><strong>Missing dates</strong>: Matches without a parseable date</li>
-<li><strong>Future matches</strong>: Dates more than 7 days beyond the pipeline run date</li>
-<li><strong>Missing team names</strong>: Rows with NA home or away team</li>
+<li>
+<strong>Extreme scorelines</strong>: Total goals &gt; 10 (very rare, may indicate data entry errors)</li>
+<li>
+<strong>Missing dates</strong>: Matches without a parseable date</li>
+<li>
+<strong>Future matches</strong>: Dates more than 7 days beyond the pipeline run date</li>
+<li>
+<strong>Missing team names</strong>: Rows with NA home or away team</li>
 </ul>
 <div class="cell">
 <div class="cell-output-display">
@@ -208,16 +173,10 @@ Note
 </div>
 </div>
 <p><em>Anomaly detection results table. Columns: match_id, league_code, season, match_date, home_team, away_team, fthg, ftag, anomaly_type (extreme_score / missing_date / future_date / missing_team). Each row is a flagged match requiring manual review. Extreme scorelines (&gt;10 total goals) are rare but may indicate data entry errors. An empty table (green banner) means no anomalies were detected, confirming data integrity. Source: automated QC pipeline applied to <a href="https://www.football-data.co.uk/">football-data.co.uk</a> data. See <a href="glossary.html#data-terminology">Glossary &gt; FTHG / FTAG</a>.</em></p>
-</section>
-<section id="qc-summary" class="level2">
-<h2 class="anchored" data-anchor-id="qc-summary">QC Summary</h2>
+</section><section id="qc-summary" class="level2"><h2 class="anchored" data-anchor-id="qc-summary">QC Summary</h2>
 <p>The <code>qc_summary</code> target combines all QC checks into a single report. The pipeline computes total matches parsed, odds rows, completeness percentage, Pinnacle coverage, and anomaly count. These targets serve as data contracts — downstream model targets depend on QC to ensure data quality.</p>
 <p>[1] “—*footbet<strong> <a href="https://github.com/JohnGavin/footbet/releases/tag/v0.1.0">0.1.0</a> | </strong>Git<strong> <a href="https://github.com/JohnGavin/footbet/commit/5f9af312e630dcbcab4c58bbd70bc6071fafbfac"><code>5f9af31</code></a> | </strong>R<strong> <a href="https://cran.r-project.org/doc/manuals/r-release/NEWS.html">4.5.2</a> | </strong>Built** 2026-04-14 16:54:14”</p>
-</section>
-
-</main>
-<!-- /main column -->
-<script id="quarto-html-after-body" type="application/javascript">
+</section></main><!-- /main column --><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
     const anchorJS = new window.AnchorJS();
@@ -622,4 +581,5 @@ Note
 
 
 
-</body></html>
+</body>
+</html>

@@ -1,5 +1,9 @@
 # Exploratory Data Analysis
 
+# Exploratory Data Analysis
+
+Statistical patterns in European football
+
 Part 3 of the [footbet](https://johngavin.github.io/footbet/) analytics
 guide. See also: [Data
 Sources](https://johngavin.github.io/footbet/articles/data-sources.md)
@@ -51,12 +55,12 @@ Regression](https://johngavin.github.io/footbet/articles/glossary.md)
 and [Glossary \> Dixon-Coles
 Model](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Note**
->
-> **Key Finding:** Home teams score slightly more than away teams (home
-> advantage). The Poisson distribution is a reasonable first
-> approximation, though it underpredicts 0-0 draws and some high-scoring
-> outcomes.
+Note
+
+**Key Finding:** Home teams score slightly more than away teams (home
+advantage). The Poisson distribution is a reasonable first
+approximation, though it underpredicts 0-0 draws and some high-scoring
+outcomes.
 
 ## Result Proportions
 
@@ -77,11 +81,10 @@ Result)](https://johngavin.github.io/footbet/articles/glossary.md) and
 [Glossary \>
 FTR](https://johngavin.github.io/footbet/articles/glossary.html#data-terminology).*
 
-> **Note**
->
-> **Key Finding:** Home win rate ranges 43-47% across leagues. Draws:
-> 25-28%. Away wins: 27-30%. All leagues show significant home
-> advantage.
+Note
+
+**Key Finding:** Home win rate ranges 43-47% across leagues. Draws:
+25-28%. Away wins: 27-30%. All leagues show significant home advantage.
 
 ## Home Advantage Trends
 
@@ -102,8 +105,8 @@ pre-pandemic levels. Source:
 Result)](https://johngavin.github.io/footbet/articles/glossary.md).*
 
     # A tibble: 1 × 4
-      trend_per_season r_squared n_seasons conclusion
-                 <dbl>     <dbl>     <int> <chr>
+      trend_per_season r_squared n_seasons conclusion    
+                 <dbl>     <dbl>     <int> <chr>         
     1           -0.198     0.198        11 No clear trend
 
 *Statistical test for declining home advantage trend. Columns:
@@ -116,10 +119,10 @@ season-level aggregation from
 \> 1X2 (Match
 Result)](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Note**
->
-> **Key Finding:** COVID seasons (2020-21) show reduced home advantage
-> across all leagues. Post-COVID recovery varies by league.
+Note
+
+**Key Finding:** COVID seasons (2020-21) show reduced home advantage
+across all leagues. Post-COVID recovery varies by league.
 
 ## Common Scorelines
 
@@ -144,10 +147,10 @@ FTAG](https://johngavin.github.io/footbet/articles/glossary.html#data-terminolog
 and [Glossary \> Dixon-Coles
 Model](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Note**
->
-> **Key Finding:** 1-0 (~12%), 1-1 (~11%), 2-1 (~10%) are most common.
-> Scorelines above 4-4 are extremely rare (\<0.5% combined).
+Note
+
+**Key Finding:** 1-0 (~12%), 1-1 (~11%), 2-1 (~10%) are most common.
+Scorelines above 4-4 are extremely rare (\<0.5% combined).
 
 ## Goals Per Season
 
@@ -165,10 +168,10 @@ Source: [football-data.co.uk](https://www.football-data.co.uk/). See
 [Glossary \> FTHG /
 FTAG](https://johngavin.github.io/footbet/articles/glossary.html#data-terminology).*
 
-> **Note**
->
-> **Key Finding:** Slight upward trend since 2015 in most leagues.
-> Bundesliga consistently among highest-scoring (~3.0 goals/match).
+Note
+
+**Key Finding:** Slight upward trend since 2015 in most leagues.
+Bundesliga consistently among highest-scoring (~3.0 goals/match).
 
 ## Outliers
 
@@ -226,10 +229,10 @@ benchmark for model evaluation. Source: Pinnacle closing odds from
 and [Glossary \> Fair
 Odds](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Note**
->
-> **Key Finding:** Pinnacle margin is ~2-4%, far below soft bookmakers
-> (5-15%). Consistent across all leagues.
+Note
+
+**Key Finding:** Pinnacle margin is ~2-4%, far below soft bookmakers
+(5-15%). Consistent across all leagues.
 
 ## Pinnacle Calibration
 
@@ -252,10 +255,10 @@ Probability](https://johngavin.github.io/footbet/articles/glossary.md)
 and [Glossary \> Closing Line
 Value](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Note**
->
-> **Key Finding:** Pinnacle is near-perfectly calibrated (points near
-> diagonal). Slight favourite-longshot bias at extremes.
+Note
+
+**Key Finding:** Pinnacle is near-perfectly calibrated (points near
+diagonal). Slight favourite-longshot bias at extremes.
 
 ## Elo Ratings
 
@@ -273,17 +276,16 @@ indicating greater competitive imbalance between elite and weaker teams.
 Division 2 leagues show more compressed distributions, reflecting more
 even competition. Outliers at the top represent dominant teams (e.g.,
 Bayern Munich in D1, PSG in F1). The overall median is approximately
-1500 (starting rating). Source: Elo ratings computed via
-[`compute_elo()`](https://johngavin.github.io/footbet/reference/compute_elo.md)
+1500 (starting rating). Source: Elo ratings computed via `compute_elo()`
 on [football-data.co.uk](https://www.football-data.co.uk/) data. See
 [Glossary \> Elo
 Rating](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Note**
->
-> **Key Finding:** Top divisions have wider Elo spreads (more
-> competitive imbalance). Division 2 leagues show more compressed rating
-> distributions.
+Note
+
+**Key Finding:** Top divisions have wider Elo spreads (more competitive
+imbalance). Division 2 leagues show more compressed rating
+distributions.
 
 \[1\] “—\*footbet
 **[0.1.0](https://github.com/JohnGavin/footbet/releases/tag/v0.1.0) \|**

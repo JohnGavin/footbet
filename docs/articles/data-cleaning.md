@@ -1,5 +1,9 @@
 # Data Cleaning & QC
 
+# Data Cleaning & QC
+
+Automated quality control pipeline
+
 Part 2 of the [footbet](https://johngavin.github.io/footbet/) analytics
 guide. See also: [Data
 Sources](https://johngavin.github.io/footbet/articles/data-sources.md)
@@ -33,15 +37,14 @@ full completeness. The current season shows partial data because not all
 fixtures have been played yet. This metric is critical for ensuring
 model training data does not include unresolved matches. Source:
 [football-data.co.uk](https://www.football-data.co.uk/) parsed via
-[`parse_fd_csv()`](https://johngavin.github.io/footbet/reference/parse_fd_csv.md).
-See [Glossary \>
+`parse_fd_csv()`. See [Glossary \>
 FTR](https://johngavin.github.io/footbet/articles/glossary.html#data-terminology).*
 
-> **Note**
->
-> **Key Finding:** Most historical league-seasons achieve 100%
-> completeness. Current season shows partial data (matches not yet
-> played).
+Note
+
+**Key Finding:** Most historical league-seasons achieve 100%
+completeness. Current season shows partial data (matches not yet
+played).
 
 ## Pinnacle Coverage
 
@@ -72,11 +75,11 @@ Probability](https://johngavin.github.io/footbet/articles/glossary.md)
 and [Glossary \> Sharp
 Bookmaker](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Note**
->
-> **Key Finding:** Top divisions have near-100% coverage from ~2016
-> onward. Division 2 coverage is variable. 0% coverage indicates feed
-> breaks or no Pinnacle market.
+Note
+
+**Key Finding:** Top divisions have near-100% coverage from ~2016
+onward. Division 2 coverage is variable. 0% coverage indicates feed
+breaks or no Pinnacle market.
 
 ## Missing Data
 

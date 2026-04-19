@@ -92,10 +92,8 @@ accuracy checkpoints, and known limitations.
   +1.6%, D1 +1.3%, F1 +0.9%, SP1 +0.2%)
 - Dixon-Coles vs GLM+xG: DC barely beats GLM on goals (1.017 vs 1.018),
   xG beats both (1.003)
-- Calibration infrastructure:
-  [`collect_fold_predictions()`](https://johngavin.github.io/footbet/reference/collect_fold_predictions.md),
-  [`reliability_curve_data()`](https://johngavin.github.io/footbet/reference/reliability_curve_data.md)
-  in models_eval.R
+- Calibration infrastructure: `collect_fold_predictions()`,
+  `reliability_curve_data()` in models_eval.R
 - Reliability curves + Brier decomposition targets: xG improves
   resolution, not reliability
 - New targets: `xg_per_league_comparison`, `dc_vs_glm_xg_era`,
@@ -220,9 +218,8 @@ None of the four xG rolling helpers (`rolling_xg`,
 consumed by the \#82 AH bet decision path. The Ranger uses
 `feature_matrix` (rolling_goals + Elo, no xG); the xGK uses
 `kalman_xg_strengths` built directly from matches_with_xg via
-[`kalman_strengths()`](https://johngavin.github.io/footbet/reference/kalman_strengths.md),
-bypassing the xG rolling helpers entirely. The fix is pure
-code-correctness for the research/evaluation targets in
+`kalman_strengths()`, bypassing the xG rolling helpers entirely. The fix
+is pure code-correctness for the research/evaluation targets in
 plan_xg_features.R, with zero impact on the \#82 null verdict.
 
 ## 2026-04-09 (Ensemble cut7 + xG audit)
@@ -581,12 +578,10 @@ external-data work.
   likely in-sample luck on ~300 bets; needs a bootstrap significance
   test before any conclusion.
 
-- **Kalman innovation logging** (`R/model_kalman.R`).
-  [`kalman_update()`](https://johngavin.github.io/footbet/reference/kalman_update.md)
-  now also returns `S` and `std_innovation`;
-  [`kalman_strengths()`](https://johngavin.github.io/footbet/reference/kalman_strengths.md)
-  gains `record_innovations = FALSE` param (backwards-compatible
-  default). When TRUE, returns `list(strengths, innovations)` with
+- **Kalman innovation logging** (`R/model_kalman.R`). `kalman_update()`
+  now also returns `S` and `std_innovation`; `kalman_strengths()` gains
+  `record_innovations = FALSE` param (backwards-compatible default).
+  When TRUE, returns `list(strengths, innovations)` with
   `std_innovation = (y - ŷ) / sqrt(S)` per match-side for regime-break
   detection. Motivation: reviewer flagged that steady-state σ tuning
   does not catch structural breaks (manager change, transfer shocks).

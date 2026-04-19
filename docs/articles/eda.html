@@ -1,12 +1,9 @@
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
-
-<meta charset="utf-8">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta charset="UTF-8">
 <meta name="generator" content="quarto-1.8.26">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-
-
 <title>Exploratory Data Analysis</title>
 <style>
 code{white-space: pre-wrap;}
@@ -21,49 +18,26 @@ ul.task-list li input[type="checkbox"] {
   vertical-align: middle;
 }
 </style>
-
-
-<script src="eda_files/libs/clipboard/clipboard.min.js"></script>
-<script src="eda_files/libs/quarto-html/quarto.js" type="module"></script>
-<script src="eda_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
-<script src="eda_files/libs/quarto-html/axe/axe-check.js" type="module"></script>
-<script src="eda_files/libs/quarto-html/popper.min.js"></script>
-<script src="eda_files/libs/quarto-html/tippy.umd.min.js"></script>
-<script src="eda_files/libs/quarto-html/anchor.min.js"></script>
-<link href="eda_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<script src="eda_files/libs/clipboard/clipboard.min.js"></script><script src="eda_files/libs/quarto-html/quarto.js" type="module"></script><script src="eda_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script><script src="eda_files/libs/quarto-html/axe/axe-check.js" type="module"></script><script src="eda_files/libs/quarto-html/popper.min.js"></script><script src="eda_files/libs/quarto-html/tippy.umd.min.js"></script><script src="eda_files/libs/quarto-html/anchor.min.js"></script><link href="eda_files/libs/quarto-html/tippy.css" rel="stylesheet">
 <link href="eda_files/libs/quarto-html/quarto-syntax-highlighting-dark-b758ccaa5987ceb1b75504551e579abf.css" rel="stylesheet" id="quarto-text-highlighting-styles">
-<script src="eda_files/libs/bootstrap/bootstrap.min.js"></script>
-<link href="eda_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<script src="eda_files/libs/bootstrap/bootstrap.min.js"></script><link href="eda_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="eda_files/libs/bootstrap/bootstrap-48f2e52f2ae9d8c0881564f8dd096b5f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="dark">
 <link href="eda_files/libs/htmltools-fill-0.5.9/fill.css" rel="stylesheet">
-<script src="eda_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script>
-<script src="eda_files/libs/plotly-binding-4.12.0/plotly.js"></script>
-<script src="eda_files/libs/typedarray-0.1/typedarray.min.js"></script>
-<script src="eda_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
-<link href="eda_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
-<script src="eda_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script>
-<link href="eda_files/libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
-<script src="eda_files/libs/plotly-main-2.25.2/plotly-latest.min.js"></script>
-<link href="eda_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
-<script src="eda_files/libs/datatables-binding-0.34.0/datatables.js"></script>
-<link href="eda_files/libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
+<script src="eda_files/libs/htmlwidgets-1.6.4/htmlwidgets.js"></script><script src="eda_files/libs/plotly-binding-4.12.0/plotly.js"></script><script src="eda_files/libs/typedarray-0.1/typedarray.min.js"></script><script src="eda_files/libs/jquery-3.6.0/jquery-3.6.0.min.js"></script><link href="eda_files/libs/crosstalk-1.2.2/css/crosstalk.min.css" rel="stylesheet">
+<script src="eda_files/libs/crosstalk-1.2.2/js/crosstalk.min.js"></script><link href="eda_files/libs/plotly-htmlwidgets-css-2.25.2/plotly-htmlwidgets.css" rel="stylesheet">
+<script src="eda_files/libs/plotly-main-2.25.2/plotly-latest.min.js"></script><link href="eda_files/libs/datatables-css-0.0.0/datatables-crosstalk.css" rel="stylesheet">
+<script src="eda_files/libs/datatables-binding-0.34.0/datatables.js"></script><link href="eda_files/libs/dt-core-1.13.6/css/jquery.dataTables.min.css" rel="stylesheet">
 <link href="eda_files/libs/dt-core-1.13.6/css/jquery.dataTables.extra.css" rel="stylesheet">
-<script src="eda_files/libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script>
-<script>document.documentElement.setAttribute('data-bs-theme','dark');</script>
-<style>html,body{background:#000!important;color:#fff!important;}</style>
-
-
+<script src="eda_files/libs/dt-core-1.13.6/js/jquery.dataTables.min.js"></script><script>document.documentElement.setAttribute('data-bs-theme','dark');</script><style>html,body{background:#000!important;color:#fff!important;}</style>
 </head>
-
 <body class="quarto-light">
 
 <div id="quarto-content" class="page-columns page-rows-contents page-layout-full">
 <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
-  <nav id="TOC" role="doc-toc" class="toc-active">
-    <h2 id="toc-title">Table of contents</h2>
+  <nav id="TOC" role="doc-toc" class="toc-active"><h2 id="toc-title">Table of contents</h2>
    
   <ul>
-  <li><a href="#goal-distributions" id="toc-goal-distributions" class="nav-link active" data-scroll-target="#goal-distributions">Goal Distributions</a></li>
+<li><a href="#goal-distributions" id="toc-goal-distributions" class="nav-link active" data-scroll-target="#goal-distributions">Goal Distributions</a></li>
   <li><a href="#result-proportions" id="toc-result-proportions" class="nav-link" data-scroll-target="#result-proportions">Result Proportions</a></li>
   <li><a href="#home-advantage-trends" id="toc-home-advantage-trends" class="nav-link" data-scroll-target="#home-advantage-trends">Home Advantage Trends</a></li>
   <li><a href="#common-scorelines" id="toc-common-scorelines" class="nav-link" data-scroll-target="#common-scorelines">Common Scorelines</a></li>
@@ -73,13 +47,9 @@ ul.task-list li input[type="checkbox"] {
   <li><a href="#pinnacle-overround" id="toc-pinnacle-overround" class="nav-link" data-scroll-target="#pinnacle-overround">Pinnacle Overround</a></li>
   <li><a href="#pinnacle-calibration" id="toc-pinnacle-calibration" class="nav-link" data-scroll-target="#pinnacle-calibration">Pinnacle Calibration</a></li>
   <li><a href="#elo-ratings" id="toc-elo-ratings" class="nav-link" data-scroll-target="#elo-ratings">Elo Ratings</a></li>
-  </ul>
-</nav>
+  </ul></nav>
 </div>
-<main class="content column-page-left" id="quarto-document-content">
-
-<header id="title-block-header" class="quarto-title-block default">
-<div class="quarto-title">
+<main class="content column-page-left" id="quarto-document-content"><header id="title-block-header" class="quarto-title-block default"><div class="quarto-title">
 <h1 class="title">Exploratory Data Analysis</h1>
 <p class="subtitle lead">Statistical patterns in European football</p>
 </div>
@@ -95,13 +65,8 @@ ul.task-list li input[type="checkbox"] {
   
 
 
-</header>
-
-
-<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
-<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
-<script>document.documentElement.setAttribute('data-bs-theme', 'dark');</script>
-<style>
+</header><link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script><script>document.documentElement.setAttribute('data-bs-theme', 'dark');</script><style>
 body, .page-body, main, article, .contents { background-color: #000000 !important; color: #ffffff !important; }
 table, .table, table.dataTable { background-color: #000000 !important; color: #ffffff !important; }
 table td, table th, .table td, .table th { color: #ffffff !important; background-color: #000000 !important; border-color: #333 !important; }
@@ -120,8 +85,7 @@ code { background-color: #222 !important; }
 </style>
 <p>Part 3 of the <a href="https://johngavin.github.io/footbet/">footbet</a> analytics guide. See also: <a href="data-sources.html">Data Sources</a> | <a href="data-cleaning.html">Data Cleaning</a> | <a href="models-betting.html">Models &amp; Betting</a> | <a href="glossary.html">Glossary</a></p>
 <p>This section explores key statistical patterns in European football match data across 10 leagues and multiple seasons.</p>
-<section id="goal-distributions" class="level2">
-<h2 class="anchored" data-anchor-id="goal-distributions">Goal Distributions</h2>
+<section id="goal-distributions" class="level2"><h2 class="anchored" data-anchor-id="goal-distributions">Goal Distributions</h2>
 <p>Football goals are often modelled as <a href="https://en.wikipedia.org/wiki/Poisson_distribution">Poisson-distributed</a> random variables. The chart below compares the observed goal distribution against a Poisson overlay for home and away teams.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -153,9 +117,7 @@ Note
 <p><strong>Key Finding:</strong> Home teams score slightly more than away teams (home advantage). The Poisson distribution is a reasonable first approximation, though it underpredicts 0-0 draws and some high-scoring outcomes.</p>
 </div>
 </div>
-</section>
-<section id="result-proportions" class="level2">
-<h2 class="anchored" data-anchor-id="result-proportions">Result Proportions</h2>
+</section><section id="result-proportions" class="level2"><h2 class="anchored" data-anchor-id="result-proportions">Result Proportions</h2>
 <p>Home advantage is a well-documented phenomenon in football. The chart below shows the proportion of Home wins, Draws, and Away wins by league, compared to a uniform 33/33/33 baseline.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -177,9 +139,7 @@ Note
 <p><strong>Key Finding:</strong> Home win rate ranges 43-47% across leagues. Draws: 25-28%. Away wins: 27-30%. All leagues show significant home advantage.</p>
 </div>
 </div>
-</section>
-<section id="home-advantage-trends" class="level2">
-<h2 class="anchored" data-anchor-id="home-advantage-trends">Home Advantage Trends</h2>
+</section><section id="home-advantage-trends" class="level2"><h2 class="anchored" data-anchor-id="home-advantage-trends">Home Advantage Trends</h2>
 <p>Home advantage has declined in recent years, with a notable drop during the COVID-19 pandemic (2020-21 season) when matches were played in empty stadiums.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -210,9 +170,7 @@ Note
 <p><strong>Key Finding:</strong> COVID seasons (2020-21) show reduced home advantage across all leagues. Post-COVID recovery varies by league.</p>
 </div>
 </div>
-</section>
-<section id="common-scorelines" class="level2">
-<h2 class="anchored" data-anchor-id="common-scorelines">Common Scorelines</h2>
+</section><section id="common-scorelines" class="level2"><h2 class="anchored" data-anchor-id="common-scorelines">Common Scorelines</h2>
 <p>The heatmap below shows the frequency of each scoreline (home goals x away goals). Hover over cells to see exact percentages.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -234,9 +192,7 @@ Note
 <p><strong>Key Finding:</strong> 1-0 (~12%), 1-1 (~11%), 2-1 (~10%) are most common. Scorelines above 4-4 are extremely rare (&lt;0.5% combined).</p>
 </div>
 </div>
-</section>
-<section id="goals-per-season" class="level2">
-<h2 class="anchored" data-anchor-id="goals-per-season">Goals Per Season</h2>
+</section><section id="goals-per-season" class="level2"><h2 class="anchored" data-anchor-id="goals-per-season">Goals Per Season</h2>
 <p>Is scoring increasing over time? The chart below tracks mean total goals per match by season and league.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -258,9 +214,7 @@ Note
 <p><strong>Key Finding:</strong> Slight upward trend since 2015 in most leagues. Bundesliga consistently among highest-scoring (~3.0 goals/match).</p>
 </div>
 </div>
-</section>
-<section id="outliers" class="level2">
-<h2 class="anchored" data-anchor-id="outliers">Outliers</h2>
+</section><section id="outliers" class="level2"><h2 class="anchored" data-anchor-id="outliers">Outliers</h2>
 <p>Matches with more than 7 total goals are rare outliers. These are worth inspecting for data quality and as edge cases for model robustness.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -269,9 +223,7 @@ Note
 </div>
 </div>
 <p><em>High-scoring outlier matches table. Columns: league_code, season, match_date, home_team, away_team, fthg (home goals), ftag (away goals), total_goals. Filtered to matches with more than 7 total goals, representing approximately 0.1% of all matches. These extreme scorelines are important for model robustness testing — Poisson and Dixon-Coles models may underpredict their frequency. They also serve as data quality checkpoints, since some may reflect data entry errors. Source: <a href="https://www.football-data.co.uk/">football-data.co.uk</a>. See <a href="glossary.html#data-terminology">Glossary &gt; FTHG / FTAG</a> and <a href="glossary.html">Glossary &gt; Poisson Regression</a>.</em></p>
-</section>
-<section id="match-statistics" class="level2">
-<h2 class="anchored" data-anchor-id="match-statistics">Match Statistics</h2>
+</section><section id="match-statistics" class="level2"><h2 class="anchored" data-anchor-id="match-statistics">Match Statistics</h2>
 <p>Median match statistics (shots, corners, fouls, cards) by league. See <a href="glossary.html#match-statistics">Glossary &gt; Match Statistics</a> for variable definitions.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -280,9 +232,7 @@ Note
 </div>
 </div>
 <p><em>Median match statistics by league. Columns: league_code, HS (home shots), AS (away shots), HST (home shots on target), AST (away shots on target), HC (home corners), AC (away corners), HF (home fouls), AF (away fouls), HY (home yellow cards), AY (away yellow cards). Home teams consistently record more shots and corners than away teams across all leagues, reflecting home advantage beyond just results. La Liga (SP1) and Serie A (I1) tend to have higher foul counts and yellow cards. Bundesliga (D1) shows higher shot counts. Source: <a href="https://www.football-data.co.uk/">football-data.co.uk</a>. See <a href="glossary.html#match-statistics">Glossary &gt; Match Statistics</a>.</em></p>
-</section>
-<section id="pinnacle-overround" class="level2">
-<h2 class="anchored" data-anchor-id="pinnacle-overround">Pinnacle Overround</h2>
+</section><section id="pinnacle-overround" class="level2"><h2 class="anchored" data-anchor-id="pinnacle-overround">Pinnacle Overround</h2>
 <p>The <a href="https://en.wikipedia.org/wiki/Vigorish">overround</a> is the bookmaker’s built-in margin. Pinnacle’s margin (~2-4%) is the lowest in the industry.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -304,9 +254,7 @@ Note
 <p><strong>Key Finding:</strong> Pinnacle margin is ~2-4%, far below soft bookmakers (5-15%). Consistent across all leagues.</p>
 </div>
 </div>
-</section>
-<section id="pinnacle-calibration" class="level2">
-<h2 class="anchored" data-anchor-id="pinnacle-calibration">Pinnacle Calibration</h2>
+</section><section id="pinnacle-calibration" class="level2"><h2 class="anchored" data-anchor-id="pinnacle-calibration">Pinnacle Calibration</h2>
 <p>A well-calibrated bookmaker’s implied probabilities should match actual outcome frequencies.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -328,9 +276,7 @@ Note
 <p><strong>Key Finding:</strong> Pinnacle is near-perfectly calibrated (points near diagonal). Slight favourite-longshot bias at extremes.</p>
 </div>
 </div>
-</section>
-<section id="elo-ratings" class="level2">
-<h2 class="anchored" data-anchor-id="elo-ratings">Elo Ratings</h2>
+</section><section id="elo-ratings" class="level2"><h2 class="anchored" data-anchor-id="elo-ratings">Elo Ratings</h2>
 <p><a href="https://en.wikipedia.org/wiki/Elo_rating_system">Elo ratings</a> quantify relative team strength, updated match-by-match with <a href="https://www.natesilver.net/p/introducing-cooper-silver-bulletins">COOPER/FiveThirtyEight enhancements</a>: dynamic K-factor, margin weighting, league reversion, and asymmetric wins.</p>
 <div class="cell">
 <div class="cell-output-display">
@@ -353,11 +299,7 @@ Note
 </div>
 </div>
 <p>[1] “—*footbet<strong> <a href="https://github.com/JohnGavin/footbet/releases/tag/v0.1.0">0.1.0</a> | </strong>Git<strong> <a href="https://github.com/JohnGavin/footbet/commit/5f9af312e630dcbcab4c58bbd70bc6071fafbfac"><code>5f9af31</code></a> | </strong>R<strong> <a href="https://cran.r-project.org/doc/manuals/r-release/NEWS.html">4.5.2</a> | </strong>Built** 2026-04-14 16:54:14”</p>
-</section>
-
-</main>
-<!-- /main column -->
-<script id="quarto-html-after-body" type="application/javascript">
+</section></main><!-- /main column --><script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
     const anchorJS = new window.AnchorJS();
@@ -762,4 +704,5 @@ Note
 
 
 
-</body></html>
+</body>
+</html>

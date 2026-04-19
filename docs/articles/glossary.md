@@ -1,5 +1,7 @@
 # Glossary
 
+# Glossary
+
 This glossary defines betting and statistical terms used throughout the
 [footbet](https://johngavin.github.io/footbet/) package. See also: [Data
 Sources](https://johngavin.github.io/footbet/articles/data-sources.md)
@@ -42,18 +44,17 @@ Negative = stake to win 100 (-200 = bet 200 to win 100).
 - **Fair Odds:** After removing overround. Methods: multiplicative,
   power, Shin.
 - **Closing Line Value (CLV):** Your odds vs closing odds. See
-  [`closing_line_value()`](https://johngavin.github.io/footbet/reference/closing_line_value.md).
+  `closing_line_value()`.
 
 ## Performance Metrics
 
-- **Log Loss:** $`-\frac{1}{n} \sum \log(p_i)`$ — penalizes confident
+- **Log Loss:** \\-\frac{1}{n} \sum \log(p_i)\\ — penalizes confident
   wrong predictions
-- **Brier Score:** $`\frac{1}{n} \sum (p_i - o_i)^2`$ — MSE for
+- **Brier Score:** \\\frac{1}{n} \sum (p_i - o_i)^2\\ — MSE for
   probabilities
 - **RPS:** Ranked probability score for ordered outcomes (H \> D \> A)
 - **ROI:** Total profit / total staked (%)
-- **Sharpe Ratio:** Risk-adjusted return. See
-  [`betting_sharpe_ratio()`](https://johngavin.github.io/footbet/reference/betting_sharpe_ratio.md).
+- **Sharpe Ratio:** Risk-adjusted return. See `betting_sharpe_ratio()`.
 - **Maximum Drawdown:** Largest peak-to-trough decline
 
 ## Statistical Models
@@ -64,10 +65,9 @@ Negative = stake to win 100 (-200 = bet 200 to win 100).
   outcomes + time decay
 - **Expected Goals (xG):** Shot-level goal probability, better predictor
   than actual goals
-- **Elo Rating:** Match-by-match team strength. See
-  [`compute_elo()`](https://johngavin.github.io/footbet/reference/compute_elo.md)
-  with COOPER enhancements (dynamic K, margin weighting, league
-  reversion, asymmetric wins)
+- **Elo Rating:** Match-by-match team strength. See `compute_elo()` with
+  COOPER enhancements (dynamic K, margin weighting, league reversion,
+  asymmetric wins)
 
 ### Copula Models
 
@@ -88,26 +88,25 @@ from their marginal distributions. This is important because:
 
 - **[Frank
   copula](https://en.wikipedia.org/wiki/Copula_(probability_theory)#Most_important_Archimedean_copulas):**
-  Single parameter $`\theta`$ controlling concordance. Symmetric
+  Single parameter \\\theta\\ controlling concordance. Symmetric
   dependence, captures the general positive association between
-  low-scoring outcomes. $`\theta > 0`$ means low home goals tend to
+  low-scoring outcomes. \\\theta \> 0\\ means low home goals tend to
   coincide with low away goals.
 
 - **[Clayton copula](https://en.wikipedia.org/wiki/Clayton_copula):**
-  Parameter $`\alpha > 0`$ gives strong lower-tail dependence — high
+  Parameter \\\alpha \> 0\\ gives strong lower-tail dependence — high
   probability of both teams scoring zero or one goal simultaneously.
   This directly models the excess 0-0 and 1-1 scorelines that
-  Dixon-Coles corrects via its $`\rho`$ parameter.
+  Dixon-Coles corrects via its \\\rho\\ parameter.
 
 **Parameterisation for football data:**
 
-``` math
-C(u, v; \theta) = \left(u^{-\theta} + v^{-\theta} - 1\right)^{-1/\theta}
-```
+\\C(u, v; \theta) = \left(u^{-\theta} + v^{-\theta} -
+1\right)^{-1/\theta}\\
 
-where $`u = F_H(h)`$ and $`v = F_A(a)`$ are the marginal Poisson CDFs
-for home and away goals, and $`\theta`$ is estimated from the observed
-scoreline frequencies. The Dixon-Coles $`\rho`$ parameter is effectively
+where \\u = F_H(h)\\ and \\v = F_A(a)\\ are the marginal Poisson CDFs
+for home and away goals, and \\\theta\\ is estimated from the observed
+scoreline frequencies. The Dixon-Coles \\\rho\\ parameter is effectively
 a discrete approximation to this copula at the (0,0), (1,0), (0,1),
 (1,1) cells.
 
@@ -118,10 +117,10 @@ copula-based football models.
 
 ## Betting Strategy
 
-- **Kelly Criterion:** $`f^* = \frac{p \cdot b - q}{b}`$ — optimal bet
+- **Kelly Criterion:** \\f^\* = \frac{p \cdot b - q}{b}\\ — optimal bet
   sizing
 - **Value Bet:** Model probability exceeds market implied probability
-- **Edge:** $`p \times (o-1) - (1-p)`$ — expected profit per unit staked
+- **Edge:** \\p \times (o-1) - (1-p)\\ — expected profit per unit staked
 - **Sharp Bookmaker:** Accurate odds (Pinnacle). **Soft Bookmaker:**
   Less accurate, slower to adjust.
 
@@ -142,14 +141,9 @@ copula-based football models.
 
 ## References
 
-**Package functions:**
-[`?target_leagues`](https://johngavin.github.io/footbet/reference/target_leagues.md),
-[`?parse_fd_csv`](https://johngavin.github.io/footbet/reference/parse_fd_csv.md),
-[`?devig_shin`](https://johngavin.github.io/footbet/reference/devig_shin.md),
-[`?fit_dixon_coles`](https://johngavin.github.io/footbet/reference/fit_dixon_coles.md),
-`?kelly_stake`,
-[`?closing_line_value`](https://johngavin.github.io/footbet/reference/closing_line_value.md),
-[`?betting_sharpe_ratio`](https://johngavin.github.io/footbet/reference/betting_sharpe_ratio.md)
+**Package functions:** `?target_leagues`, `?parse_fd_csv`,
+`?devig_shin`, `?fit_dixon_coles`, `?kelly_stake`,
+`?closing_line_value`, `?betting_sharpe_ratio`
 
 **External:** [football-data.co.uk](https://www.football-data.co.uk/) \|
 [Pinnacle](https://www.pinnacle.com/) \| [Dixon & Coles

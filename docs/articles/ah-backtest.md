@@ -1,10 +1,14 @@
 # AH Backtest: P&L, Drawdown & CLV
 
-> **Online documentation**
->
-> This vignette shows pre-computed results from the targets pipeline.
-> All data comes from walk-forward evaluation: models trained on seasons
-> 1516–1920, rolled forward month-by-month through 2425.
+# AH Backtest: P&L, Drawdown & CLV
+
+Walk-forward Asian Handicap evaluation across 4 models and 6 seasons
+
+NoteOnline documentation
+
+This vignette shows pre-computed results from the targets pipeline. All
+data comes from walk-forward evaluation: models trained on seasons
+1516–1920, rolled forward month-by-month through 2425.
 
 ## Summary
 
@@ -66,22 +70,18 @@ consistently profitable across all 6 seasons. Source:
 
 ### CLV Definition
 
-``` math
-\text{CLV} = \frac{P_{\text{bet}}}{P_{\text{close}}} - 1
-```
+\\\text{CLV} = \frac{P\_{\text{bet}}}{P\_{\text{close}}} - 1\\
 
-Where $`P_{\text{bet}}`$ is the model’s probability at bet time and
-$`P_{\text{close}}`$ is the devigged closing line probability. Positive
+Where \\P\_{\text{bet}}\\ is the model’s probability at bet time and
+\\P\_{\text{close}}\\ is the devigged closing line probability. Positive
 CLV means the model’s price moved in its favour — the market agreed with
 the bet.
 
 ### Leakage Controls
 
-All rolling features use
-[`dplyr::lag()`](https://dplyr.tidyverse.org/reference/lead-lag.html) to
-exclude the current match. The 7-day as-of cutoff
-([`apply_asof_cutoff()`](https://johngavin.github.io/footbet/reference/apply_asof_cutoff.md))
-ensures features are available at bet decision time — see
+All rolling features use `dplyr::lag()` to exclude the current match.
+The 7-day as-of cutoff (`apply_asof_cutoff()`) ensures features are
+available at bet decision time — see
 [\#82](https://github.com/JohnGavin/footbet/issues/82) for the full
 leakage analysis.
 

@@ -1,5 +1,9 @@
 # Models & Betting Strategy
 
+# Models & Betting Strategy
+
+Walk-forward CV, value bets, Kelly staking
+
 Part 4 of the [footbet](https://johngavin.github.io/footbet/) analytics
 guide. See also: [Data
 Sources](https://johngavin.github.io/footbet/articles/data-sources.md)
@@ -48,25 +52,22 @@ The baseline model is a [Poisson
 regression](https://en.wikipedia.org/wiki/Poisson_regression) for goal
 counts, following Maher (1982):
 
-``` math
-\text{goals}_{ij} \sim \text{Poisson}(\lambda_{ij})
-```
+\\\text{goals}\_{ij} \sim \text{Poisson}(\lambda\_{ij})\\
 
-``` math
-\log(\lambda_{ij}) = \mu + \alpha_i + \beta_j + \gamma \cdot \mathbb{1}[\text{home}]
-```
+\\\log(\lambda\_{ij}) = \mu + \alpha_i + \beta_j + \gamma \cdot
+\mathbb{1}\[\text{home}\]\\
 
-where $`\alpha_i`$ is team $`i`$’s attack strength, $`\beta_j`$ is team
-$`j`$’s defence weakness, and $`\gamma`$ captures home advantage.
+where \\\alpha_i\\ is team \\i\\’s attack strength, \\\beta_j\\ is team
+\\j\\’s defence weakness, and \\\gamma\\ captures home advantage.
 
 ### Dixon-Coles
 
 Dixon & Coles (1997) extend the Poisson model with:
 
-1.  **Correlation correction**: A parameter $`\rho`$ adjusts the joint
+1.  **Correlation correction**: A parameter \\\rho\\ adjusts the joint
     probability of low-scoring outcomes (0-0, 1-0, 0-1, 1-1)
 2.  **Time-decay weights**: Recent matches receive higher weight via
-    exponential decay ($`\xi = 0.003`$, ~1-year half-life)
+    exponential decay (\\\xi = 0.003\\, ~1-year half-life)
 
 ### CV Metrics
 
@@ -86,8 +87,8 @@ walk-forward CV on
 Metrics](https://johngavin.github.io/footbet/articles/glossary.md).*
 
     # A tibble: 1 × 5
-      mean_glm_logloss mean_dc_logloss mean_diff n_folds conclusion
-                 <dbl>           <dbl>     <dbl>   <int> <chr>
+      mean_glm_logloss mean_dc_logloss mean_diff n_folds conclusion              
+                 <dbl>           <dbl>     <dbl>   <int> <chr>                   
     1             1.07            1.07   -0.0028     776 Models perform similarly
 
 *Statistical comparison of model performance. Columns: model name, mean
@@ -100,10 +101,10 @@ closing line. Source: paired t-test across CV folds using
 [Glossary \> Log
 Loss](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Note**
->
-> **Key Finding:** Dixon-Coles slightly outperforms GLM. Both models
-> trail Pinnacle on most folds.
+Note
+
+**Key Finding:** Dixon-Coles slightly outperforms GLM. Both models trail
+Pinnacle on most folds.
 
 ### Model Comparison
 
@@ -155,18 +156,16 @@ Edge](https://johngavin.github.io/footbet/articles/glossary.md) and
 [Glossary \> Fair
 Odds](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Note**
->
-> **Key Finding:** Most edges cluster at 3-8%. Large edges (\>15%) are
-> rare and may signal model error.
+Note
+
+**Key Finding:** Most edges cluster at 3-8%. Large edges (\>15%) are
+rare and may signal model error.
 
 ### Kelly Staking
 
 The pipeline uses **quarter Kelly** staking with guardrails:
 
-``` math
-f^* = \frac{1}{4} \cdot \frac{p \cdot (b + 1) - 1}{b}
-```
+\\f^\* = \frac{1}{4} \cdot \frac{p \cdot (b + 1) - 1}{b}\\
 
 - **Max stake**: 3% of current bankroll per bet
 - **Drawdown halt**: Stakes halved when bankroll drops 20% from peak
@@ -238,13 +237,13 @@ bankroll. Source: quarter-Kelly P&L simulation on
 [Glossary \> Maximum
 Drawdown](https://johngavin.github.io/footbet/articles/glossary.md).*
 
-> **Warning**
->
-> **Caveat:** The optimistic scenario (no costs, Kelly compounding)
-> produces unrealistic returns. Real-world constraints include: 2-4%
-> transaction costs (Pinnacle spread), account limits on profitable
-> bettors, odds slippage, and backtesting bias. See [issue
-> \#66](https://github.com/JohnGavin/footbet/issues/66).
+Warning
+
+**Caveat:** The optimistic scenario (no costs, Kelly compounding)
+produces unrealistic returns. Real-world constraints include: 2-4%
+transaction costs (Pinnacle spread), account limits on profitable
+bettors, odds slippage, and backtesting bias. See [issue
+\#66](https://github.com/JohnGavin/footbet/issues/66).
 
 ### Summary
 
