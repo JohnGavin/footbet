@@ -1233,7 +1233,15 @@ plan_vignette_outputs <- list(
 
   targets::tar_target(
     vig_model_comparison_table,
-    model_vs_pinnacle
+    {
+      model_vs_pinnacle |>
+        dplyr::mutate(
+          dplyr::across(
+            dplyr::any_of(c("log_loss", "brier", "rps", "edge")),
+            \(x) round(x, 3)
+          )
+        )
+    }
   ),
 
   targets::tar_target(
@@ -1371,9 +1379,17 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_kelly_stake_distribution,
     {
+      # Cap stakes at 3% (pmin) — plots the actual applied stake after guardrail
+      plot_data <- value_bets_glm |>
+        dplyr::mutate(capped_stake = pmin(kelly_stake, 0.03))
+
+      n_capped <- sum(value_bets_glm$kelly_stake > 0.03, na.rm = TRUE)
+      n_total  <- nrow(value_bets_glm)
+      pct_capped <- round(100 * n_capped / n_total, 1)
+
       plotly::plot_ly(
-        value_bets_glm,
-        x = ~kelly_stake,
+        plot_data,
+        x = ~capped_stake,
         type = "histogram",
         marker = list(color = "#3498db"),
         nbinsx = 30,
@@ -1382,7 +1398,9 @@ plan_vignette_outputs <- list(
           "Count: %{y}<extra></extra>"
         )
       ) |>
-        theme_dark_plotly(title = "Distribution of Quarter-Kelly Stake Sizes") |>
+        theme_dark_plotly(
+          title = "Distribution of Applied Stake Sizes (post-cap, quarter-Kelly)"
+        ) |>
         plotly::layout(
           xaxis = list(title = "Stake (fraction of bankroll)", tickformat = ".1%"),
           yaxis = list(title = "Count"),
@@ -1392,10 +1410,12 @@ plan_vignette_outputs <- list(
                  line = list(color = "#e67e22", dash = "dash", width = 2))
           ),
           annotations = list(
-            list(x = 0.03, y = 1, xref = "x", yref = "paper",
-                 text = "3% max stake",
-                 showarrow = TRUE, arrowhead = 0, ax = 40, ay = 20,
-                 font = list(color = "#e67e22"))
+            list(
+              x = 0.03, y = 1, xref = "x", yref = "paper",
+              text = paste0("3% cap (", n_capped, " bets, ", pct_capped, "% capped)"),
+              showarrow = TRUE, arrowhead = 0, ax = 50, ay = 20,
+              font = list(color = "#e67e22")
+            )
           )
         )
     }
@@ -1708,10 +1728,10 @@ plan_vignette_outputs <- list(
         r_ver
       )
 
-      sprintf(
+      knitr::asis_output(sprintf(
         "\n---\n\n**footbet** %s | **Git** %s | **R** %s | **Built** %s\n",
         ver_link, sha_link, r_link, build_time
-      )
+      ))
     }
   ),
 

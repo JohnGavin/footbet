@@ -297,6 +297,12 @@ flowchart TB
     V1 --> Agg((Aggregate Metrics))
     V2 --> Agg
     VN --> Agg
+    style T1 stroke:#3498db,stroke-width:2px
+    style T2 stroke:#3498db,stroke-width:2px
+    style TN stroke:#3498db,stroke-width:2px
+    style V1 stroke:#e67e22,stroke-width:2px
+    style V2 stroke:#e67e22,stroke-width:2px
+    style VN stroke:#e67e22,stroke-width:2px
 ')
 }
 

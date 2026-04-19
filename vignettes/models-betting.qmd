@@ -160,7 +160,7 @@ if (is.data.frame(model_comp)) {
     DT::datatable(
       caption = htmltools::tags$caption(
         style = "caption-side: bottom; text-align: left;",
-        "Model comparison. Lower scores = better. Positive edge = outperforms Pinnacle."
+        "Model comparison (3 d.p.). log_loss, brier, rps: lower = better; all are proper scoring rules but are not directly comparable across models fitted on different data subsets. edge: model mean log-loss minus Pinnacle mean log-loss (positive = worse than Pinnacle)."
       ),
       options = list(pageLength = 10, dom = "t")
     )
@@ -189,7 +189,7 @@ if (is.data.frame(vb_summary)) {
     DT::datatable(
       caption = htmltools::tags$caption(
         style = "caption-side: bottom; text-align: left;",
-        "Value bet summary by outcome and league. Edge = model prob - market prob."
+        "Value bet summary. Columns: outcome (H/D/A = Home/Draw/Away win), league_code, n_bets (count of qualifying bets), mean_edge (mean of model_prob - devigged_market_prob), mean_odds (mean decimal odds at bet time), mean_kelly (mean quarter-Kelly stake fraction). Edge threshold: >3%. Odds filter: 1.50-10.00."
       ),
 
       options = list(pageLength = 15, dom = "tip", scrollX = TRUE)
