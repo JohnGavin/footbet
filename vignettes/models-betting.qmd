@@ -138,7 +138,7 @@ as benchmark. All are **proper scoring rules** --- lower is better.
 safe_tar_read("vig_cv_metrics_plot")
 ```
 
-*Cross-validation scoring metrics by fold. X-axis: CV fold number. Y-axis: metric value (lower = better). Lines: GLM Poisson (blue), Dixon-Coles (orange), Pinnacle benchmark (grey dashed). Three panels show log-loss, Brier score, and RPS respectively. Dixon-Coles slightly outperforms GLM on most folds, but both trail Pinnacle closing odds. Pinnacle's sharp market remains the hardest benchmark to beat. Source: walk-forward CV on [football-data.co.uk](https://www.football-data.co.uk/) match data. See [Glossary > Performance Metrics](glossary.html).*
+*Cross-validation scoring metrics by fold. Three panels (log-loss, Brier, RPS), each showing one metric across all walk-forward folds. X-axis: CV fold number. Y-axis: metric value (lower = better). Lines: GLM Poisson (blue), Dixon-Coles (purple), Pinnacle benchmark (grey dashed). Dixon-Coles slightly outperforms GLM on most folds, but both trail Pinnacle closing odds. Source: walk-forward CV on [football-data.co.uk](https://www.football-data.co.uk/) match data. See [Glossary > Performance Metrics](glossary.html).*
 
 ```{r vig-model-comparison-test}
 safe_tar_read("vig_model_comparison_test")
@@ -207,7 +207,15 @@ if (is.data.frame(vb_summary)) {
 safe_tar_read("vig_edge_distribution")
 ```
 
-*Distribution of betting edges across all identified value bets. X-axis: edge size (%, model probability minus market probability). Y-axis: frequency count. The histogram shows most edges cluster between 3-8%, with a long right tail. Edges above 15% are rare and may indicate model mis-specification rather than genuine value. The 3% minimum threshold filters out noise. Source: Dixon-Coles predictions vs Pinnacle devigged odds from [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Edge](glossary.html) and [Glossary > Fair Odds](glossary.html).*
+*Distribution of betting edges across all identified value bets. X-axis: edge size (model probability minus market probability). Y-axis: frequency count. The histogram shows most edges cluster between 3-8%, with a long right tail. Edges above 15% are rare and may indicate model mis-specification rather than genuine value. The 3% minimum threshold filters out noise. Legend entries are clickable — click to show/hide individual outcomes. Source: Dixon-Coles predictions vs Pinnacle devigged odds from [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Edge](glossary.html) and [Glossary > Fair Odds](glossary.html).*
+
+### Edge by Outcome
+
+```{r vig-edge-panels}
+safe_tar_read("vig_edge_panels")
+```
+
+*Edge distribution split by outcome (Home/Draw/Away). Three panels share the x-axis (edge size). Summary statistics (mean, median, count above 15%) appear in each panel. Draw edges tend to be higher as the market is less efficient for draws. Source: Dixon-Coles predictions vs Pinnacle devigged odds. See [Glossary > Edge](glossary.html).*
 
 ::: {.callout-note}
 **Key Finding:** Most edges cluster at 3-8%. Large edges (>15%) are rare and
@@ -409,30 +417,68 @@ All models evaluated in footbet, ranked by market and performance.
 AH models are scored on walk-forward P&L (ROI%, Sharpe, max drawdown).
 See also the [AH Backtest vignette](ah-backtest.html) for equity curves and per-season detail.
 
-```{r vig-model-leaderboard, echo = FALSE}
-lb <- safe_tar_read("vig_model_leaderboard")
-if (is.data.frame(lb) && nrow(lb) > 0) {
-  lb |>
+### 1X2 Calibration {#cross-validation}
+
+```{r vig-leaderboard-calibration, echo = FALSE}
+lb_cal <- safe_tar_read("vig_leaderboard_calibration")
+if (is.data.frame(lb_cal) && nrow(lb_cal) > 0) {
+  lb_cal_dt <- lb_cal |>
+    dplyr::mutate(
+      model = dplyr::case_when(
+        model == "GLM Poisson"     ~ "<a href='#glm-poisson'>GLM Poisson</a>",
+        model == "Dixon-Coles"     ~ "<a href='#dixon-coles'>Dixon-Coles</a>",
+        model == "Pinnacle closing" ~ "Pinnacle closing",
+        TRUE ~ model
+      )
+    )
+  lb_cal_dt |>
     DT::datatable(
+      escape = FALSE,
       caption = htmltools::tags$caption(
         style = "caption-side: top; text-align: left;",
         paste0(
-          "Unified model leaderboard (", nrow(lb), " entries). ",
-          "1X2: calibration metrics from walk-forward CV (lower = better). ",
-          "AH: flat-stake P&L from 6-season walk-forward (19-20 to 24-25). ",
-          "No model beats Pinnacle closing odds on either market. ",
-          "Source: plan_evaluation.R, plan_brms_1x2.R, plan_vignette_outputs.R."
+          "1X2 calibration leaderboard (", nrow(lb_cal), " models). ",
+          "Metrics from walk-forward CV (lower = better). ",
+          "Pinnacle closing odds are the benchmark all models must beat. ",
+          "Model names link to their detail sections. ",
+          "Source: plan_evaluation.R, plan_brms_1x2.R."
         )
       ),
       options = list(pageLength = 20, dom = "t", scrollX = TRUE),
       rownames = FALSE
     )
 } else {
-  lb
+  lb_cal
 }
 ```
 
-*Cross-model comparison table. Columns: model name, market (1X2 or AH), ROI% (AH only), number of bets (AH) or CV folds (1X2), Sharpe ratio, maximum drawdown, log-loss, Brier score, RPS. 1X2 calibration: brms hierarchical achieves the best log-loss (1.03) among fitted models, but all trail Pinnacle closing (1.01). AH P&L: GLM-Ranger intersection is least bad at +0.3% ROI over 2,106 bets. No systematic edge exists against Pinnacle. Source: walk-forward CV and AH backtest from [football-data.co.uk](https://www.football-data.co.uk/). See [MODEL_CATALOGUE.md](https://github.com/JohnGavin/footbet/blob/main/plans/MODEL_CATALOGUE.md) for full details.*
+*1X2 model calibration. Columns: model (links to detail section), log-loss, Brier score, RPS (all lower = better), number of CV folds. brms hierarchical achieves the best log-loss among fitted models, but all trail Pinnacle closing odds. Source: walk-forward CV on [football-data.co.uk](https://www.football-data.co.uk/). See [MODEL_CATALOGUE.md](https://github.com/JohnGavin/footbet/blob/main/plans/MODEL_CATALOGUE.md).*
+
+### AH P&L {#betting-strategy}
+
+```{r vig-leaderboard-pnl, echo = FALSE}
+lb_pnl <- safe_tar_read("vig_leaderboard_pnl")
+if (is.data.frame(lb_pnl) && nrow(lb_pnl) > 0) {
+  lb_pnl |>
+    DT::datatable(
+      caption = htmltools::tags$caption(
+        style = "caption-side: top; text-align: left;",
+        paste0(
+          "AH P&L leaderboard (", nrow(lb_pnl), " models, flat staking). ",
+          "Walk-forward backtest over 6 seasons (19-20 to 24-25). ",
+          "No model achieves persistent positive ROI. ",
+          "Source: plan_ranger_1x2.R, plan_vignette_outputs.R."
+        )
+      ),
+      options = list(pageLength = 20, dom = "t", scrollX = TRUE),
+      rownames = FALSE
+    )
+} else {
+  lb_pnl
+}
+```
+
+*AH walk-forward P&L leaderboard. Columns: model, ROI% (flat staking), number of bets, Sharpe ratio, maximum drawdown, win rate. GLM-Ranger intersection is least bad at +0.3% ROI over 2,106 bets. No systematic edge exists against Pinnacle. Source: [football-data.co.uk](https://www.football-data.co.uk/) AH odds. See [AH Backtest vignette](ah-backtest.html) for equity curves and per-season breakdowns.*
 
 ```{r build-info, echo = FALSE, results = "asis"}
 safe_tar_read("vig_build_info")

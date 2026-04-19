@@ -1164,6 +1164,7 @@ plan_vignette_outputs <- list(
 # Vignette 4: Model Fitting
 # ============================================================================
 
+  # CV metrics: faceted small multiples — one subplot per metric (#5)
   targets::tar_target(
     vig_cv_metrics_plot,
     {
@@ -1185,48 +1186,81 @@ plan_vignette_outputs <- list(
 
       combined <- dplyr::bind_rows(glm_folds, dc_folds)
 
-      pinnacle_ref <- pinnacle_eval |>
-        dplyr::rename(metric_name = metric, pinnacle_value = value)
+      # Pinnacle reference lines per metric
+      pinn_refs <- tryCatch(
+        pinnacle_eval |>
+          dplyr::filter(metric %in% c("log_loss", "brier", "rps")),
+        error = function(e) NULL
+      )
 
       colors <- c("GLM Poisson" = "#3498db", "Dixon-Coles" = "#9b59b6")
+      metric_labels <- c(
+        log_loss = "Log Loss",
+        brier    = "Brier Score",
+        rps      = "RPS"
+      )
 
-      plotly::plot_ly(
-        combined,
-        x = ~fold,
-        y = ~value,
-        color = ~model,
-        colors = colors,
-        type = "scatter",
-        mode = "lines+markers",
-        hovertemplate = paste(
-          "Fold: %{x:.0f}<br>",
-          "Score: %{y:.4f}<extra></extra>"
-        )
-      ) |>
-        theme_dark_plotly(title = "Walk-Forward CV Metrics: GLM vs Dixon-Coles") |>
-        plotly::layout(
-          xaxis = list(title = "Fold", dtick = 1),
-          yaxis = list(title = "Score (lower is better)"),
-          updatemenus = list(
-            list(
-              type = "dropdown",
-              active = 0,
-              buttons = list(
-                list(method = "restyle",
-                     args = list("visible", c(TRUE, TRUE, TRUE, TRUE, TRUE, TRUE)),
-                     label = "All"),
-                list(method = "restyle",
-                     args = list("transforms[0].value", "log_loss"),
-                     label = "Log Loss"),
-                list(method = "restyle",
-                     args = list("transforms[0].value", "brier"),
-                     label = "Brier"),
-                list(method = "restyle",
-                     args = list("transforms[0].value", "rps"),
-                     label = "RPS")
-              )
+      # Build one panel per metric
+      panels <- lapply(c("log_loss", "brier", "rps"), function(m) {
+        d <- combined |> dplyr::filter(metric == m)
+        p <- plotly::plot_ly()
+
+        for (mdl in names(colors)) {
+          d_mdl <- d |> dplyr::filter(model == mdl)
+          p <- p |> plotly::add_trace(
+            data = d_mdl,
+            x = ~fold, y = ~value,
+            name = mdl,
+            legendgroup = mdl,
+            showlegend = (m == "log_loss"),
+            type = "scatter",
+            mode = "lines+markers",
+            line = list(color = colors[[mdl]], width = 2),
+            marker = list(color = colors[[mdl]], size = 6),
+            hovertemplate = paste0(
+              mdl, "<br>Fold: %{x:.0f}<br>",
+              metric_labels[[m]], ": %{y:.4f}<extra></extra>"
             )
           )
+        }
+
+        # Pinnacle reference line for this metric
+        if (!is.null(pinn_refs)) {
+          pinn_val <- pinn_refs$value[pinn_refs$metric == m]
+          if (length(pinn_val) == 1L && !is.na(pinn_val)) {
+            p <- p |> plotly::add_lines(
+              x = range(d$fold),
+              y = c(pinn_val, pinn_val),
+              name = "Pinnacle",
+              legendgroup = "Pinnacle",
+              showlegend = (m == "log_loss"),
+              line = list(color = "#95a5a6", width = 1, dash = "dash"),
+              hovertemplate = paste0(
+                "Pinnacle<br>", metric_labels[[m]],
+                ": %{y:.4f}<extra></extra>"
+              )
+            )
+          }
+        }
+
+        p |> plotly::layout(
+          annotations = list(list(
+            x = 0.5, y = 1.1, xref = "paper", yref = "paper",
+            text = metric_labels[[m]], showarrow = FALSE,
+            font = list(color = "white", size = 13)
+          ))
+        )
+      })
+
+      plotly::subplot(panels, nrows = 3, shareX = TRUE, titleY = TRUE) |>
+        theme_dark_plotly(title = "Walk-Forward CV Metrics: GLM vs Dixon-Coles") |>
+        plotly::layout(
+          xaxis  = list(title = "Fold", dtick = 1),
+          yaxis  = list(title = "Log Loss"),
+          yaxis2 = list(title = "Brier"),
+          yaxis3 = list(title = "RPS"),
+          height = 700,
+          legend = list(orientation = "h", y = -0.08)
         )
     }
   ),
@@ -1731,6 +1765,128 @@ plan_vignette_outputs <- list(
           dplyr::filter(.data$league_code %in% c("D1", "E0", "F1", "I1", "SP1")),
         error = function(e) NULL
       )
+    }
+  ),
+
+# ============================================================================
+# SPLIT LEADERBOARD PANELS (#20)
+# ============================================================================
+
+  # 1X2 calibration leaderboard (log-loss, Brier, RPS per model × CV fold)
+  targets::tar_target(
+    vig_leaderboard_calibration,
+    {
+      cal <- tryCatch(
+        model_comparison_with_brms |>
+          dplyr::select(
+            "model",
+            log_loss = "mean_log_loss",
+            brier    = "mean_brier",
+            rps      = "mean_rps",
+            "n_folds"
+          ),
+        error = function(e) NULL
+      )
+
+      pinn <- tryCatch({
+        pe <- pinnacle_eval
+        if (is.data.frame(pe) && nrow(pe) > 0L) {
+          tibble::tibble(
+            model    = "Pinnacle closing",
+            log_loss = pe$value[pe$metric == "log_loss"],
+            brier    = pe$value[pe$metric == "brier"],
+            rps      = pe$value[pe$metric == "rps"],
+            n_folds  = NA_integer_
+          )
+        } else NULL
+      }, error = function(e) NULL)
+
+      dplyr::bind_rows(cal, pinn) |>
+        dplyr::mutate(
+          log_loss = round(.data$log_loss, 3),
+          brier    = round(.data$brier,    3),
+          rps      = round(.data$rps,      3)
+        ) |>
+        dplyr::arrange(.data$log_loss)
+    }
+  ),
+
+  # AH P&L leaderboard (flat staking walk-forward metrics)
+  targets::tar_target(
+    vig_leaderboard_pnl,
+    {
+      tryCatch(
+        vig_ah_summary_table |>
+          dplyr::filter(.data$staking == "flat") |>
+          dplyr::select(
+            "model", "roi_pct", "n_bets", "sharpe", "max_dd", "win_rate"
+          ) |>
+          dplyr::arrange(dplyr::desc(.data$roi_pct)),
+        error = function(e) NULL
+      )
+    }
+  ),
+
+  # Edge panel plot: one histogram panel per outcome (H/D/A) (#10)
+  targets::tar_target(
+    vig_edge_panels,
+    {
+      outcome_colors <- c(H = "#3498db", D = "#95a5a6", A = "#e67e22")
+      outcome_labels <- c(H = "Home", D = "Draw", A = "Away")
+
+      panels <- lapply(c("H", "D", "A"), function(oc) {
+        d <- value_bets_glm |> dplyr::filter(outcome == oc)
+
+        mean_edge   <- round(mean(d$edge,   na.rm = TRUE), 3)
+        median_edge <- round(stats::median(d$edge, na.rm = TRUE), 3)
+        n_high      <- sum(d$edge > 0.15, na.rm = TRUE)
+
+        p <- plotly::plot_ly(
+          d,
+          x = ~edge,
+          type = "histogram",
+          nbinsx = 30,
+          marker = list(color = outcome_colors[[oc]], opacity = 0.8),
+          name = outcome_labels[[oc]],
+          showlegend = FALSE,
+          hovertemplate = paste0(
+            outcome_labels[[oc]],
+            "<br>Edge: %{x:.1%}<br>Count: %{y}<extra></extra>"
+          )
+        )
+
+        p |> plotly::layout(
+          xaxis = list(title = "Edge", tickformat = ".0%"),
+          yaxis = list(title = "Count"),
+          annotations = list(
+            list(
+              x = 0.97, y = 0.95, xref = "paper", yref = "paper",
+              xanchor = "right", yanchor = "top",
+              text = paste0(
+                "<b>", outcome_labels[[oc]], "</b><br>",
+                "Mean: ", scales::percent(mean_edge, accuracy = 0.1), "<br>",
+                "Median: ", scales::percent(median_edge, accuracy = 0.1), "<br>",
+                ">15%: ", n_high
+              ),
+              showarrow = FALSE,
+              font = list(color = outcome_colors[[oc]], size = 11),
+              bgcolor = "rgba(0,0,0,0.6)"
+            )
+          )
+        )
+      })
+
+      plotly::subplot(panels, nrows = 3, shareY = FALSE, titleX = TRUE) |>
+        theme_dark_plotly(title = "Edge Distribution by Outcome (H / D / A)") |>
+        plotly::layout(
+          height = 700,
+          annotations = list(list(
+            x = 0.5, y = -0.05, xref = "paper", yref = "paper",
+            text = "Edge = model probability \u2212 devigged market probability | threshold: 3%",
+            showarrow = FALSE,
+            font = list(color = "#95a5a6", size = 10)
+          ))
+        )
     }
   ),
 
