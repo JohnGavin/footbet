@@ -60,13 +60,13 @@ safe_tar_read <- function(name) {
 }
 
 dark_dt <- function(data, caption = "", ...) {
-  nums <- sapply(data, is.numeric)
-  data[nums] <- lapply(data[nums], function(x) {
-    if (all(x == floor(x), na.rm = TRUE)) x  # integers stay as-is
-    else if (max(abs(x), na.rm = TRUE) > 1) round(x, 3)  # scores
-    else round(x, 4)  # probabilities
-  })
-  DT::datatable(
+  # Identify numeric columns for JS-level formatting
+  num_cols <- names(data)[sapply(data, is.numeric)]
+  # Separate integer vs decimal columns
+  int_cols <- num_cols[sapply(data[num_cols], function(x) all(x == floor(x), na.rm = TRUE))]
+  score_cols <- setdiff(num_cols, int_cols)
+
+  dt <- DT::datatable(
     data,
     caption = caption,
     options = list(
@@ -85,6 +85,14 @@ dark_dt <- function(data, caption = "", ...) {
     rownames = FALSE,
     ...
   )
+  # JS-level formatting prevents IEEE float artifacts in JSON
+  if (length(score_cols) > 0) {
+    dt <- DT::formatRound(dt, columns = score_cols, digits = 3)
+  }
+  if (length(int_cols) > 0) {
+    dt <- DT::formatRound(dt, columns = int_cols, digits = 0)
+  }
+  dt
 }
 ```
 
