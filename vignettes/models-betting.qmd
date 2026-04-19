@@ -242,13 +242,14 @@ safe_tar_read("vig_kelly_stake_distribution")
 ### P&L Simulation
 
 The bankroll curve below shows the simulated profit & loss trajectory for all
-GLM value bets, staked with quarter Kelly and drawdown guardrails.
+GLM value bets under realistic assumptions: 2% transaction cost, 1% odds
+slippage, flat £10 stakes.
 
 ```{r vig-pnl-curve-comparison}
 safe_tar_read("vig_pnl_curve_realistic")
 ```
 
-*Bankroll comparison: optimistic vs realistic. Blue dotted line = optimistic (no transaction costs, quarter-Kelly compounding). Orange solid line = realistic (2% transaction cost, 1% odds slippage, tiered stakes £5-25 based on predicted edge). Edge tiers: <3% → £5, 3-5% → £10, 5-8% → £15, 8-12% → £20, >12% → £25. Y-axis: log scale. The optimistic scenario shows compound growth from 1,000 to millions — a backtest artefact. The realistic scenario accounts for the bookmaker's spread and uses edge-proportional staking: higher-confidence bets get larger stakes. Source: GLM value bets on [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Kelly Criterion](glossary.html) and [issue #66](https://github.com/JohnGavin/footbet/issues/66).*
+*Simulated bankroll (realistic scenario). Y-axis: log scale. Assumptions: 2% transaction cost, 1% odds slippage, flat £10 per bet. Starting bankroll: 1,000. Source: GLM value bets on [football-data.co.uk](https://www.football-data.co.uk/). See [Glossary > Kelly Criterion](glossary.html) and [issue #66](https://github.com/JohnGavin/footbet/issues/66).*
 
 ### Drawdown
 
@@ -259,10 +260,9 @@ safe_tar_read("vig_drawdown_plot")
 *Drawdown over time. X-axis: date. Y-axis: drawdown percentage (0% = at peak, negative = below peak). Red shading = drawdown depth. The deepest trough represents the maximum drawdown — worst-case loss from peak bankroll. Source: quarter-Kelly P&L simulation on [football-data.co.uk](https://www.football-data.co.uk/) data. See [Glossary > Maximum Drawdown](glossary.html).*
 
 ::: {.callout-warning}
-**Caveat:** The optimistic scenario (no costs, Kelly compounding) produces
-unrealistic returns. Real-world constraints include: 2-4% transaction costs
-(Pinnacle spread), account limits on profitable bettors, odds slippage, and
-backtesting bias. See [issue #66](https://github.com/JohnGavin/footbet/issues/66).
+**Caveat:** Real-world constraints not fully captured here include account limits
+on profitable bettors and backtest overfitting. The 2% cost + 1% slippage
+approximates Pinnacle's spread. See [issue #66](https://github.com/JohnGavin/footbet/issues/66).
 :::
 
 ### Summary
@@ -274,26 +274,35 @@ if (is.data.frame(pnl_summary)) {
     DT::datatable(
       caption = htmltools::tags$caption(
         style = "caption-side: bottom; text-align: left;",
-        "P&L comparison: optimistic (no costs) vs realistic (2% cost, 1% slippage, flat £10 stakes)."
+        "P&L summary: realistic scenario (2% cost, 1% slippage, flat £10 stakes). Rows: one metric per row."
       ),
-      options = list(pageLength = 10, dom = "t", scrollX = TRUE)
+      options = list(pageLength = 20, dom = "t", scrollX = TRUE)
     )
 } else {
   pnl_summary
 }
 ```
 
-*P&L comparison table. See [issue #66](https://github.com/JohnGavin/footbet/issues/66) for assumptions.*
+*P&L summary (realistic scenario). See [issue #66](https://github.com/JohnGavin/footbet/issues/66) for assumptions.*
 
 ## Out-of-Sample Evaluation
 
-The in-sample results above are misleading because the model was developed
-by looking at the full dataset. A true test requires fitting the model on
-PAST data only and evaluating on FUTURE data it has never seen.
+All results in this vignette are out-of-sample. Two evaluation frameworks
+are in use and it is worth distinguishing them:
 
-**Design:** Train on 2015-2020 (5 seasons), evaluate on 2021-2023 (validate period).
-The test period (2024-2026) is reserved for a final one-shot evaluation
+**Framework A — fixed split** (`plan_oos.R`): Train on seasons 2015–2020,
+validate on 2021–2023. The P&L simulation above uses this split. The test
+period (2024–2026) is reserved for a final one-shot evaluation
 ([issue #67](https://github.com/JohnGavin/footbet/issues/67)).
+
+**Framework C — rolling window** (`plan_ranger_1x2.R`, `plan_xgboost_1x2.R`):
+24-month rolling training window, 1-month test, slides forward by one month
+for each fold. The CV metrics table above uses Framework C. Both frameworks
+are out-of-sample; they differ in how training data accumulates over time.
+
+The leaderboard combines both: calibration metrics (log-loss, Brier, RPS)
+come from Framework C walk-forward CV; P&L metrics (ROI, Sharpe, max DD)
+come from Framework A fixed-split backtests.
 
 ```{r vig-oos-comparison}
 oos <- safe_tar_read("vig_oos_comparison")
@@ -302,7 +311,7 @@ if (is.data.frame(oos)) {
     DT::datatable(
       caption = htmltools::tags$caption(
         style = "caption-side: bottom; text-align: left;",
-        "In-sample vs out-of-sample P&L. Realistic = 2% cost, 1% slippage, tiered stakes £5-25."
+        "Framework A OOS P&L: train 2015-2020, validate 2021-2023. Realistic = 2% cost, 1% slippage, flat £10 stakes."
       ),
       options = list(pageLength = 10, dom = "t", scrollX = TRUE)
     )
@@ -311,7 +320,7 @@ if (is.data.frame(oos)) {
 }
 ```
 
-*Out-of-sample comparison using flat £10 stakes with 2% transaction cost and 1% slippage. The model finds value bets at 30% win rate (similar to in-sample), but the ROI is -9.3% out-of-sample vs +422% in-sample. The edge from the model (~5-10%) is consumed by the bookmaker's margin (~2-4%) plus slippage.*
+*Out-of-sample evaluation (Framework A: fixed split). Train 2015–2020, validate 2021–2023. 2% transaction cost, 1% slippage, flat £10 stakes. The edge from the model (~5-10%) is consumed by the bookmaker's margin (~2-4%) plus slippage.*
 
 ### Out-of-Sample by League
 

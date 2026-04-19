@@ -1245,45 +1245,9 @@ plan_vignette_outputs <- list(
   ),
 
   targets::tar_target(
-    vig_pnl_curve,
-    {
-      pnl_data <- pnl_glm
-
-      plotly::plot_ly(
-        pnl_data,
-        x = ~match_date,
-        y = ~bankroll,
-        type = "scatter",
-        mode = "lines",
-        line = list(color = "#3498db", width = 2),
-        hovertemplate = paste(
-          "Date: %{x}<br>",
-          "Bankroll: %{y:,.0f}<extra></extra>"
-        )
-      ) |>
-        theme_dark_plotly(title = "Simulated Bankroll (log scale, GLM Quarter Kelly)") |>
-        add_time_slider() |>
-        plotly::layout(
-          xaxis = list(title = "Date"),
-          yaxis = list(title = "Bankroll (log scale)", type = "log"),
-          shapes = list(
-            list(type = "line", x0 = 0, x1 = 1, y0 = 1000, y1 = 1000,
-                 xref = "paper",
-                 line = list(color = "#e67e22", dash = "dash", width = 2))
-          ),
-          annotations = list(
-            list(x = 0.02, y = log10(1000), xref = "paper", yref = "y",
-                 text = "Starting: 1,000",
-                 showarrow = FALSE, yanchor = "bottom", font = list(color = "#e67e22"))
-          )
-        )
-    }
-  ),
-
-  targets::tar_target(
     vig_drawdown_plot,
     {
-      dd_data <- pnl_glm |>
+      dd_data <- pnl_glm_realistic |>
         dplyr::mutate(drawdown_pct = 100 * drawdown)
 
       plotly::plot_ly(
@@ -1424,12 +1388,9 @@ plan_vignette_outputs <- list(
   targets::tar_target(
     vig_pnl_summary_table,
     {
-      optimistic <- pnl_summary |>
-        dplyr::mutate(scenario = "Optimistic (no costs)", .before = 1)
+      # Realistic scenario only (2% cost, 1% slippage, flat £10)
+      # Transposed: one row per metric for readability
       realistic <- pnl_summary_realistic |>
-        dplyr::mutate(scenario = "Realistic (2% cost, 1% slip, flat £10)", .before = 1)
-
-      comparison <- dplyr::bind_rows(optimistic, realistic) |>
         dplyr::mutate(
           dplyr::across(dplyr::where(is.numeric), ~ signif(.x, 4)),
           roi_pct = round(roi_pct, 1),
@@ -1437,36 +1398,45 @@ plan_vignette_outputs <- list(
           win_rate = round(win_rate * 100, 1),
           avg_odds = round(avg_odds, 2)
         )
-      comparison
+
+      # Transpose: columns become rows so a single-row result is readable
+      tibble::tibble(
+        metric = names(realistic),
+        value  = vapply(names(realistic), function(nm) {
+          v <- realistic[[nm]]
+          if (is.numeric(v)) as.character(v) else as.character(v)
+        }, character(1))
+      )
     }
   ),
 
-  # Realistic PnL curve for vignette
+  # Realistic PnL curve for vignette (with-costs scenario only)
   targets::tar_target(
     vig_pnl_curve_realistic,
     {
-      plotly::plot_ly() |>
-        plotly::add_lines(
-          data = pnl_glm, x = ~match_date, y = ~bankroll,
-          name = "Optimistic (no costs)",
-          line = list(color = "#3498db", width = 1, dash = "dot"),
-          hovertemplate = "Optimistic<br>%{x}<br>%{y:,.0f}<extra></extra>"
-        ) |>
-        plotly::add_lines(
-          data = pnl_glm_realistic, x = ~match_date, y = ~bankroll,
-          name = "Realistic (2% cost, flat £10)",
-          line = list(color = "#e67e22", width = 2),
-          hovertemplate = "Realistic<br>%{x}<br>%{y:,.0f}<extra></extra>"
-        ) |>
-        theme_dark_plotly(title = "Bankroll: Optimistic vs Realistic (log scale)") |>
+      plotly::plot_ly(
+        data = pnl_glm_realistic,
+        x = ~match_date, y = ~bankroll,
+        type = "scatter",
+        mode = "lines",
+        name = "Realistic (2% cost, flat £10)",
+        line = list(color = "#e67e22", width = 2),
+        hovertemplate = "Date: %{x}<br>Bankroll: %{y:,.0f}<extra></extra>"
+      ) |>
+        theme_dark_plotly(title = "Simulated Bankroll — Realistic Scenario (log scale)") |>
+        add_time_slider() |>
         plotly::layout(
           xaxis = list(title = "Date"),
           yaxis = list(title = "Bankroll (log scale)", type = "log"),
-          legend = list(x = 0.02, y = 0.98, bgcolor = "rgba(0,0,0,0.5)"),
           shapes = list(
             list(type = "line", x0 = 0, x1 = 1, y0 = 1000, y1 = 1000,
                  xref = "paper",
                  line = list(color = "white", dash = "dash", width = 1))
+          ),
+          annotations = list(
+            list(x = 0.02, y = log10(1000), xref = "paper", yref = "y",
+                 text = "Starting: 1,000",
+                 showarrow = FALSE, yanchor = "bottom", font = list(color = "white"))
           )
         )
     }
