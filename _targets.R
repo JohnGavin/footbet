@@ -7,7 +7,8 @@ tar_option_set(
   controller = if (requireNamespace("crew", quietly = TRUE)) {
     crew::crew_controller_local(
       workers = min(4L, parallel::detectCores() - 1L),
-      seconds_idle = 120
+      seconds_idle = 120,
+      seconds_wall = 3600
     )
   }
 )
@@ -45,6 +46,8 @@ c(
   plan_xgk,
   plan_ranger_1x2,
   plan_xgboost_1x2,
+  plan_brms_1x2,
+  plan_qa_gates,
   plan_vignette_outputs,
   plan_pkgdown(),      # pkgdown site build + stage docs/
   plan_pkgctx()        # ctx.yaml cache audit + refresh
