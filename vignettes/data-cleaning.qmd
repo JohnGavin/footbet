@@ -43,6 +43,27 @@ safe_tar_read <- function(name) {
       htmltools::p(paste0("[MISSING EVIDENCE] Target `", name, "` not found.")))
   } else result
 }
+
+dark_dt <- function(data, caption = "", ...) {
+  is_num <- sapply(data, function(x) is.numeric(x) && !is.list(x))
+  num_cols <- names(data)[is_num]
+  int_cols <- if (length(num_cols) > 0) {
+    num_cols[sapply(data[num_cols], function(x) all(x == floor(x), na.rm = TRUE))]
+  } else character(0)
+  score_cols <- setdiff(num_cols, int_cols)
+  dt <- DT::datatable(data, caption = caption,
+    options = list(pageLength = 20, dom = "t", scrollX = TRUE, autoWidth = TRUE,
+      initComplete = DT::JS(
+        "function(settings, json) {",
+        "  $(this.api().table().container()).css({'background-color': '#000000', 'color': '#ffffff'});",
+        "  $(this.api().table().header()).css({'background-color': '#000000', 'color': '#ffffff', 'border-bottom': '1px solid #444'});",
+        "  $('td', this.api().table().body()).css({'background-color': '#000000', 'color': '#ffffff', 'border-bottom': '1px solid #222'});",
+        "}")),
+    escape = FALSE, rownames = FALSE, ...)
+  if (length(score_cols) > 0) dt <- DT::formatRound(dt, columns = score_cols, digits = 3)
+  if (length(int_cols) > 0) dt <- DT::formatRound(dt, columns = int_cols, digits = 0)
+  dt
+}
 ```
 
 ```{=html}
@@ -137,15 +158,12 @@ See [Glossary > Data Terminology](glossary.html#data-terminology) for full defin
 ```{r vig-missing-data-table}
 missing_data <- safe_tar_read("vig_missing_data_by_column")
 if (is.data.frame(missing_data)) {
-  missing_data |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "Missing data by column. Match statistics often unavailable in older seasons."
-      ),
-
-      options = list(pageLength = 15, dom = "tip", scrollX = TRUE)
+  dark_dt(missing_data,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "Missing data by column. Match statistics often unavailable in older seasons."
     )
+  )
 } else {
   missing_data
 }
@@ -165,15 +183,12 @@ The pipeline flags matches with:
 ```{r vig-anomalies-table}
 anomalies <- safe_tar_read("vig_anomalies_table")
 if (is.data.frame(anomalies) && nrow(anomalies) > 0) {
-  anomalies |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "Flagged anomalies for manual review. Empty table = no anomalies detected."
-      ),
-
-      options = list(pageLength = 10, dom = "tip", scrollX = TRUE)
+  dark_dt(anomalies,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "Flagged anomalies for manual review. Empty table = no anomalies detected."
     )
+  )
 } else if (is.data.frame(anomalies)) {
   htmltools::div(
     style = "background: #28a745; color: white; padding: 1em; border-radius: 4px;",

@@ -72,6 +72,27 @@ safe_tar_read <- function(name) {
     result
   }
 }
+
+dark_dt <- function(data, caption = "", ...) {
+  is_num <- sapply(data, function(x) is.numeric(x) && !is.list(x))
+  num_cols <- names(data)[is_num]
+  int_cols <- if (length(num_cols) > 0) {
+    num_cols[sapply(data[num_cols], function(x) all(x == floor(x), na.rm = TRUE))]
+  } else character(0)
+  score_cols <- setdiff(num_cols, int_cols)
+  dt <- DT::datatable(data, caption = caption,
+    options = list(pageLength = 20, dom = "t", scrollX = TRUE, autoWidth = TRUE,
+      initComplete = DT::JS(
+        "function(settings, json) {",
+        "  $(this.api().table().container()).css({'background-color': '#000000', 'color': '#ffffff'});",
+        "  $(this.api().table().header()).css({'background-color': '#000000', 'color': '#ffffff', 'border-bottom': '1px solid #444'});",
+        "  $('td', this.api().table().body()).css({'background-color': '#000000', 'color': '#ffffff', 'border-bottom': '1px solid #222'});",
+        "}")),
+    escape = FALSE, rownames = FALSE, ...)
+  if (length(score_cols) > 0) dt <- DT::formatRound(dt, columns = score_cols, digits = 3)
+  if (length(int_cols) > 0) dt <- DT::formatRound(dt, columns = int_cols, digits = 0)
+  dt
+}
 ```
 
 ```{=html}
@@ -141,14 +162,12 @@ safe_tar_read("vig_pipeline_html")
 ```{r vig-data-source-summary}
 data_summary <- safe_tar_read("vig_data_source_summary")
 if (is.data.frame(data_summary)) {
-  data_summary |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "Data coverage by league. 10 leagues across 5 countries, top 2 divisions each."
-      ),
-      options = list(pageLength = 15, dom = "t")
+  dark_dt(data_summary,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "Data coverage by league. 10 leagues across 5 countries, top 2 divisions each."
     )
+  )
 } else {
   data_summary
 }
@@ -164,14 +183,12 @@ Zeroes indicate seasons where the CSV was unavailable or empty.
 ```{r vig-league-season-grid}
 grid <- safe_tar_read("vig_league_season_grid")
 if (is.data.frame(grid)) {
-  grid |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "Matches per league-season. 0 = data unavailable. ~380 for Div 1, ~460+ for Div 2."
-      ),
-      options = list(pageLength = 15, dom = "t", scrollX = TRUE)
+  dark_dt(grid,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "Matches per league-season. 0 = data unavailable. ~380 for Div 1, ~460+ for Div 2."
     )
+  )
 } else {
   grid
 }
@@ -199,15 +216,12 @@ and over/under odds.
 ```{r vig-odds-columns-available}
 odds_avail <- safe_tar_read("vig_odds_columns_available")
 if (is.data.frame(odds_avail)) {
-  odds_avail |>
-    DT::datatable(
-      caption = htmltools::tags$caption(
-        style = "caption-side: bottom; text-align: left;",
-        "Pinnacle odds coverage. pct_1x2 = % with home/draw/away odds. pct_over_under = % with O/U 2.5."
-      ),
-
-      options = list(pageLength = 15, dom = "tip", scrollX = TRUE)
+  dark_dt(odds_avail,
+    caption = htmltools::tags$caption(
+      style = "caption-side: bottom; text-align: left;",
+      "Pinnacle odds coverage. pct_1x2 = % with home/draw/away odds. pct_over_under = % with O/U 2.5."
     )
+  )
 } else {
   odds_avail
 }

@@ -46,6 +46,27 @@ safe_tar_read <- function(name) {
       htmltools::p(paste0("[MISSING EVIDENCE] Target `", name, "` not found.")))
   } else result
 }
+
+dark_dt <- function(data, caption = "", ...) {
+  is_num <- sapply(data, function(x) is.numeric(x) && !is.list(x))
+  num_cols <- names(data)[is_num]
+  int_cols <- if (length(num_cols) > 0) {
+    num_cols[sapply(data[num_cols], function(x) all(x == floor(x), na.rm = TRUE))]
+  } else character(0)
+  score_cols <- setdiff(num_cols, int_cols)
+  dt <- DT::datatable(data, caption = caption,
+    options = list(pageLength = 20, dom = "t", scrollX = TRUE, autoWidth = TRUE,
+      initComplete = DT::JS(
+        "function(settings, json) {",
+        "  $(this.api().table().container()).css({'background-color': '#000000', 'color': '#ffffff'});",
+        "  $(this.api().table().header()).css({'background-color': '#000000', 'color': '#ffffff', 'border-bottom': '1px solid #444'});",
+        "  $('td', this.api().table().body()).css({'background-color': '#000000', 'color': '#ffffff', 'border-bottom': '1px solid #222'});",
+        "}")),
+    escape = FALSE, rownames = FALSE, ...)
+  if (length(score_cols) > 0) dt <- DT::formatRound(dt, columns = score_cols, digits = 3)
+  if (length(int_cols) > 0) dt <- DT::formatRound(dt, columns = int_cols, digits = 0)
+  dt
+}
 ```
 
 ::: {.callout-note}
@@ -61,9 +82,8 @@ The Asian Handicap (AH) market is more interesting than 1X2 for model evaluation
 ```{r ah-summary-table}
 summary_df <- safe_tar_read("vig_ah_summary_table")
 if (is.data.frame(summary_df)) {
-  DT::datatable(
+  dark_dt(
     summary_df,
-    rownames = FALSE,
     caption = htmltools::tags$caption(
       style = "caption-side: top; text-align: left; color: #ccc;",
       paste0("AH walk-forward results across 6 seasons (1920--2425). ",
@@ -71,8 +91,7 @@ if (is.data.frame(summary_df)) {
              "Intersection (GLM ∩ Ranger agreement) achieves the best flat-stake ROI (-0.3%). ",
              "Sharpe ratios are negative for all models — no model generates risk-adjusted returns. ",
              "Max drawdown in currency units (£10 flat stake).")
-    ),
-    options = list(pageLength = 10, dom = "t", scrollX = TRUE)
+    )
   )
 } else summary_df
 ```
@@ -159,9 +178,8 @@ Closing Line Value measures whether the model's price at bet time beats the clos
 ```{r ah-clv-table}
 clv_df <- safe_tar_read("vig_ah_clv_table")
 if (is.data.frame(clv_df)) {
-  DT::datatable(
+  dark_dt(
     clv_df,
-    rownames = FALSE,
     caption = htmltools::tags$caption(
       style = "caption-side: top; text-align: left; color: #ccc;",
       paste0("CLV in probability points (pp) per league. ",
@@ -170,11 +188,8 @@ if (is.data.frame(clv_df)) {
              "Beat-close rate (btc) > 50% confirms the model systematically beats the closing line. ",
              "Despite positive CLV, most leagues show negative ROI — the vig eats the edge. ",
              "Source: `oos_ah_ranger_clv_summary`, `oos_ah_ensemble_clv_summary`.")
-    ),
-    options = list(pageLength = 15, dom = "t", scrollX = TRUE)
-  ) |> DT::formatRound(columns = c("ranger_clv", "ranger_btc",
-                                      "ensemble_clv", "ensemble_btc"),
-                         digits = 3)
+    )
+  )
 } else clv_df
 ```
 
