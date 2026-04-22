@@ -2,6 +2,23 @@
 
 Cumulative lab notes. Track completed work, **failed approaches**, accuracy checkpoints, and known limitations.
 
+## 2026-04-22 — Housekeeping: commit backlog + memory cleanup
+
+### Completed
+- Committed 175-file backlog from prior sessions (roxygen regen, pipeline artifacts, new evaluation/brms/OAGD functions, MODEL_CATALOGUE update)
+- Reviewed footbet memory files — deleted redundant `feedback_agent-model-allocation.md` (duplicated agent frontmatter + `auto-delegation.md` rule)
+- dark_dt() already applied to all 5 vignettes in prior session (e67794f)
+
+### Failed Approaches
+- None this session
+
+### Accuracy / Metrics
+- No model changes — P&L leaderboard unchanged from Apr 14
+
+### Known Limitations
+- 176 files were uncommitted for 8 days — need tighter commit discipline after pipeline runs
+- Task #15 (brms activation) still in_progress
+
 ## 2026-04-14 — Ranger + XGBoost 1X2 walk-forward CV (#86)
 
 ### Completed
