@@ -469,7 +469,7 @@ plan_xg_features <- list(
       }
 
       dplyr::bind_rows(
-        summarise_one(glm_xg_era, "GLM goals-only"),
+        summarise_one(glm_xg_era, "GLM baseline"),
         summarise_one(dc_xg_era, "Dixon-Coles goals-only"),
         summarise_one(cv_xg_features_cut7, "GLM + xG cut7")
       )

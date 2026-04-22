@@ -287,6 +287,99 @@ pinnacle_implied <- function(odds_df) {
   )
 }
 
+#' Market consensus implied probabilities (average bookmaker)
+#'
+#' Devig the average bookmaker odds (AvgH/D/A from football-data.co.uk)
+#' to produce fair probabilities. This is the "wisdom of the crowd"
+#' baseline — if no model beats this, models add negative value.
+#'
+#' @param odds_df A tibble with `match_id`, `avg_h`, `avg_d`, `avg_a`.
+#' @return A tibble with `match_id`, `consensus_h`, `consensus_d`, `consensus_a`.
+#' @family evaluation
+#' @export
+consensus_implied <- function(odds_df) {
+  rlang::check_required(odds_df)
+
+  if (nrow(odds_df) == 0L) {
+    return(tibble::tibble(
+      match_id = character(),
+      consensus_h = numeric(), consensus_d = numeric(), consensus_a = numeric()
+    ))
+  }
+
+  raw_h <- 1 / odds_df$avg_h
+  raw_d <- 1 / odds_df$avg_d
+  raw_a <- 1 / odds_df$avg_a
+
+  total <- raw_h + raw_d + raw_a
+
+  tibble::tibble(
+    match_id = odds_df$match_id,
+    consensus_h = ifelse(is.na(total), NA_real_, raw_h / total),
+    consensus_d = ifelse(is.na(total), NA_real_, raw_d / total),
+    consensus_a = ifelse(is.na(total), NA_real_, raw_a / total)
+  )
+}
+
+#' Evaluate market baselines (Pinnacle + consensus) against actual results
+#'
+#' Computes log-loss, Brier, and RPS for Pinnacle and consensus implied
+#' probabilities. These are the benchmarks all models must beat.
+#'
+#' @param odds_df Parsed odds with `match_id`, `psh/psd/psa`, `avg_h/avg_d/avg_a`.
+#' @param matches_df Parsed matches with `match_id`, `ftr`, `league_code`.
+#' @return A tibble with per-league calibration metrics for both baselines.
+#' @family evaluation
+#' @export
+evaluate_market_baselines <- function(odds_df, matches_df) {
+  rlang::check_required(odds_df)
+  rlang::check_required(matches_df)
+
+  pin <- pinnacle_implied(odds_df)
+  con <- consensus_implied(odds_df)
+
+  actuals <- matches_df |>
+    dplyr::select("match_id", "ftr", "league_code") |>
+    dplyr::filter(!is.na(.data$ftr))
+
+  evaluate_one <- function(implied_df, h_col, d_col, a_col, label) {
+    df <- dplyr::inner_join(implied_df, actuals, by = "match_id") |>
+      dplyr::filter(!is.na(.data[[h_col]]))
+
+    if (nrow(df) == 0L) return(tibble::tibble())
+
+    leagues <- unique(df$league_code)
+    purrr::map(leagues, function(lg) {
+      lg_df <- df[df$league_code == lg, ]
+      if (nrow(lg_df) < 10L) return(NULL)
+
+      prob_actual <- dplyr::case_when(
+        lg_df$ftr == "H" ~ lg_df[[h_col]],
+        lg_df$ftr == "D" ~ lg_df[[d_col]],
+        lg_df$ftr == "A" ~ lg_df[[a_col]],
+        TRUE ~ NA_real_
+      )
+      prob_actual <- pmax(prob_actual, 1e-10)
+
+      tibble::tibble(
+        model = label,
+        league_code = lg,
+        log_loss = -mean(log(prob_actual[!is.na(prob_actual)])),
+        brier = brier_1x2(lg_df[[h_col]], lg_df[[d_col]],
+                          lg_df[[a_col]], lg_df$ftr),
+        rps = rps_1x2(lg_df[[h_col]], lg_df[[d_col]],
+                      lg_df[[a_col]], lg_df$ftr),
+        n_matches = nrow(lg_df)
+      )
+    }) |> dplyr::bind_rows()
+  }
+
+  dplyr::bind_rows(
+    evaluate_one(pin, "implied_h", "implied_d", "implied_a", "Pinnacle"),
+    evaluate_one(con, "consensus_h", "consensus_d", "consensus_a", "Consensus (avg bookie)")
+  )
+}
+
 #' Summarise walk-forward evaluation results
 #'
 #' Computes mean metrics across folds with optional benchmarking

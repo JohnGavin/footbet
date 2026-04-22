@@ -31,13 +31,17 @@ each team with rate limiting. Standardises output columns.
 Other data-acquisition: 
 \code{\link{download_all_fd}()},
 \code{\link{download_fd_csv}()},
+\code{\link{fetch_fbref_advanced_all}()},
 \code{\link{fetch_fbref_all}()},
 \code{\link{fetch_fbref_matches}()},
+\code{\link{fetch_fbref_season_stats}()},
+\code{\link{fetch_fbref_team_match_logs}()},
 \code{\link{fetch_league_injuries}()},
 \code{\link{fetch_league_suspensions}()},
 \code{\link{fetch_squad_values}()},
 \code{\link{join_xg_to_matches}()},
 \code{\link{parse_fd_csv}()},
-\code{\link{parse_fd_odds}()}
+\code{\link{parse_fd_odds}()},
+\code{\link{standardise_fbref_advanced}()}
 }
 \concept{data-acquisition}

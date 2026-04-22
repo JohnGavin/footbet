@@ -8,19 +8,44 @@ simulate_pnl(
   bets,
   initial_bankroll = 1000,
   drawdown_threshold = 0.2,
-  max_stake = 0.03
+  max_stake = 0.03,
+  transaction_cost = 0,
+  max_bankroll = Inf,
+  slippage = 0,
+  stake_mode = c("kelly", "flat", "tiered"),
+  flat_stake = 10,
+  edge_tiers = c(0.03, 0.05, 0.08, 0.12),
+  tier_stakes = c(5, 10, 15, 20, 25)
 )
 }
 \arguments{
 \item{bets}{A tibble of value bets with \code{match_id}, \code{outcome},
-\code{decimal_odds}, \code{kelly_stake}. Must also include \code{ftr} (actual result)
-and \code{match_date}.}
+\code{decimal_odds}, \code{kelly_stake}, \code{edge}. Must also include \code{ftr} (actual
+result) and \code{match_date}.}
 
 \item{initial_bankroll}{Numeric. Starting bankroll (default 1000).}
 
 \item{drawdown_threshold}{Numeric. Drawdown to trigger halving (default 0.20).}
 
 \item{max_stake}{Numeric. Max stake fraction (default 0.03).}
+
+\item{transaction_cost}{Numeric 0-1. Cost per bet as fraction of stake (default 0).}
+
+\item{max_bankroll}{Numeric. Cap effective bankroll for stake calc (default Inf).}
+
+\item{slippage}{Numeric 0-1. Reduce odds by this fraction (default 0).}
+
+\item{stake_mode}{Character. \code{"kelly"} (compounding), \code{"flat"} (fixed amount),
+or \code{"tiered"} (variable stake by predicted edge).}
+
+\item{flat_stake}{Numeric. Fixed stake per bet in flat mode (default 10).}
+
+\item{edge_tiers}{Numeric vector. Edge breakpoints for tiered mode
+(default \code{c(0.03, 0.05, 0.08, 0.12)}). Bets with edge < 0.03 get the
+lowest tier, edge 0.03-0.05 the next, etc.}
+
+\item{tier_stakes}{Numeric vector. Stake per tier (default \code{c(5, 10, 15, 20, 25)}).
+Must be one element longer than \code{edge_tiers}.}
 }
 \value{
 A tibble with one row per bet: \code{match_id}, \code{match_date}, \code{outcome},
@@ -28,15 +53,28 @@ A tibble with one row per bet: \code{match_id}, \code{match_date}, \code{outcome
 \code{peak_bankroll}, \code{drawdown}.
 }
 \description{
-Processes bets in chronological order, applying Kelly staking with
-drawdown guardrails. Returns the full P&L time series.
+Processes bets in chronological order with configurable staking strategy.
+Supports Kelly compounding, flat stakes, or tiered staking by predicted edge.
 }
 \seealso{
 Other decisions: 
+\code{\link{ah_bets_from_preds}()},
 \code{\link{apply_guardrails}()},
+\code{\link{attach_clv}()},
+\code{\link{clv}},
+\code{\link{expanding_clv_window}()},
 \code{\link{find_value_bets}()},
 \code{\link{identify_value_bet}()},
 \code{\link{kelly_fraction}()},
+\code{\link{load_closing_ah_prices}()},
+\code{\link{oagd_backtest}},
+\code{\link{oagd_backtest_league}()},
+\code{\link{oagd_backtest_summary}()},
+\code{\link{oagd_edge}()},
+\code{\link{oagd_grid}()},
+\code{\link{oagd_pnl}()},
+\code{\link{oagd_stake}()},
+\code{\link{summarise_ah_clv}()},
 \code{\link{summarise_pnl}()}
 }
 \concept{decisions}

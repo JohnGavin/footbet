@@ -33,10 +33,23 @@ Halves the stake when cumulative drawdown exceeds threshold.
 }
 \seealso{
 Other decisions: 
+\code{\link{ah_bets_from_preds}()},
+\code{\link{attach_clv}()},
+\code{\link{clv}},
+\code{\link{expanding_clv_window}()},
 \code{\link{find_value_bets}()},
 \code{\link{identify_value_bet}()},
 \code{\link{kelly_fraction}()},
+\code{\link{load_closing_ah_prices}()},
+\code{\link{oagd_backtest}},
+\code{\link{oagd_backtest_league}()},
+\code{\link{oagd_backtest_summary}()},
+\code{\link{oagd_edge}()},
+\code{\link{oagd_grid}()},
+\code{\link{oagd_pnl}()},
+\code{\link{oagd_stake}()},
 \code{\link{simulate_pnl}()},
+\code{\link{summarise_ah_clv}()},
 \code{\link{summarise_pnl}()}
 }
 \concept{decisions}

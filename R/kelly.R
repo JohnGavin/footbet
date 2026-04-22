@@ -10,7 +10,8 @@
 #'   Returns 0 if there is no edge.
 #' @family decisions
 #' @export
-kelly_fraction <- function(prob_win, decimal_odds, fraction = 0.25) {
+kelly_fraction <- function(prob_win, decimal_odds, fraction = 0.25,
+                           max_stake_pct = 0.05) {
   rlang::check_required(prob_win)
   rlang::check_required(decimal_odds)
 
@@ -23,7 +24,7 @@ kelly_fraction <- function(prob_win, decimal_odds, fraction = 0.25) {
 
   b <- decimal_odds - 1
   f <- (b * prob_win - (1 - prob_win)) / b
-  max(0, f) * fraction
+  min(max(0, f) * fraction, max_stake_pct)
 }
 
 #' Identify value bets from model vs market probabilities

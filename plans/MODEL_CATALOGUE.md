@@ -285,16 +285,17 @@ via Stan/brms. Enables partial pooling (shrinkage) of attack/defence
 strengths with proper uncertainty quantification.
 
 **How:** `brms::brm(goals ~ home + (1|team) + (1|opponent), family = poisson())`.
-4 chains × 2000 iterations. Slow but principled.
+Walk-forward CV: 24-month train, 1-month test, per league. 2 chains × 500+500
+iterations for CV speed. Uses rstan backend.
 
-**Results:** Not yet backtested against odds. Implemented but not wired
-into plan_oos.R evaluation framework.
+**Results (walk-forward 1X2 CV):** Running — results pending.
+AH flat stake (from plan_oos.R): -9.6% ROI on 9,008 bets.
 
-**What we learned:** Could provide proper posterior predictive distributions
-instead of point estimates. Natural extension of OAGD's lme4 approach
-with full Bayesian inference.
+**What we learned:** Proper posterior predictive distributions. Natural
+extension of OAGD's lme4 approach. Previously had bugs in evaluate_brms()
+(column name mismatch: `prob_h` vs `pred_h`) — fixed 2026-04-17.
 
-**Files:** `R/models_brms.R`
+**Files:** `R/models_brms.R`, `R/tar_plans/plan_brms_1x2.R`
 
 ---
 
@@ -331,6 +332,29 @@ between them due to different periods, staking, and cost assumptions.
 - **Costs:** None (raw odds, no transaction/slippage)
 - **Benchmark:** Pinnacle closing odds, raw
 
-**TODO:** Unify frameworks so all models are evaluated on the same basis.
+### Framework C: 1X2 walk-forward calibration (models 3, 6, 7, 11)
+
+- **Train:** 24-month rolling window
+- **Test:** 1-month sliding
+- **Leagues:** D1, E0, F1, I1, SP1 (top 5 with Understat coverage)
+- **Metrics:** Log-loss, Brier, RPS (calibration, not P&L)
+- **Files:** `plan_ranger_1x2.R`, `plan_xgboost_1x2.R`, `plan_brms_1x2.R`
+
+### Framework D: QA gates (plan_qa_gates.R)
+
+- **Parameter robustness:** Vary min_edge ±20%, check Sharpe stability
+- **Execution delay:** ROI at 100%/90%/80%/70% of bet timeline
+- **Regime metrics:** Early vs late season ROI/Sharpe/DD per model
+- **Sizing comparison:** Flat vs Kelly side-by-side per model
+- **Required by rules:** `backtest-robustness`, `execution-delay-sensitivity`,
+  `risk-regime-evaluation`, `position-sizing-guardrails`
+
+### Market baselines (plan_evaluation.R)
+
+- **Pinnacle:** Devigged closing odds (the bar to beat)
+- **Consensus:** Average bookmaker odds (wisdom of the crowd)
+- **Per-league:** 10 leagues × 2 baselines (2026-04-17)
+
+**TODO:** Unify frameworks A/B/C so all models are evaluated on the same basis.
 Either adapt plan_oos.R to include OAGD, or adapt OAGD backtest to include
 transaction costs. This is prerequisite for a fair leaderboard.

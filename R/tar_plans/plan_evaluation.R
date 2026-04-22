@@ -53,6 +53,12 @@ plan_evaluation <- list(
     summarise_cv(dc_cv)
   ),
 
+  # Market baselines: Pinnacle + consensus (avg bookie) per league
+  targets::tar_target(
+    market_baselines,
+    evaluate_market_baselines(parsed_odds, parsed_matches)
+  ),
+
   # Model vs Pinnacle comparison (all models)
   targets::tar_target(
     model_vs_pinnacle,
@@ -86,6 +92,88 @@ plan_evaluation <- list(
         dplyr::mutate(edge = pinnacle - model_mean) |>
         dplyr::select(model, metric, model_mean, pinnacle, edge)
       # Positive edge = model is better (lower score)
+    }
+  ),
+
+  # ====================================================================
+  # Per-team and per-league AH ROI heatmap (#75)
+  # ====================================================================
+
+  # Per-team ROI: which teams are systematically mispredicted?
+  targets::tar_target(
+    ah_roi_per_team,
+    {
+      bets <- ah_walkforward_all |>
+        dplyr::filter(.data$staking == "flat")  # flat stake for clean comparison
+
+      if (nrow(bets) == 0L) return(tibble::tibble())
+
+      # Join to get team names and league
+      bets_teams <- bets |>
+        dplyr::inner_join(
+          parsed_matches |>
+            dplyr::select("match_id", "home_team", "away_team", "league_code"),
+          by = "match_id"
+        )
+
+      # Home team perspective
+      home_roi <- bets_teams |>
+        dplyr::group_by(model = .data$model, team = .data$home_team,
+                        league_code = .data$league_code) |>
+        dplyr::summarise(
+          n_bets = dplyr::n(),
+          roi_pct = round(100 * sum(.data$net) / sum(.data$stake), 1),
+          win_rate = round(100 * mean(.data$won), 1),
+          .groups = "drop"
+        ) |>
+        dplyr::mutate(venue = "home")
+
+      # Away team perspective
+      away_roi <- bets_teams |>
+        dplyr::group_by(model = .data$model, team = .data$away_team,
+                        league_code = .data$league_code) |>
+        dplyr::summarise(
+          n_bets = dplyr::n(),
+          roi_pct = round(100 * sum(.data$net) / sum(.data$stake), 1),
+          win_rate = round(100 * mean(.data$won), 1),
+          .groups = "drop"
+        ) |>
+        dplyr::mutate(venue = "away")
+
+      dplyr::bind_rows(home_roi, away_roi) |>
+        dplyr::arrange(.data$model, .data$league_code, .data$team)
+    }
+  ),
+
+  # Per-league AH ROI by model
+  targets::tar_target(
+    ah_roi_per_league,
+    {
+      bets <- ah_walkforward_all |>
+        dplyr::filter(.data$staking == "flat")
+
+      if (nrow(bets) == 0L) return(tibble::tibble())
+
+      bets |>
+        dplyr::inner_join(
+          parsed_matches |>
+            dplyr::select("match_id", "league_code"),
+          by = "match_id"
+        ) |>
+        dplyr::group_by(.data$model, .data$league_code) |>
+        dplyr::summarise(
+          n_bets = dplyr::n(),
+          roi_pct = round(100 * sum(.data$net) / sum(.data$stake), 1),
+          win_rate = round(100 * mean(.data$won), 1),
+          sharpe = {
+            n <- dplyr::n()
+            s <- if (n >= 2L) stats::sd(.data$net) else NA_real_
+            dplyr::if_else(!is.na(s) & s > 0,
+              round(mean(.data$net) / s, 3), NA_real_)
+          },
+          .groups = "drop"
+        ) |>
+        dplyr::arrange(.data$model, .data$league_code)
     }
   )
 )

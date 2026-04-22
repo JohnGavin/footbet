@@ -344,6 +344,8 @@ predict_matches_brms <- function(model, matches_df, max_goals = 8L) {
   }
 
   out <- tibble::tibble(
+    home_team = matches_sub$home_team,
+    away_team = matches_sub$away_team,
     pred_h = prob_h,
     pred_d = prob_d,
     pred_a = prob_a,
@@ -513,8 +515,8 @@ evaluate_brms <- function(long_df,
 
     if (is.null(model)) next
 
-    # Predict test matches
-    preds <- predict_matches_brms(model, test_matches, ndraws = 500L)
+    # Predict test matches (batch predict using posterior mean lambda)
+    preds <- predict_matches_brms(model, test_matches)
 
     if (nrow(preds) == 0L) next
 
@@ -529,9 +531,9 @@ evaluate_brms <- function(long_df,
 
     # Extract probability of actual outcome for log loss
     prob_actual <- dplyr::case_when(
-      eval_df$ftr == "H" ~ eval_df$prob_h,
-      eval_df$ftr == "D" ~ eval_df$prob_d,
-      eval_df$ftr == "A" ~ eval_df$prob_a,
+      eval_df$ftr == "H" ~ eval_df$pred_h,
+      eval_df$ftr == "D" ~ eval_df$pred_d,
+      eval_df$ftr == "A" ~ eval_df$pred_a,
       TRUE ~ NA_real_
     )
     prob_actual <- prob_actual[!is.na(prob_actual)]
@@ -540,8 +542,8 @@ evaluate_brms <- function(long_df,
 
     # Compute metrics
     ll <- log_loss(prob_actual)
-    br <- brier_1x2(eval_df$prob_h, eval_df$prob_d, eval_df$prob_a, eval_df$ftr)
-    rp <- rps_1x2(eval_df$prob_h, eval_df$prob_d, eval_df$prob_a, eval_df$ftr)
+    br <- brier_1x2(eval_df$pred_h, eval_df$pred_d, eval_df$pred_a, eval_df$ftr)
+    rp <- rps_1x2(eval_df$pred_h, eval_df$pred_d, eval_df$pred_a, eval_df$ftr)
 
     results[[i]] <- tibble::tibble(
       fold = i,

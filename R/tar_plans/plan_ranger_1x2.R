@@ -177,7 +177,7 @@ plan_ranger_1x2 <- list(
       dplyr::bind_rows(
         summarise_one(
           cv_goals_only |> dplyr::filter(.data$league_code %in% xg_leagues),
-          "GLM goals-only"
+          "GLM baseline"
         ),
         summarise_one(cv_xg_features_cut7, "GLM + xG cut7"),
         summarise_one(cv_ranger_1x2_core, "Ranger core (Elo+goals+SoT)"),

@@ -4,7 +4,7 @@
 \alias{kelly_fraction}
 \title{Calculate fractional Kelly stake}
 \usage{
-kelly_fraction(prob_win, decimal_odds, fraction = 0.25)
+kelly_fraction(prob_win, decimal_odds, fraction = 0.25, max_stake_pct = 0.05)
 }
 \arguments{
 \item{prob_win}{Numeric. Model probability of winning the bet.}
@@ -23,10 +23,23 @@ by a fractional multiplier (default quarter Kelly).
 }
 \seealso{
 Other decisions: 
+\code{\link{ah_bets_from_preds}()},
 \code{\link{apply_guardrails}()},
+\code{\link{attach_clv}()},
+\code{\link{clv}},
+\code{\link{expanding_clv_window}()},
 \code{\link{find_value_bets}()},
 \code{\link{identify_value_bet}()},
+\code{\link{load_closing_ah_prices}()},
+\code{\link{oagd_backtest}},
+\code{\link{oagd_backtest_league}()},
+\code{\link{oagd_backtest_summary}()},
+\code{\link{oagd_edge}()},
+\code{\link{oagd_grid}()},
+\code{\link{oagd_pnl}()},
+\code{\link{oagd_stake}()},
 \code{\link{simulate_pnl}()},
+\code{\link{summarise_ah_clv}()},
 \code{\link{summarise_pnl}()}
 }
 \concept{decisions}
