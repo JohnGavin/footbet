@@ -145,8 +145,17 @@ to per-match bet selection.
 
 ```{r}
 #| echo: false
-#| eval: true
-fs::dir_tree(recurse = 2)
+#| output: asis
+# Filter via dir_ls()'s regexp/invert (fs::dir_tree forwards ...), NOT by
+# grepping the rendered lines: dir_tree prints children as bare indented
+# basenames, so a line filter drops the "_targets" header while leaving all
+# ~250 of its descendants ("│   ├── objects", "│   │   ├── ah_roi_per_team").
+tree <- capture.output(
+  fs::dir_tree(recurse = 2, regexp = "_targets", invert = TRUE)
+)
+cat("<details>\n<summary>Project structure (click to expand)</summary>\n\n```\n")
+cat(tree, sep = "\n")
+cat("\n```\n\n</details>\n")
 ```
 
 ## License
