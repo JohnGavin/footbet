@@ -14,6 +14,22 @@
 <meta name="description" content="Download, process, and model European football match data and sharp bookmaker odds (Pinnacle). Implements Poisson/Dixon-Coles models, Elo ratings, and Kelly-criterion staking for value betting on full-time and half-time outcomes.">
 <meta property="og:description" content="Download, process, and model European football match data and sharp bookmaker odds (Pinnacle). Implements Poisson/Dixon-Coles models, Elo ratings, and Kelly-criterion staking for value betting on full-time and half-time outcomes.">
 <script>localStorage.setItem('theme','dark');document.documentElement.setAttribute('data-bs-theme','dark');</script><link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&amp;display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script><script>
+  mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: 'loose',
+    theme: 'dark',
+    themeVariables: {
+      background: '#000000',
+      primaryColor: '#999999',
+      primaryTextColor: '#000000',
+      primaryBorderColor: '#CC0000',
+      lineColor: '#CC0000',
+      secondaryColor: '#333333',
+      tertiaryColor: '#333333'
+    }
+  });
+</script>
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -169,332 +185,973 @@
     end</code></pre>
 </div>
 <div class="section level2">
+<h2 id="walk-forward-ah-backtest-null-result">Walk-Forward AH Backtest: Null Result<a class="anchor" aria-label="anchor" href="#walk-forward-ah-backtest-null-result"></a>
+</h2>
+<p>A full walk-forward Asian Handicap backtest against Pinnacle prices across six seasons and four models (GLM, Ranger, xG-Kalman-Dixon-Coles, ensemble), with both flat and Kelly staking, did not find a profitable edge. Best ROI reached -5.4% after Kelly staking, per-league intercepts and Kalman σ tuning (see issues <a href="https://github.com/JohnGavin/footbet/issues/59" class="external-link">#59</a>, <a href="https://github.com/JohnGavin/footbet/issues/81" class="external-link">#81</a>, <a href="https://github.com/JohnGavin/footbet/issues/82" class="external-link">#82</a>). The xG-Kalman-DC stack was the second-best model at -7.3% before tuning.</p>
+<ul>
+<li>
+<strong>Detailed methodology, results and leaderboard</strong>: <a href="plans/MODEL_CATALOGUE.html"><code>plans/MODEL_CATALOGUE.md</code></a>
+</li>
+<li>
+<strong>Session-by-session lab notes and failed approaches</strong>: <a href="CHANGELOG.html"><code>CHANGELOG.md</code></a>
+</li>
+<li>
+<strong>Closing Line Value (CLV) diagnostic</strong>: <code>R/clv.R</code> — <code><a href="reference/load_closing_ah_prices.html">load_closing_ah_prices()</a></code>, <code><a href="reference/attach_clv.html">attach_clv()</a></code>, <code><a href="reference/summarise_clv.html">summarise_clv()</a></code>. See <code>plan_clv.R</code> for targets <code>oos_ah_clv_summary</code>, <code>oos_ah_{ranger,ensemble}_clv_summary</code>. CLV is the honest follow-up test to “no edge vs Pinnacle” — it disambiguates “model found nothing” from “model found something only softer books pay”.</li>
+<li>
+<strong>Kalman innovation logging</strong>: <code>kalman_strengths(..., record_innovations = TRUE)</code> returns standardised innovations <code>ε_t = (y_t - ŷ_t|t-1) / sqrt(S_t)</code> for regime-break diagnostics (manager changes, transfer shocks).</li>
+</ul>
+<p>Publishing a documented null result from a clean walk-forward backtest is rare in this space; the intent is that other projects attempting the same stack can calibrate expectations against these results rather than rediscovering them.</p>
+</div>
+<div class="section level2">
+<h2 id="positive-finding-xg-features-improve-calibration">Positive Finding: xG Features Improve Calibration<a class="anchor" aria-label="anchor" href="#positive-finding-xg-features-improve-calibration"></a>
+</h2>
+<p>While the AH bet family produces no edge, xG rolling features do reliably improve prediction quality over a goals-only Poisson GLM baseline in leak-corrected walk-forward CV (<a href="https://github.com/JohnGavin/footbet/issues/84" class="external-link">#84</a>):</p>
+<ul>
+<li>
+<strong>Log-loss</strong>: goals-only 1.07 → xG 1.00 (~6.5% improvement)</li>
+<li>
+<strong>Brier</strong>: 0.620 → 0.592 (~4.5%)</li>
+<li>
+<strong>RPS</strong>: 0.211 → 0.202 (~4.3%)</li>
+</ul>
+<p>The improvement survives the 7-day bet-time cutoff correction unchanged (cut0 vs cut7: log_loss 1.00 vs 1.00).</p>
+<p><strong>Per-league breakdown</strong> (log-loss improvement, cut7): EPL +1.6%, Serie A +1.6%, Bundesliga +1.3%, Ligue 1 +0.9%, La Liga +0.2%. All 5 leagues show improvement; none regress.</p>
+<p><strong>Model comparison on xG-era data</strong> (top-5 leagues, 2019–2025): GLM goals-only 1.018, Dixon-Coles 1.017, GLM+xG 1.003. Dixon-Coles barely beats GLM on goals alone; xG features provide a larger gain than the DC low-score correction.</p>
+<p><strong>Brier decomposition</strong>: xG improves resolution (0.019 vs 0.019) while maintaining identical reliability (~0.0006). The gain is in sharpness (more decisive predictions), not better calibration. The xG advantage is real but too diffuse to overcome Pinnacle’s AH vig when translated to per-match bet selection.</p>
+</div>
+<div class="section level2">
 <h2 id="project-structure">Project Structure<a class="anchor" aria-label="anchor" href="#project-structure"></a>
 </h2>
-<div class="sourceCode" id="cb5"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>.</span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>├── DESCRIPTION</span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>├── LICENSE</span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>├── LICENSE.md</span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>├── NAMESPACE</span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>├── R</span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>│   ├── betting.R</span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>│   ├── data_download.R</span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>│   ├── data_fbref.R</span>
-<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>│   ├── data_parse.R</span>
-<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>│   ├── data_transfers.R</span>
-<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>│   ├── data_understat.R</span>
-<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>│   ├── data_validation.R</span>
-<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>│   ├── database.R</span>
-<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>│   ├── dev</span>
-<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a>│   │   └── issues</span>
-<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a>│   ├── devig.R</span>
-<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a>│   ├── diagrams.R</span>
-<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a>│   ├── features.R</span>
-<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a>│   ├── globals.R</span>
-<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a>│   ├── kelly.R</span>
-<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a>│   ├── models_baseline.R</span>
-<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a>│   ├── models_brms.R</span>
-<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a>│   ├── models_dc.R</span>
-<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a>│   ├── models_eval.R</span>
-<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a>│   ├── models_xgboost.R</span>
-<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a>│   ├── plot_theme.R</span>
-<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a>│   ├── simulation.R</span>
-<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a>│   ├── tar_plans</span>
-<span id="cb5-30"><a href="#cb5-30" tabindex="-1"></a>│   │   ├── plan_data_acquisition.R</span>
-<span id="cb5-31"><a href="#cb5-31" tabindex="-1"></a>│   │   ├── plan_data_validation.R</span>
-<span id="cb5-32"><a href="#cb5-32" tabindex="-1"></a>│   │   ├── plan_decisions.R</span>
-<span id="cb5-33"><a href="#cb5-33" tabindex="-1"></a>│   │   ├── plan_doc_examples.R</span>
-<span id="cb5-34"><a href="#cb5-34" tabindex="-1"></a>│   │   ├── plan_evaluation.R</span>
-<span id="cb5-35"><a href="#cb5-35" tabindex="-1"></a>│   │   ├── plan_features.R</span>
-<span id="cb5-36"><a href="#cb5-36" tabindex="-1"></a>│   │   ├── plan_models.R</span>
-<span id="cb5-37"><a href="#cb5-37" tabindex="-1"></a>│   │   ├── plan_models_brms.R</span>
-<span id="cb5-38"><a href="#cb5-38" tabindex="-1"></a>│   │   ├── plan_quality_control.R</span>
-<span id="cb5-39"><a href="#cb5-39" tabindex="-1"></a>│   │   ├── plan_transfers.R</span>
-<span id="cb5-40"><a href="#cb5-40" tabindex="-1"></a>│   │   ├── plan_vignette_outputs.R</span>
-<span id="cb5-41"><a href="#cb5-41" tabindex="-1"></a>│   │   └── plan_xg_features.R</span>
-<span id="cb5-42"><a href="#cb5-42" tabindex="-1"></a>│   └── utils.R</span>
-<span id="cb5-43"><a href="#cb5-43" tabindex="-1"></a>├── README.md</span>
-<span id="cb5-44"><a href="#cb5-44" tabindex="-1"></a>├── README.qmd</span>
-<span id="cb5-45"><a href="#cb5-45" tabindex="-1"></a>├── README.rmarkdown</span>
-<span id="cb5-46"><a href="#cb5-46" tabindex="-1"></a>├── _pkgdown.yml</span>
-<span id="cb5-47"><a href="#cb5-47" tabindex="-1"></a>├── _targets</span>
-<span id="cb5-48"><a href="#cb5-48" tabindex="-1"></a>│   ├── meta</span>
-<span id="cb5-49"><a href="#cb5-49" tabindex="-1"></a>│   │   ├── meta</span>
-<span id="cb5-50"><a href="#cb5-50" tabindex="-1"></a>│   │   ├── process</span>
-<span id="cb5-51"><a href="#cb5-51" tabindex="-1"></a>│   │   └── progress</span>
-<span id="cb5-52"><a href="#cb5-52" tabindex="-1"></a>│   ├── objects</span>
-<span id="cb5-53"><a href="#cb5-53" tabindex="-1"></a>│   │   ├── devigged_odds</span>
-<span id="cb5-54"><a href="#cb5-54" tabindex="-1"></a>│   │   ├── downloaded_files</span>
-<span id="cb5-55"><a href="#cb5-55" tabindex="-1"></a>│   │   ├── leagues</span>
-<span id="cb5-56"><a href="#cb5-56" tabindex="-1"></a>│   │   ├── matches_long</span>
-<span id="cb5-57"><a href="#cb5-57" tabindex="-1"></a>│   │   ├── parsed_matches</span>
-<span id="cb5-58"><a href="#cb5-58" tabindex="-1"></a>│   │   ├── parsed_odds</span>
-<span id="cb5-59"><a href="#cb5-59" tabindex="-1"></a>│   │   ├── pinnacle_benchmark</span>
-<span id="cb5-60"><a href="#cb5-60" tabindex="-1"></a>│   │   ├── qc_anomalies</span>
-<span id="cb5-61"><a href="#cb5-61" tabindex="-1"></a>│   │   ├── qc_match_completeness</span>
-<span id="cb5-62"><a href="#cb5-62" tabindex="-1"></a>│   │   ├── qc_pinnacle_coverage</span>
-<span id="cb5-63"><a href="#cb5-63" tabindex="-1"></a>│   │   ├── qc_summary</span>
-<span id="cb5-64"><a href="#cb5-64" tabindex="-1"></a>│   │   ├── readme_pipeline_mermaid</span>
-<span id="cb5-65"><a href="#cb5-65" tabindex="-1"></a>│   │   ├── rolling_10</span>
-<span id="cb5-66"><a href="#cb5-66" tabindex="-1"></a>│   │   ├── rolling_38</span>
-<span id="cb5-67"><a href="#cb5-67" tabindex="-1"></a>│   │   ├── rolling_5</span>
-<span id="cb5-68"><a href="#cb5-68" tabindex="-1"></a>│   │   ├── seasons</span>
-<span id="cb5-69"><a href="#cb5-69" tabindex="-1"></a>│   │   ├── vig_anomalies_table</span>
-<span id="cb5-70"><a href="#cb5-70" tabindex="-1"></a>│   │   ├── vig_completeness_plot</span>
-<span id="cb5-71"><a href="#cb5-71" tabindex="-1"></a>│   │   ├── vig_cv_html</span>
-<span id="cb5-72"><a href="#cb5-72" tabindex="-1"></a>│   │   ├── vig_data_source_summary</span>
-<span id="cb5-73"><a href="#cb5-73" tabindex="-1"></a>│   │   ├── vig_goals_distribution</span>
-<span id="cb5-74"><a href="#cb5-74" tabindex="-1"></a>│   │   ├── vig_goals_per_season_trend</span>
-<span id="cb5-75"><a href="#cb5-75" tabindex="-1"></a>│   │   ├── vig_home_advantage_by_league</span>
-<span id="cb5-76"><a href="#cb5-76" tabindex="-1"></a>│   │   ├── vig_home_trend_test</span>
-<span id="cb5-77"><a href="#cb5-77" tabindex="-1"></a>│   │   ├── vig_kelly_html</span>
-<span id="cb5-78"><a href="#cb5-78" tabindex="-1"></a>│   │   ├── vig_league_season_grid</span>
-<span id="cb5-79"><a href="#cb5-79" tabindex="-1"></a>│   │   ├── vig_matches_per_season_plot</span>
-<span id="cb5-80"><a href="#cb5-80" tabindex="-1"></a>│   │   ├── vig_missing_data_by_column</span>
-<span id="cb5-81"><a href="#cb5-81" tabindex="-1"></a>│   │   ├── vig_missing_data_heatmap</span>
-<span id="cb5-82"><a href="#cb5-82" tabindex="-1"></a>│   │   ├── vig_odds_columns_available</span>
-<span id="cb5-83"><a href="#cb5-83" tabindex="-1"></a>│   │   ├── vig_odds_vs_result</span>
-<span id="cb5-84"><a href="#cb5-84" tabindex="-1"></a>│   │   ├── vig_outlier_matches</span>
-<span id="cb5-85"><a href="#cb5-85" tabindex="-1"></a>│   │   ├── vig_overround_by_league</span>
-<span id="cb5-86"><a href="#cb5-86" tabindex="-1"></a>│   │   ├── vig_pinnacle_coverage_plot</span>
-<span id="cb5-87"><a href="#cb5-87" tabindex="-1"></a>│   │   ├── vig_pipeline_html</span>
-<span id="cb5-88"><a href="#cb5-88" tabindex="-1"></a>│   │   ├── vig_result_proportions</span>
-<span id="cb5-89"><a href="#cb5-89" tabindex="-1"></a>│   │   ├── vig_scoreline_heatmap</span>
-<span id="cb5-90"><a href="#cb5-90" tabindex="-1"></a>│   │   ├── vig_typical_match_stats</span>
-<span id="cb5-91"><a href="#cb5-91" tabindex="-1"></a>│   │   └── wf_splits</span>
-<span id="cb5-92"><a href="#cb5-92" tabindex="-1"></a>│   ├── user</span>
-<span id="cb5-93"><a href="#cb5-93" tabindex="-1"></a>│   └── workspaces</span>
-<span id="cb5-94"><a href="#cb5-94" tabindex="-1"></a>│       ├── dc_cv</span>
-<span id="cb5-95"><a href="#cb5-95" tabindex="-1"></a>│       ├── elo_ratings</span>
-<span id="cb5-96"><a href="#cb5-96" tabindex="-1"></a>│       ├── parsed_matches</span>
-<span id="cb5-97"><a href="#cb5-97" tabindex="-1"></a>│       ├── seasons</span>
-<span id="cb5-98"><a href="#cb5-98" tabindex="-1"></a>│       └── vig_poisson_test</span>
-<span id="cb5-99"><a href="#cb5-99" tabindex="-1"></a>├── _targets.R</span>
-<span id="cb5-100"><a href="#cb5-100" tabindex="-1"></a>├── _targets.yaml</span>
-<span id="cb5-101"><a href="#cb5-101" tabindex="-1"></a>├── default.R</span>
-<span id="cb5-102"><a href="#cb5-102" tabindex="-1"></a>├── default.nix</span>
-<span id="cb5-103"><a href="#cb5-103" tabindex="-1"></a>├── default.sh</span>
-<span id="cb5-104"><a href="#cb5-104" tabindex="-1"></a>├── inst</span>
-<span id="cb5-105"><a href="#cb5-105" tabindex="-1"></a>│   └── extdata</span>
-<span id="cb5-106"><a href="#cb5-106" tabindex="-1"></a>│       ├── parquet</span>
-<span id="cb5-107"><a href="#cb5-107" tabindex="-1"></a>│       ├── raw</span>
-<span id="cb5-108"><a href="#cb5-108" tabindex="-1"></a>│       └── vignettes</span>
-<span id="cb5-109"><a href="#cb5-109" tabindex="-1"></a>├── man</span>
-<span id="cb5-110"><a href="#cb5-110" tabindex="-1"></a>│   ├── acca_ev.Rd</span>
-<span id="cb5-111"><a href="#cb5-111" tabindex="-1"></a>│   ├── acca_odds.Rd</span>
-<span id="cb5-112"><a href="#cb5-112" tabindex="-1"></a>│   ├── accumulator_probability.Rd</span>
-<span id="cb5-113"><a href="#cb5-113" tabindex="-1"></a>│   ├── add_form_streaks.Rd</span>
-<span id="cb5-114"><a href="#cb5-114" tabindex="-1"></a>│   ├── add_h2h_features.Rd</span>
-<span id="cb5-115"><a href="#cb5-115" tabindex="-1"></a>│   ├── add_league_positions.Rd</span>
-<span id="cb5-116"><a href="#cb5-116" tabindex="-1"></a>│   ├── add_player_availability.Rd</span>
-<span id="cb5-117"><a href="#cb5-117" tabindex="-1"></a>│   ├── add_ratio_features.Rd</span>
-<span id="cb5-118"><a href="#cb5-118" tabindex="-1"></a>│   ├── add_rest_days.Rd</span>
-<span id="cb5-119"><a href="#cb5-119" tabindex="-1"></a>│   ├── add_time_slider.Rd</span>
-<span id="cb5-120"><a href="#cb5-120" tabindex="-1"></a>│   ├── add_understat_xg.Rd</span>
-<span id="cb5-121"><a href="#cb5-121" tabindex="-1"></a>│   ├── adjust_for_league_strength.Rd</span>
-<span id="cb5-122"><a href="#cb5-122" tabindex="-1"></a>│   ├── american_to_decimal.Rd</span>
-<span id="cb5-123"><a href="#cb5-123" tabindex="-1"></a>│   ├── analyze_steam_moves.Rd</span>
-<span id="cb5-124"><a href="#cb5-124" tabindex="-1"></a>│   ├── apply_guardrails.Rd</span>
-<span id="cb5-125"><a href="#cb5-125" tabindex="-1"></a>│   ├── bankroll_growth_target.Rd</span>
-<span id="cb5-126"><a href="#cb5-126" tabindex="-1"></a>│   ├── bet_returns.Rd</span>
-<span id="cb5-127"><a href="#cb5-127" tabindex="-1"></a>│   ├── betting_sharpe_ratio.Rd</span>
-<span id="cb5-128"><a href="#cb5-128" tabindex="-1"></a>│   ├── brier_1x2.Rd</span>
-<span id="cb5-129"><a href="#cb5-129" tabindex="-1"></a>│   ├── brier_decomposition.Rd</span>
-<span id="cb5-130"><a href="#cb5-130" tabindex="-1"></a>│   ├── brier_decomposition_1x2.Rd</span>
-<span id="cb5-131"><a href="#cb5-131" tabindex="-1"></a>│   ├── calc_overround.Rd</span>
-<span id="cb5-132"><a href="#cb5-132" tabindex="-1"></a>│   ├── closing_line_value.Rd</span>
-<span id="cb5-133"><a href="#cb5-133" tabindex="-1"></a>│   ├── clv_1x2.Rd</span>
-<span id="cb5-134"><a href="#cb5-134" tabindex="-1"></a>│   ├── compute_elo.Rd</span>
-<span id="cb5-135"><a href="#cb5-135" tabindex="-1"></a>│   ├── compute_ensemble_weights.Rd</span>
-<span id="cb5-136"><a href="#cb5-136" tabindex="-1"></a>│   ├── compute_gamestate_xg.Rd</span>
-<span id="cb5-137"><a href="#cb5-137" tabindex="-1"></a>│   ├── compute_meta_analytics.Rd</span>
-<span id="cb5-138"><a href="#cb5-138" tabindex="-1"></a>│   ├── compute_xg_features.Rd</span>
-<span id="cb5-139"><a href="#cb5-139" tabindex="-1"></a>│   ├── compute_xg_xag_composite.Rd</span>
-<span id="cb5-140"><a href="#cb5-140" tabindex="-1"></a>│   ├── connect_db.Rd</span>
-<span id="cb5-141"><a href="#cb5-141" tabindex="-1"></a>│   ├── convert_odds.Rd</span>
-<span id="cb5-142"><a href="#cb5-142" tabindex="-1"></a>│   ├── correct_score_value.Rd</span>
-<span id="cb5-143"><a href="#cb5-143" tabindex="-1"></a>│   ├── create_predictions_schema.Rd</span>
-<span id="cb5-144"><a href="#cb5-144" tabindex="-1"></a>│   ├── create_schema.Rd</span>
-<span id="cb5-145"><a href="#cb5-145" tabindex="-1"></a>│   ├── cumulative_xg_ratio.Rd</span>
-<span id="cb5-146"><a href="#cb5-146" tabindex="-1"></a>│   ├── cv_xgboost.Rd</span>
-<span id="cb5-147"><a href="#cb5-147" tabindex="-1"></a>│   ├── data_validation.Rd</span>
-<span id="cb5-148"><a href="#cb5-148" tabindex="-1"></a>│   ├── decimal_to_american.Rd</span>
-<span id="cb5-149"><a href="#cb5-149" tabindex="-1"></a>│   ├── decimal_to_fractional.Rd</span>
-<span id="cb5-150"><a href="#cb5-150" tabindex="-1"></a>│   ├── detect_flb.Rd</span>
-<span id="cb5-151"><a href="#cb5-151" tabindex="-1"></a>│   ├── devig_basic.Rd</span>
-<span id="cb5-152"><a href="#cb5-152" tabindex="-1"></a>│   ├── devig_odds.Rd</span>
-<span id="cb5-153"><a href="#cb5-153" tabindex="-1"></a>│   ├── devig_power.Rd</span>
-<span id="cb5-154"><a href="#cb5-154" tabindex="-1"></a>│   ├── devig_shin.Rd</span>
-<span id="cb5-155"><a href="#cb5-155" tabindex="-1"></a>│   ├── disconnect_db.Rd</span>
-<span id="cb5-156"><a href="#cb5-156" tabindex="-1"></a>│   ├── download_all_fd.Rd</span>
-<span id="cb5-157"><a href="#cb5-157" tabindex="-1"></a>│   ├── download_fd_csv.Rd</span>
-<span id="cb5-158"><a href="#cb5-158" tabindex="-1"></a>│   ├── empirical_bayes_shrink.Rd</span>
-<span id="cb5-159"><a href="#cb5-159" tabindex="-1"></a>│   ├── ensemble_predict.Rd</span>
-<span id="cb5-160"><a href="#cb5-160" tabindex="-1"></a>│   ├── estimate_league_strength.Rd</span>
-<span id="cb5-161"><a href="#cb5-161" tabindex="-1"></a>│   ├── evaluate_brms.Rd</span>
-<span id="cb5-162"><a href="#cb5-162" tabindex="-1"></a>│   ├── evaluate_dc.Rd</span>
-<span id="cb5-163"><a href="#cb5-163" tabindex="-1"></a>│   ├── evaluate_glm_baseline.Rd</span>
-<span id="cb5-164"><a href="#cb5-164" tabindex="-1"></a>│   ├── evaluate_xgboost.Rd</span>
-<span id="cb5-165"><a href="#cb5-165" tabindex="-1"></a>│   ├── fd_url.Rd</span>
-<span id="cb5-166"><a href="#cb5-166" tabindex="-1"></a>│   ├── fetch_fbref_all.Rd</span>
-<span id="cb5-167"><a href="#cb5-167" tabindex="-1"></a>│   ├── fetch_fbref_matches.Rd</span>
-<span id="cb5-168"><a href="#cb5-168" tabindex="-1"></a>│   ├── fetch_league_injuries.Rd</span>
-<span id="cb5-169"><a href="#cb5-169" tabindex="-1"></a>│   ├── fetch_league_suspensions.Rd</span>
-<span id="cb5-170"><a href="#cb5-170" tabindex="-1"></a>│   ├── fetch_league_transfers.Rd</span>
-<span id="cb5-171"><a href="#cb5-171" tabindex="-1"></a>│   ├── fetch_squad_values.Rd</span>
-<span id="cb5-172"><a href="#cb5-172" tabindex="-1"></a>│   ├── fetch_understat_xg.Rd</span>
-<span id="cb5-173"><a href="#cb5-173" tabindex="-1"></a>│   ├── find_best_accas.Rd</span>
-<span id="cb5-174"><a href="#cb5-174" tabindex="-1"></a>│   ├── find_value_bets.Rd</span>
-<span id="cb5-175"><a href="#cb5-175" tabindex="-1"></a>│   ├── first_reliable_matchday.Rd</span>
-<span id="cb5-176"><a href="#cb5-176" tabindex="-1"></a>│   ├── fit_brms_poisson.Rd</span>
-<span id="cb5-177"><a href="#cb5-177" tabindex="-1"></a>│   ├── fit_dixon_coles.Rd</span>
-<span id="cb5-178"><a href="#cb5-178" tabindex="-1"></a>│   ├── fit_isotonic_regression.Rd</span>
-<span id="cb5-179"><a href="#cb5-179" tabindex="-1"></a>│   ├── fit_platt_scaling.Rd</span>
-<span id="cb5-180"><a href="#cb5-180" tabindex="-1"></a>│   ├── fit_poisson_glm.Rd</span>
-<span id="cb5-181"><a href="#cb5-181" tabindex="-1"></a>│   ├── fit_xgboost.Rd</span>
-<span id="cb5-182"><a href="#cb5-182" tabindex="-1"></a>│   ├── footbet<span class="sc">-</span>package.Rd</span>
-<span id="cb5-183"><a href="#cb5-183" tabindex="-1"></a>│   ├── form_streak.Rd</span>
-<span id="cb5-184"><a href="#cb5-184" tabindex="-1"></a>│   ├── fractional_to_decimal.Rd</span>
-<span id="cb5-185"><a href="#cb5-185" tabindex="-1"></a>│   ├── generate_bias_alerts.Rd</span>
-<span id="cb5-186"><a href="#cb5-186" tabindex="-1"></a>│   ├── generate_cv_walkforward_mermaid.Rd</span>
-<span id="cb5-187"><a href="#cb5-187" tabindex="-1"></a>│   ├── generate_data_pipeline_mermaid.Rd</span>
-<span id="cb5-188"><a href="#cb5-188" tabindex="-1"></a>│   ├── generate_kelly_decision_mermaid.Rd</span>
-<span id="cb5-189"><a href="#cb5-189" tabindex="-1"></a>│   ├── h2h_record.Rd</span>
-<span id="cb5-190"><a href="#cb5-190" tabindex="-1"></a>│   ├── identify_value_bet.Rd</span>
-<span id="cb5-191"><a href="#cb5-191" tabindex="-1"></a>│   ├── importance_sample_rare.Rd</span>
-<span id="cb5-192"><a href="#cb5-192" tabindex="-1"></a>│   ├── insert_match_odds.Rd</span>
-<span id="cb5-193"><a href="#cb5-193" tabindex="-1"></a>│   ├── insert_matches.Rd</span>
-<span id="cb5-194"><a href="#cb5-194" tabindex="-1"></a>│   ├── insert_transfers.Rd</span>
-<span id="cb5-195"><a href="#cb5-195" tabindex="-1"></a>│   ├── join_understat_xg.Rd</span>
-<span id="cb5-196"><a href="#cb5-196" tabindex="-1"></a>│   ├── join_xg_to_matches.Rd</span>
-<span id="cb5-197"><a href="#cb5-197" tabindex="-1"></a>│   ├── joint_outcome_probability.Rd</span>
-<span id="cb5-198"><a href="#cb5-198" tabindex="-1"></a>│   ├── kelly_fraction.Rd</span>
-<span id="cb5-199"><a href="#cb5-199" tabindex="-1"></a>│   ├── key_players_unavailable.Rd</span>
-<span id="cb5-200"><a href="#cb5-200" tabindex="-1"></a>│   ├── league_table.Rd</span>
-<span id="cb5-201"><a href="#cb5-201" tabindex="-1"></a>│   ├── line_movement.Rd</span>
-<span id="cb5-202"><a href="#cb5-202" tabindex="-1"></a>│   ├── log_loss.Rd</span>
-<span id="cb5-203"><a href="#cb5-203" tabindex="-1"></a>│   ├── log_prediction.Rd</span>
-<span id="cb5-204"><a href="#cb5-204" tabindex="-1"></a>│   ├── log_predictions_batch.Rd</span>
-<span id="cb5-205"><a href="#cb5-205" tabindex="-1"></a>│   ├── make_match_id.Rd</span>
-<span id="cb5-206"><a href="#cb5-206" tabindex="-1"></a>│   ├── matches_to_long.Rd</span>
-<span id="cb5-207"><a href="#cb5-207" tabindex="-1"></a>│   ├── multi_kelly_stakes.Rd</span>
-<span id="cb5-208"><a href="#cb5-208" tabindex="-1"></a>│   ├── parse_fd_csv.Rd</span>
-<span id="cb5-209"><a href="#cb5-209" tabindex="-1"></a>│   ├── parse_fd_odds.Rd</span>
-<span id="cb5-210"><a href="#cb5-210" tabindex="-1"></a>│   ├── pinnacle_implied.Rd</span>
-<span id="cb5-211"><a href="#cb5-211" tabindex="-1"></a>│   ├── plot_dark_bar.Rd</span>
-<span id="cb5-212"><a href="#cb5-212" tabindex="-1"></a>│   ├── plot_dark_box.Rd</span>
-<span id="cb5-213"><a href="#cb5-213" tabindex="-1"></a>│   ├── plot_dark_heatmap.Rd</span>
-<span id="cb5-214"><a href="#cb5-214" tabindex="-1"></a>│   ├── plot_dark_line.Rd</span>
-<span id="cb5-215"><a href="#cb5-215" tabindex="-1"></a>│   ├── plot_xgb_importance.Rd</span>
-<span id="cb5-216"><a href="#cb5-216" tabindex="-1"></a>│   ├── predict_brms.Rd</span>
-<span id="cb5-217"><a href="#cb5-217" tabindex="-1"></a>│   ├── predict_correct_score.Rd</span>
-<span id="cb5-218"><a href="#cb5-218" tabindex="-1"></a>│   ├── predict_dc.Rd</span>
-<span id="cb5-219"><a href="#cb5-219" tabindex="-1"></a>│   ├── predict_glm.Rd</span>
-<span id="cb5-220"><a href="#cb5-220" tabindex="-1"></a>│   ├── predict_isotonic.Rd</span>
-<span id="cb5-221"><a href="#cb5-221" tabindex="-1"></a>│   ├── predict_matches_brms.Rd</span>
-<span id="cb5-222"><a href="#cb5-222" tabindex="-1"></a>│   ├── predict_matches_dc.Rd</span>
-<span id="cb5-223"><a href="#cb5-223" tabindex="-1"></a>│   ├── predict_matches_glm.Rd</span>
-<span id="cb5-224"><a href="#cb5-224" tabindex="-1"></a>│   ├── predict_matches_xgb.Rd</span>
-<span id="cb5-225"><a href="#cb5-225" tabindex="-1"></a>│   ├── predict_platt.Rd</span>
-<span id="cb5-226"><a href="#cb5-226" tabindex="-1"></a>│   ├── predict_xgboost.Rd</span>
-<span id="cb5-227"><a href="#cb5-227" tabindex="-1"></a>│   ├── prepare_xgb_features.Rd</span>
-<span id="cb5-228"><a href="#cb5-228" tabindex="-1"></a>│   ├── query_predictions.Rd</span>
-<span id="cb5-229"><a href="#cb5-229" tabindex="-1"></a>│   ├── ratio_normalize.Rd</span>
-<span id="cb5-230"><a href="#cb5-230" tabindex="-1"></a>│   ├── reliability_threshold.Rd</span>
-<span id="cb5-231"><a href="#cb5-231" tabindex="-1"></a>│   ├── rest_days.Rd</span>
-<span id="cb5-232"><a href="#cb5-232" tabindex="-1"></a>│   ├── rolling_goals.Rd</span>
-<span id="cb5-233"><a href="#cb5-233" tabindex="-1"></a>│   ├── rolling_xg.Rd</span>
-<span id="cb5-234"><a href="#cb5-234" tabindex="-1"></a>│   ├── rps_1x2.Rd</span>
-<span id="cb5-235"><a href="#cb5-235" tabindex="-1"></a>│   ├── score_matrix.Rd</span>
-<span id="cb5-236"><a href="#cb5-236" tabindex="-1"></a>│   ├── score_matrix_to_1x2.Rd</span>
-<span id="cb5-237"><a href="#cb5-237" tabindex="-1"></a>│   ├── score_matrix_to_ah.Rd</span>
-<span id="cb5-238"><a href="#cb5-238" tabindex="-1"></a>│   ├── score_matrix_to_ou.Rd</span>
-<span id="cb5-239"><a href="#cb5-239" tabindex="-1"></a>│   ├── score_probability.Rd</span>
-<span id="cb5-240"><a href="#cb5-240" tabindex="-1"></a>│   ├── shrink_team_strength.Rd</span>
-<span id="cb5-241"><a href="#cb5-241" tabindex="-1"></a>│   ├── simulate_bankroll_growth.Rd</span>
-<span id="cb5-242"><a href="#cb5-242" tabindex="-1"></a>│   ├── simulate_correlated_matches.Rd</span>
-<span id="cb5-243"><a href="#cb5-243" tabindex="-1"></a>│   ├── simulate_match_vr.Rd</span>
-<span id="cb5-244"><a href="#cb5-244" tabindex="-1"></a>│   ├── simulate_pnl.Rd</span>
-<span id="cb5-245"><a href="#cb5-245" tabindex="-1"></a>│   ├── simulation.Rd</span>
-<span id="cb5-246"><a href="#cb5-246" tabindex="-1"></a>│   ├── standard_league_strengths.Rd</span>
-<span id="cb5-247"><a href="#cb5-247" tabindex="-1"></a>│   ├── stat_discrimination.Rd</span>
-<span id="cb5-248"><a href="#cb5-248" tabindex="-1"></a>│   ├── stat_stability.Rd</span>
-<span id="cb5-249"><a href="#cb5-249" tabindex="-1"></a>│   ├── summarise_betting_performance.Rd</span>
-<span id="cb5-250"><a href="#cb5-250" tabindex="-1"></a>│   ├── summarise_clv.Rd</span>
-<span id="cb5-251"><a href="#cb5-251" tabindex="-1"></a>│   ├── summarise_cv.Rd</span>
-<span id="cb5-252"><a href="#cb5-252" tabindex="-1"></a>│   ├── summarise_pnl.Rd</span>
-<span id="cb5-253"><a href="#cb5-253" tabindex="-1"></a>│   ├── summarize_flb.Rd</span>
-<span id="cb5-254"><a href="#cb5-254" tabindex="-1"></a>│   ├── target_leagues.Rd</span>
-<span id="cb5-255"><a href="#cb5-255" tabindex="-1"></a>│   ├── target_seasons.Rd</span>
-<span id="cb5-256"><a href="#cb5-256" tabindex="-1"></a>│   ├── team_position.Rd</span>
-<span id="cb5-257"><a href="#cb5-257" tabindex="-1"></a>│   ├── theme_dark_plotly.Rd</span>
-<span id="cb5-258"><a href="#cb5-258" tabindex="-1"></a>│   ├── top_scorelines.Rd</span>
-<span id="cb5-259"><a href="#cb5-259" tabindex="-1"></a>│   ├── tune_xgboost.Rd</span>
-<span id="cb5-260"><a href="#cb5-260" tabindex="-1"></a>│   ├── understat_team_mapping.Rd</span>
-<span id="cb5-261"><a href="#cb5-261" tabindex="-1"></a>│   ├── update_prediction_outcome.Rd</span>
-<span id="cb5-262"><a href="#cb5-262" tabindex="-1"></a>│   ├── walk_forward_splits.Rd</span>
-<span id="cb5-263"><a href="#cb5-263" tabindex="-1"></a>│   ├── wrap_mermaid_fenced.Rd</span>
-<span id="cb5-264"><a href="#cb5-264" tabindex="-1"></a>│   ├── wrap_mermaid_html.Rd</span>
-<span id="cb5-265"><a href="#cb5-265" tabindex="-1"></a>│   ├── write_matches_parquet.Rd</span>
-<span id="cb5-266"><a href="#cb5-266" tabindex="-1"></a>│   ├── write_odds_parquet.Rd</span>
-<span id="cb5-267"><a href="#cb5-267" tabindex="-1"></a>│   └── xg_overperformance.Rd</span>
-<span id="cb5-268"><a href="#cb5-268" tabindex="-1"></a>├── package.nix</span>
-<span id="cb5-269"><a href="#cb5-269" tabindex="-1"></a>├── pkgdown</span>
-<span id="cb5-270"><a href="#cb5-270" tabindex="-1"></a>│   └── extra.css</span>
-<span id="cb5-271"><a href="#cb5-271" tabindex="-1"></a>├── plans</span>
-<span id="cb5-272"><a href="#cb5-272" tabindex="-1"></a>│   ├── PLAN_scaffold.md</span>
-<span id="cb5-273"><a href="#cb5-273" tabindex="-1"></a>│   └── PLAN_vignettes.md</span>
-<span id="cb5-274"><a href="#cb5-274" tabindex="-1"></a>├── push_to_cachix.sh</span>
-<span id="cb5-275"><a href="#cb5-275" tabindex="-1"></a>├── result</span>
-<span id="cb5-276"><a href="#cb5-276" tabindex="-1"></a>├── tests</span>
-<span id="cb5-277"><a href="#cb5-277" tabindex="-1"></a>│   ├── testthat</span>
-<span id="cb5-278"><a href="#cb5-278" tabindex="-1"></a>│   │   ├── _snaps</span>
-<span id="cb5-279"><a href="#cb5-279" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>data.R</span>
-<span id="cb5-280"><a href="#cb5-280" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>database.R</span>
-<span id="cb5-281"><a href="#cb5-281" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>dc.R</span>
-<span id="cb5-282"><a href="#cb5-282" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>devig.R</span>
-<span id="cb5-283"><a href="#cb5-283" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>features.R</span>
-<span id="cb5-284"><a href="#cb5-284" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>kelly.R</span>
-<span id="cb5-285"><a href="#cb5-285" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>models.R</span>
-<span id="cb5-286"><a href="#cb5-286" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>parse.R</span>
-<span id="cb5-287"><a href="#cb5-287" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>transfers.R</span>
-<span id="cb5-288"><a href="#cb5-288" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>utils.R</span>
-<span id="cb5-289"><a href="#cb5-289" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>betting<span class="sc">-</span>accumulators.R</span>
-<span id="cb5-290"><a href="#cb5-290" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>betting<span class="sc">-</span>advanced.R</span>
-<span id="cb5-291"><a href="#cb5-291" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>betting<span class="sc">-</span>kelly.R</span>
-<span id="cb5-292"><a href="#cb5-292" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>betting<span class="sc">-</span>performance.R</span>
-<span id="cb5-293"><a href="#cb5-293" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data<span class="sc">-</span>understat.R</span>
-<span id="cb5-294"><a href="#cb5-294" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data_download.R</span>
-<span id="cb5-295"><a href="#cb5-295" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data_fbref.R</span>
-<span id="cb5-296"><a href="#cb5-296" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data_parse.R</span>
-<span id="cb5-297"><a href="#cb5-297" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data_transfers.R</span>
-<span id="cb5-298"><a href="#cb5-298" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>database<span class="sc">-</span>predictions.R</span>
-<span id="cb5-299"><a href="#cb5-299" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>database.R</span>
-<span id="cb5-300"><a href="#cb5-300" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>devig.R</span>
-<span id="cb5-301"><a href="#cb5-301" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>form<span class="sc">-</span>streaks.R</span>
-<span id="cb5-302"><a href="#cb5-302" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>h2h.R</span>
-<span id="cb5-303"><a href="#cb5-303" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>league<span class="sc">-</span>position.R</span>
-<span id="cb5-304"><a href="#cb5-304" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>rest<span class="sc">-</span>days.R</span>
-<span id="cb5-305"><a href="#cb5-305" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>xg<span class="sc">-</span>advanced.R</span>
-<span id="cb5-306"><a href="#cb5-306" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features.R</span>
-<span id="cb5-307"><a href="#cb5-307" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>kelly.R</span>
-<span id="cb5-308"><a href="#cb5-308" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>clv.R</span>
-<span id="cb5-309"><a href="#cb5-309" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>correct<span class="sc">-</span>score.R</span>
-<span id="cb5-310"><a href="#cb5-310" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>ensemble.R</span>
-<span id="cb5-311"><a href="#cb5-311" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>eval<span class="sc">-</span>advanced.R</span>
-<span id="cb5-312"><a href="#cb5-312" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>xgboost.R</span>
-<span id="cb5-313"><a href="#cb5-313" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models_baseline.R</span>
-<span id="cb5-314"><a href="#cb5-314" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models_brms.R</span>
-<span id="cb5-315"><a href="#cb5-315" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models_dc.R</span>
-<span id="cb5-316"><a href="#cb5-316" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models_eval.R</span>
-<span id="cb5-317"><a href="#cb5-317" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>odds<span class="sc">-</span>conversion.R</span>
-<span id="cb5-318"><a href="#cb5-318" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>player<span class="sc">-</span>availability.R</span>
-<span id="cb5-319"><a href="#cb5-319" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>simulation.R</span>
-<span id="cb5-320"><a href="#cb5-320" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>utils.R</span>
-<span id="cb5-321"><a href="#cb5-321" tabindex="-1"></a>│   │   └── test<span class="sc">-</span>xg_features.R</span>
-<span id="cb5-322"><a href="#cb5-322" tabindex="-1"></a>│   └── testthat.R</span>
-<span id="cb5-323"><a href="#cb5-323" tabindex="-1"></a>└── vignettes</span>
-<span id="cb5-324"><a href="#cb5-324" tabindex="-1"></a>    └── football<span class="sc">-</span>analytics.qmd</span></code></pre></div>
+<details><summary>
+Project structure (click to expand)
+</summary><div class="sourceCode" id="cb5"><pre class="sourceCode R"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>.</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>├── CHANGELOG.md</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>├── CLAUDE.md</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>├── DESCRIPTION</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>├── LICENSE</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>├── LICENSE.md</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>├── NAMESPACE</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>├── NIX_SHELL_WORKAROUND.md</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>├── QUICK_START.md</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>├── R</span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>│   ├── backtest_oagd.R</span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>│   ├── betting.R</span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>│   ├── clv.R</span>
+<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a>│   ├── data_download.R</span>
+<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a>│   ├── data_fbref.R</span>
+<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a>│   ├── data_parse.R</span>
+<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a>│   ├── data_transfers.R</span>
+<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a>│   ├── data_understat.R</span>
+<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a>│   ├── data_validation.R</span>
+<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a>│   ├── database.R</span>
+<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a>│   ├── dev</span>
+<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a>│   │   └── issues</span>
+<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a>│   ├── devig.R</span>
+<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a>│   ├── diagrams.R</span>
+<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a>│   ├── features.R</span>
+<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a>│   ├── globals.R</span>
+<span id="cb5-27"><a href="#cb5-27" tabindex="-1"></a>│   ├── kelly.R</span>
+<span id="cb5-28"><a href="#cb5-28" tabindex="-1"></a>│   ├── leakage_fix.R</span>
+<span id="cb5-29"><a href="#cb5-29" tabindex="-1"></a>│   ├── model_kalman.R</span>
+<span id="cb5-30"><a href="#cb5-30" tabindex="-1"></a>│   ├── model_oagd.R</span>
+<span id="cb5-31"><a href="#cb5-31" tabindex="-1"></a>│   ├── model_predict.R</span>
+<span id="cb5-32"><a href="#cb5-32" tabindex="-1"></a>│   ├── models_baseline.R</span>
+<span id="cb5-33"><a href="#cb5-33" tabindex="-1"></a>│   ├── models_brms.R</span>
+<span id="cb5-34"><a href="#cb5-34" tabindex="-1"></a>│   ├── models_dc.R</span>
+<span id="cb5-35"><a href="#cb5-35" tabindex="-1"></a>│   ├── models_eval.R</span>
+<span id="cb5-36"><a href="#cb5-36" tabindex="-1"></a>│   ├── models_xgboost.R</span>
+<span id="cb5-37"><a href="#cb5-37" tabindex="-1"></a>│   ├── plot_theme.R</span>
+<span id="cb5-38"><a href="#cb5-38" tabindex="-1"></a>│   ├── setup_nix_libs.R</span>
+<span id="cb5-39"><a href="#cb5-39" tabindex="-1"></a>│   ├── simulation.R</span>
+<span id="cb5-40"><a href="#cb5-40" tabindex="-1"></a>│   ├── tar_plans</span>
+<span id="cb5-41"><a href="#cb5-41" tabindex="-1"></a>│   │   ├── plan_brms_1x2.R</span>
+<span id="cb5-42"><a href="#cb5-42" tabindex="-1"></a>│   │   ├── plan_clv.R</span>
+<span id="cb5-43"><a href="#cb5-43" tabindex="-1"></a>│   │   ├── plan_cutoff.R</span>
+<span id="cb5-44"><a href="#cb5-44" tabindex="-1"></a>│   │   ├── plan_data_acquisition.R</span>
+<span id="cb5-45"><a href="#cb5-45" tabindex="-1"></a>│   │   ├── plan_data_validation.R</span>
+<span id="cb5-46"><a href="#cb5-46" tabindex="-1"></a>│   │   ├── plan_decisions.R</span>
+<span id="cb5-47"><a href="#cb5-47" tabindex="-1"></a>│   │   ├── plan_doc_examples.R</span>
+<span id="cb5-48"><a href="#cb5-48" tabindex="-1"></a>│   │   ├── plan_evaluation.R</span>
+<span id="cb5-49"><a href="#cb5-49" tabindex="-1"></a>│   │   ├── plan_features.R</span>
+<span id="cb5-50"><a href="#cb5-50" tabindex="-1"></a>│   │   ├── plan_models.R</span>
+<span id="cb5-51"><a href="#cb5-51" tabindex="-1"></a>│   │   ├── plan_models_brms.R</span>
+<span id="cb5-52"><a href="#cb5-52" tabindex="-1"></a>│   │   ├── plan_oagd.R</span>
+<span id="cb5-53"><a href="#cb5-53" tabindex="-1"></a>│   │   ├── plan_oos.R</span>
+<span id="cb5-54"><a href="#cb5-54" tabindex="-1"></a>│   │   ├── plan_pkgctx.R</span>
+<span id="cb5-55"><a href="#cb5-55" tabindex="-1"></a>│   │   ├── plan_pkgdown.R</span>
+<span id="cb5-56"><a href="#cb5-56" tabindex="-1"></a>│   │   ├── plan_qa_gates.R</span>
+<span id="cb5-57"><a href="#cb5-57" tabindex="-1"></a>│   │   ├── plan_quality_control.R</span>
+<span id="cb5-58"><a href="#cb5-58" tabindex="-1"></a>│   │   ├── plan_ranger_1x2.R</span>
+<span id="cb5-59"><a href="#cb5-59" tabindex="-1"></a>│   │   ├── plan_transfers.R</span>
+<span id="cb5-60"><a href="#cb5-60" tabindex="-1"></a>│   │   ├── plan_vignette_outputs.R</span>
+<span id="cb5-61"><a href="#cb5-61" tabindex="-1"></a>│   │   ├── plan_xg_features.R</span>
+<span id="cb5-62"><a href="#cb5-62" tabindex="-1"></a>│   │   ├── plan_xgboost_1x2.R</span>
+<span id="cb5-63"><a href="#cb5-63" tabindex="-1"></a>│   │   └── plan_xgk.R</span>
+<span id="cb5-64"><a href="#cb5-64" tabindex="-1"></a>│   └── utils.R</span>
+<span id="cb5-65"><a href="#cb5-65" tabindex="-1"></a>├── README.md</span>
+<span id="cb5-66"><a href="#cb5-66" tabindex="-1"></a>├── README.qmd</span>
+<span id="cb5-67"><a href="#cb5-67" tabindex="-1"></a>├── README.rmarkdown</span>
+<span id="cb5-68"><a href="#cb5-68" tabindex="-1"></a>├── _pkgdown.yml</span>
+<span id="cb5-69"><a href="#cb5-69" tabindex="-1"></a>├── default.R</span>
+<span id="cb5-70"><a href="#cb5-70" tabindex="-1"></a>├── default.nix</span>
+<span id="cb5-71"><a href="#cb5-71" tabindex="-1"></a>├── default.sh</span>
+<span id="cb5-72"><a href="#cb5-72" tabindex="-1"></a>├── docs</span>
+<span id="cb5-73"><a href="#cb5-73" tabindex="-1"></a>│   ├── <span class="fl">404.</span>html</span>
+<span id="cb5-74"><a href="#cb5-74" tabindex="-1"></a>│   ├── <span class="fl">404.</span>md</span>
+<span id="cb5-75"><a href="#cb5-75" tabindex="-1"></a>│   ├── CHANGELOG.html</span>
+<span id="cb5-76"><a href="#cb5-76" tabindex="-1"></a>│   ├── CHANGELOG.md</span>
+<span id="cb5-77"><a href="#cb5-77" tabindex="-1"></a>│   ├── CLAUDE.html</span>
+<span id="cb5-78"><a href="#cb5-78" tabindex="-1"></a>│   ├── CLAUDE.md</span>
+<span id="cb5-79"><a href="#cb5-79" tabindex="-1"></a>│   ├── LICENSE<span class="sc">-</span>text.html</span>
+<span id="cb5-80"><a href="#cb5-80" tabindex="-1"></a>│   ├── LICENSE<span class="sc">-</span>text.md</span>
+<span id="cb5-81"><a href="#cb5-81" tabindex="-1"></a>│   ├── LICENSE.html</span>
+<span id="cb5-82"><a href="#cb5-82" tabindex="-1"></a>│   ├── LICENSE.md</span>
+<span id="cb5-83"><a href="#cb5-83" tabindex="-1"></a>│   ├── NIX_SHELL_WORKAROUND.html</span>
+<span id="cb5-84"><a href="#cb5-84" tabindex="-1"></a>│   ├── NIX_SHELL_WORKAROUND.md</span>
+<span id="cb5-85"><a href="#cb5-85" tabindex="-1"></a>│   ├── QUICK_START.html</span>
+<span id="cb5-86"><a href="#cb5-86" tabindex="-1"></a>│   ├── QUICK_START.md</span>
+<span id="cb5-87"><a href="#cb5-87" tabindex="-1"></a>│   ├── articles</span>
+<span id="cb5-88"><a href="#cb5-88" tabindex="-1"></a>│   │   ├── ah<span class="sc">-</span>backtest.html</span>
+<span id="cb5-89"><a href="#cb5-89" tabindex="-1"></a>│   │   ├── ah<span class="sc">-</span>backtest.md</span>
+<span id="cb5-90"><a href="#cb5-90" tabindex="-1"></a>│   │   ├── ah<span class="sc">-</span>backtest_files</span>
+<span id="cb5-91"><a href="#cb5-91" tabindex="-1"></a>│   │   ├── data<span class="sc">-</span>cleaning.html</span>
+<span id="cb5-92"><a href="#cb5-92" tabindex="-1"></a>│   │   ├── data<span class="sc">-</span>cleaning.md</span>
+<span id="cb5-93"><a href="#cb5-93" tabindex="-1"></a>│   │   ├── data<span class="sc">-</span>cleaning_files</span>
+<span id="cb5-94"><a href="#cb5-94" tabindex="-1"></a>│   │   ├── data<span class="sc">-</span>sources.html</span>
+<span id="cb5-95"><a href="#cb5-95" tabindex="-1"></a>│   │   ├── data<span class="sc">-</span>sources.md</span>
+<span id="cb5-96"><a href="#cb5-96" tabindex="-1"></a>│   │   ├── data<span class="sc">-</span>sources_files</span>
+<span id="cb5-97"><a href="#cb5-97" tabindex="-1"></a>│   │   ├── eda.html</span>
+<span id="cb5-98"><a href="#cb5-98" tabindex="-1"></a>│   │   ├── eda.md</span>
+<span id="cb5-99"><a href="#cb5-99" tabindex="-1"></a>│   │   ├── eda_files</span>
+<span id="cb5-100"><a href="#cb5-100" tabindex="-1"></a>│   │   ├── football<span class="sc">-</span>analytics.html</span>
+<span id="cb5-101"><a href="#cb5-101" tabindex="-1"></a>│   │   ├── football<span class="sc">-</span>analytics.md</span>
+<span id="cb5-102"><a href="#cb5-102" tabindex="-1"></a>│   │   ├── football<span class="sc">-</span>analytics_files</span>
+<span id="cb5-103"><a href="#cb5-103" tabindex="-1"></a>│   │   ├── glossary.html</span>
+<span id="cb5-104"><a href="#cb5-104" tabindex="-1"></a>│   │   ├── glossary.md</span>
+<span id="cb5-105"><a href="#cb5-105" tabindex="-1"></a>│   │   ├── glossary_files</span>
+<span id="cb5-106"><a href="#cb5-106" tabindex="-1"></a>│   │   ├── index.html</span>
+<span id="cb5-107"><a href="#cb5-107" tabindex="-1"></a>│   │   ├── index.md</span>
+<span id="cb5-108"><a href="#cb5-108" tabindex="-1"></a>│   │   ├── models<span class="sc">-</span>betting.html</span>
+<span id="cb5-109"><a href="#cb5-109" tabindex="-1"></a>│   │   └── models<span class="sc">-</span>betting_files</span>
+<span id="cb5-110"><a href="#cb5-110" tabindex="-1"></a>│   ├── authors.html</span>
+<span id="cb5-111"><a href="#cb5-111" tabindex="-1"></a>│   ├── authors.md</span>
+<span id="cb5-112"><a href="#cb5-112" tabindex="-1"></a>│   ├── deps</span>
+<span id="cb5-113"><a href="#cb5-113" tabindex="-1"></a>│   │   ├── bootstrap<span class="dv">-5</span>.<span class="fl">3.1</span></span>
+<span id="cb5-114"><a href="#cb5-114" tabindex="-1"></a>│   │   ├── bootstrap<span class="sc">-</span>toc<span class="dv">-1</span>.<span class="fl">0.1</span></span>
+<span id="cb5-115"><a href="#cb5-115" tabindex="-1"></a>│   │   ├── clipboard.js<span class="dv">-2</span>.<span class="fl">0.11</span></span>
+<span id="cb5-116"><a href="#cb5-116" tabindex="-1"></a>│   │   ├── data<span class="sc">-</span>deps.txt</span>
+<span id="cb5-117"><a href="#cb5-117" tabindex="-1"></a>│   │   ├── font<span class="sc">-</span>awesome<span class="dv">-6</span>.<span class="fl">5.2</span></span>
+<span id="cb5-118"><a href="#cb5-118" tabindex="-1"></a>│   │   ├── headroom<span class="dv">-0</span>.<span class="fl">11.0</span></span>
+<span id="cb5-119"><a href="#cb5-119" tabindex="-1"></a>│   │   ├── jquery<span class="dv">-3</span>.<span class="fl">6.0</span></span>
+<span id="cb5-120"><a href="#cb5-120" tabindex="-1"></a>│   │   └── search<span class="dv">-1</span>.<span class="fl">0.0</span></span>
+<span id="cb5-121"><a href="#cb5-121" tabindex="-1"></a>│   ├── extra.css</span>
+<span id="cb5-122"><a href="#cb5-122" tabindex="-1"></a>│   ├── extra.js</span>
+<span id="cb5-123"><a href="#cb5-123" tabindex="-1"></a>│   ├── index.html</span>
+<span id="cb5-124"><a href="#cb5-124" tabindex="-1"></a>│   ├── index.md</span>
+<span id="cb5-125"><a href="#cb5-125" tabindex="-1"></a>│   ├── katex<span class="sc">-</span>auto.js</span>
+<span id="cb5-126"><a href="#cb5-126" tabindex="-1"></a>│   ├── lightswitch.js</span>
+<span id="cb5-127"><a href="#cb5-127" tabindex="-1"></a>│   ├── link.svg</span>
+<span id="cb5-128"><a href="#cb5-128" tabindex="-1"></a>│   ├── llms.txt</span>
+<span id="cb5-129"><a href="#cb5-129" tabindex="-1"></a>│   ├── pkgdown.js</span>
+<span id="cb5-130"><a href="#cb5-130" tabindex="-1"></a>│   ├── pkgdown.yml</span>
+<span id="cb5-131"><a href="#cb5-131" tabindex="-1"></a>│   ├── reference</span>
+<span id="cb5-132"><a href="#cb5-132" tabindex="-1"></a>│   │   ├── COUNTRY_COLORS.html</span>
+<span id="cb5-133"><a href="#cb5-133" tabindex="-1"></a>│   │   ├── COUNTRY_COLORS.md</span>
+<span id="cb5-134"><a href="#cb5-134" tabindex="-1"></a>│   │   ├── TIER_COLORS.html</span>
+<span id="cb5-135"><a href="#cb5-135" tabindex="-1"></a>│   │   ├── TIER_COLORS.md</span>
+<span id="cb5-136"><a href="#cb5-136" tabindex="-1"></a>│   │   ├── acca_ev.html</span>
+<span id="cb5-137"><a href="#cb5-137" tabindex="-1"></a>│   │   ├── acca_ev.md</span>
+<span id="cb5-138"><a href="#cb5-138" tabindex="-1"></a>│   │   ├── acca_odds.html</span>
+<span id="cb5-139"><a href="#cb5-139" tabindex="-1"></a>│   │   ├── acca_odds.md</span>
+<span id="cb5-140"><a href="#cb5-140" tabindex="-1"></a>│   │   ├── accumulator_probability.html</span>
+<span id="cb5-141"><a href="#cb5-141" tabindex="-1"></a>│   │   ├── accumulator_probability.md</span>
+<span id="cb5-142"><a href="#cb5-142" tabindex="-1"></a>│   │   ├── add_form_scores.html</span>
+<span id="cb5-143"><a href="#cb5-143" tabindex="-1"></a>│   │   ├── add_form_scores.md</span>
+<span id="cb5-144"><a href="#cb5-144" tabindex="-1"></a>│   │   ├── add_form_streaks.html</span>
+<span id="cb5-145"><a href="#cb5-145" tabindex="-1"></a>│   │   ├── add_form_streaks.md</span>
+<span id="cb5-146"><a href="#cb5-146" tabindex="-1"></a>│   │   ├── add_h2h_features.html</span>
+<span id="cb5-147"><a href="#cb5-147" tabindex="-1"></a>│   │   ├── add_h2h_features.md</span>
+<span id="cb5-148"><a href="#cb5-148" tabindex="-1"></a>│   │   ├── add_league_metadata.html</span>
+<span id="cb5-149"><a href="#cb5-149" tabindex="-1"></a>│   │   ├── add_league_metadata.md</span>
+<span id="cb5-150"><a href="#cb5-150" tabindex="-1"></a>│   │   ├── add_league_positions.html</span>
+<span id="cb5-151"><a href="#cb5-151" tabindex="-1"></a>│   │   ├── add_league_positions.md</span>
+<span id="cb5-152"><a href="#cb5-152" tabindex="-1"></a>│   │   ├── add_matches_since.html</span>
+<span id="cb5-153"><a href="#cb5-153" tabindex="-1"></a>│   │   ├── add_matches_since.md</span>
+<span id="cb5-154"><a href="#cb5-154" tabindex="-1"></a>│   │   ├── add_player_availability.html</span>
+<span id="cb5-155"><a href="#cb5-155" tabindex="-1"></a>│   │   ├── add_player_availability.md</span>
+<span id="cb5-156"><a href="#cb5-156" tabindex="-1"></a>│   │   ├── add_ratio_features.html</span>
+<span id="cb5-157"><a href="#cb5-157" tabindex="-1"></a>│   │   ├── add_ratio_features.md</span>
+<span id="cb5-158"><a href="#cb5-158" tabindex="-1"></a>│   │   ├── add_rest_days.html</span>
+<span id="cb5-159"><a href="#cb5-159" tabindex="-1"></a>│   │   ├── add_rest_days.md</span>
+<span id="cb5-160"><a href="#cb5-160" tabindex="-1"></a>│   │   ├── add_time_slider.html</span>
+<span id="cb5-161"><a href="#cb5-161" tabindex="-1"></a>│   │   ├── add_time_slider.md</span>
+<span id="cb5-162"><a href="#cb5-162" tabindex="-1"></a>│   │   ├── add_understat_xg.html</span>
+<span id="cb5-163"><a href="#cb5-163" tabindex="-1"></a>│   │   ├── add_understat_xg.md</span>
+<span id="cb5-164"><a href="#cb5-164" tabindex="-1"></a>│   │   ├── adjust_for_league_strength.html</span>
+<span id="cb5-165"><a href="#cb5-165" tabindex="-1"></a>│   │   ├── adjust_for_league_strength.md</span>
+<span id="cb5-166"><a href="#cb5-166" tabindex="-1"></a>│   │   ├── ah_bets_from_preds.html</span>
+<span id="cb5-167"><a href="#cb5-167" tabindex="-1"></a>│   │   ├── ah_bets_from_preds.md</span>
+<span id="cb5-168"><a href="#cb5-168" tabindex="-1"></a>│   │   ├── american_to_decimal.html</span>
+<span id="cb5-169"><a href="#cb5-169" tabindex="-1"></a>│   │   ├── american_to_decimal.md</span>
+<span id="cb5-170"><a href="#cb5-170" tabindex="-1"></a>│   │   ├── analyze_steam_moves.html</span>
+<span id="cb5-171"><a href="#cb5-171" tabindex="-1"></a>│   │   ├── analyze_steam_moves.md</span>
+<span id="cb5-172"><a href="#cb5-172" tabindex="-1"></a>│   │   ├── apply_asof_cutoff.html</span>
+<span id="cb5-173"><a href="#cb5-173" tabindex="-1"></a>│   │   ├── apply_asof_cutoff.md</span>
+<span id="cb5-174"><a href="#cb5-174" tabindex="-1"></a>│   │   ├── apply_guardrails.html</span>
+<span id="cb5-175"><a href="#cb5-175" tabindex="-1"></a>│   │   ├── apply_guardrails.md</span>
+<span id="cb5-176"><a href="#cb5-176" tabindex="-1"></a>│   │   ├── attach_clv.html</span>
+<span id="cb5-177"><a href="#cb5-177" tabindex="-1"></a>│   │   ├── attach_clv.md</span>
+<span id="cb5-178"><a href="#cb5-178" tabindex="-1"></a>│   │   ├── bankroll_growth_target.html</span>
+<span id="cb5-179"><a href="#cb5-179" tabindex="-1"></a>│   │   ├── bankroll_growth_target.md</span>
+<span id="cb5-180"><a href="#cb5-180" tabindex="-1"></a>│   │   ├── bet_returns.html</span>
+<span id="cb5-181"><a href="#cb5-181" tabindex="-1"></a>│   │   ├── bet_returns.md</span>
+<span id="cb5-182"><a href="#cb5-182" tabindex="-1"></a>│   │   ├── betting_sharpe_ratio.html</span>
+<span id="cb5-183"><a href="#cb5-183" tabindex="-1"></a>│   │   ├── betting_sharpe_ratio.md</span>
+<span id="cb5-184"><a href="#cb5-184" tabindex="-1"></a>│   │   ├── blend_with_market.html</span>
+<span id="cb5-185"><a href="#cb5-185" tabindex="-1"></a>│   │   ├── blend_with_market.md</span>
+<span id="cb5-186"><a href="#cb5-186" tabindex="-1"></a>│   │   ├── brier_1x2.html</span>
+<span id="cb5-187"><a href="#cb5-187" tabindex="-1"></a>│   │   ├── brier_1x2.md</span>
+<span id="cb5-188"><a href="#cb5-188" tabindex="-1"></a>│   │   ├── brier_decomposition.html</span>
+<span id="cb5-189"><a href="#cb5-189" tabindex="-1"></a>│   │   ├── brier_decomposition.md</span>
+<span id="cb5-190"><a href="#cb5-190" tabindex="-1"></a>│   │   ├── brier_decomposition_1x2.html</span>
+<span id="cb5-191"><a href="#cb5-191" tabindex="-1"></a>│   │   ├── brier_decomposition_1x2.md</span>
+<span id="cb5-192"><a href="#cb5-192" tabindex="-1"></a>│   │   ├── brms_ah_ci.html</span>
+<span id="cb5-193"><a href="#cb5-193" tabindex="-1"></a>│   │   ├── brms_ah_ci.md</span>
+<span id="cb5-194"><a href="#cb5-194" tabindex="-1"></a>│   │   ├── brms_converged.html</span>
+<span id="cb5-195"><a href="#cb5-195" tabindex="-1"></a>│   │   ├── brms_converged.md</span>
+<span id="cb5-196"><a href="#cb5-196" tabindex="-1"></a>│   │   ├── brms_diagnostics.html</span>
+<span id="cb5-197"><a href="#cb5-197" tabindex="-1"></a>│   │   ├── brms_diagnostics.md</span>
+<span id="cb5-198"><a href="#cb5-198" tabindex="-1"></a>│   │   ├── brms_loo.html</span>
+<span id="cb5-199"><a href="#cb5-199" tabindex="-1"></a>│   │   ├── brms_loo.md</span>
+<span id="cb5-200"><a href="#cb5-200" tabindex="-1"></a>│   │   ├── brms_r2.html</span>
+<span id="cb5-201"><a href="#cb5-201" tabindex="-1"></a>│   │   ├── brms_r2.md</span>
+<span id="cb5-202"><a href="#cb5-202" tabindex="-1"></a>│   │   ├── brms_waic.html</span>
+<span id="cb5-203"><a href="#cb5-203" tabindex="-1"></a>│   │   ├── brms_waic.md</span>
+<span id="cb5-204"><a href="#cb5-204" tabindex="-1"></a>│   │   ├── calc_overround.html</span>
+<span id="cb5-205"><a href="#cb5-205" tabindex="-1"></a>│   │   ├── calc_overround.md</span>
+<span id="cb5-206"><a href="#cb5-206" tabindex="-1"></a>│   │   ├── closing_line_value.html</span>
+<span id="cb5-207"><a href="#cb5-207" tabindex="-1"></a>│   │   ├── closing_line_value.md</span>
+<span id="cb5-208"><a href="#cb5-208" tabindex="-1"></a>│   │   ├── clv.html</span>
+<span id="cb5-209"><a href="#cb5-209" tabindex="-1"></a>│   │   ├── clv.md</span>
+<span id="cb5-210"><a href="#cb5-210" tabindex="-1"></a>│   │   ├── clv_1x2.html</span>
+<span id="cb5-211"><a href="#cb5-211" tabindex="-1"></a>│   │   ├── clv_1x2.md</span>
+<span id="cb5-212"><a href="#cb5-212" tabindex="-1"></a>│   │   ├── collect_fold_predictions.html</span>
+<span id="cb5-213"><a href="#cb5-213" tabindex="-1"></a>│   │   ├── collect_fold_predictions.md</span>
+<span id="cb5-214"><a href="#cb5-214" tabindex="-1"></a>│   │   ├── collect_fold_predictions_single.html</span>
+<span id="cb5-215"><a href="#cb5-215" tabindex="-1"></a>│   │   ├── collect_fold_predictions_single.md</span>
+<span id="cb5-216"><a href="#cb5-216" tabindex="-1"></a>│   │   ├── compute_elo.html</span>
+<span id="cb5-217"><a href="#cb5-217" tabindex="-1"></a>│   │   ├── compute_elo.md</span>
+<span id="cb5-218"><a href="#cb5-218" tabindex="-1"></a>│   │   ├── compute_ensemble_weights.html</span>
+<span id="cb5-219"><a href="#cb5-219" tabindex="-1"></a>│   │   ├── compute_ensemble_weights.md</span>
+<span id="cb5-220"><a href="#cb5-220" tabindex="-1"></a>│   │   ├── compute_gamestate_xg.html</span>
+<span id="cb5-221"><a href="#cb5-221" tabindex="-1"></a>│   │   ├── compute_gamestate_xg.md</span>
+<span id="cb5-222"><a href="#cb5-222" tabindex="-1"></a>│   │   ├── compute_matches_since.html</span>
+<span id="cb5-223"><a href="#cb5-223" tabindex="-1"></a>│   │   ├── compute_matches_since.md</span>
+<span id="cb5-224"><a href="#cb5-224" tabindex="-1"></a>│   │   ├── compute_meta_analytics.html</span>
+<span id="cb5-225"><a href="#cb5-225" tabindex="-1"></a>│   │   ├── compute_meta_analytics.md</span>
+<span id="cb5-226"><a href="#cb5-226" tabindex="-1"></a>│   │   ├── compute_rest_days.html</span>
+<span id="cb5-227"><a href="#cb5-227" tabindex="-1"></a>│   │   ├── compute_rest_days.md</span>
+<span id="cb5-228"><a href="#cb5-228" tabindex="-1"></a>│   │   ├── compute_shot_quality.html</span>
+<span id="cb5-229"><a href="#cb5-229" tabindex="-1"></a>│   │   ├── compute_shot_quality.md</span>
+<span id="cb5-230"><a href="#cb5-230" tabindex="-1"></a>│   │   ├── compute_xg_features.html</span>
+<span id="cb5-231"><a href="#cb5-231" tabindex="-1"></a>│   │   ├── compute_xg_features.md</span>
+<span id="cb5-232"><a href="#cb5-232" tabindex="-1"></a>│   │   ├── compute_xg_xag_composite.html</span>
+<span id="cb5-233"><a href="#cb5-233" tabindex="-1"></a>│   │   ├── compute_xg_xag_composite.md</span>
+<span id="cb5-234"><a href="#cb5-234" tabindex="-1"></a>│   │   ├── connect_db.html</span>
+<span id="cb5-235"><a href="#cb5-235" tabindex="-1"></a>│   │   ├── connect_db.md</span>
+<span id="cb5-236"><a href="#cb5-236" tabindex="-1"></a>│   │   ├── consensus_implied.html</span>
+<span id="cb5-237"><a href="#cb5-237" tabindex="-1"></a>│   │   ├── consensus_implied.md</span>
+<span id="cb5-238"><a href="#cb5-238" tabindex="-1"></a>│   │   ├── convert_odds.html</span>
+<span id="cb5-239"><a href="#cb5-239" tabindex="-1"></a>│   │   ├── convert_odds.md</span>
+<span id="cb5-240"><a href="#cb5-240" tabindex="-1"></a>│   │   ├── correct_score_value.html</span>
+<span id="cb5-241"><a href="#cb5-241" tabindex="-1"></a>│   │   ├── correct_score_value.md</span>
+<span id="cb5-242"><a href="#cb5-242" tabindex="-1"></a>│   │   ├── create_predictions_schema.html</span>
+<span id="cb5-243"><a href="#cb5-243" tabindex="-1"></a>│   │   ├── create_predictions_schema.md</span>
+<span id="cb5-244"><a href="#cb5-244" tabindex="-1"></a>│   │   ├── create_schema.html</span>
+<span id="cb5-245"><a href="#cb5-245" tabindex="-1"></a>│   │   ├── create_schema.md</span>
+<span id="cb5-246"><a href="#cb5-246" tabindex="-1"></a>│   │   ├── cumulative_xg_ratio.html</span>
+<span id="cb5-247"><a href="#cb5-247" tabindex="-1"></a>│   │   ├── cumulative_xg_ratio.md</span>
+<span id="cb5-248"><a href="#cb5-248" tabindex="-1"></a>│   │   ├── cv_xgboost.html</span>
+<span id="cb5-249"><a href="#cb5-249" tabindex="-1"></a>│   │   ├── cv_xgboost.md</span>
+<span id="cb5-250"><a href="#cb5-250" tabindex="-1"></a>│   │   ├── data_validation.html</span>
+<span id="cb5-251"><a href="#cb5-251" tabindex="-1"></a>│   │   ├── data_validation.md</span>
+<span id="cb5-252"><a href="#cb5-252" tabindex="-1"></a>│   │   ├── dc_score_matrix.html</span>
+<span id="cb5-253"><a href="#cb5-253" tabindex="-1"></a>│   │   ├── dc_score_matrix.md</span>
+<span id="cb5-254"><a href="#cb5-254" tabindex="-1"></a>│   │   ├── dc_tau.html</span>
+<span id="cb5-255"><a href="#cb5-255" tabindex="-1"></a>│   │   ├── dc_tau.md</span>
+<span id="cb5-256"><a href="#cb5-256" tabindex="-1"></a>│   │   ├── decimal_to_american.html</span>
+<span id="cb5-257"><a href="#cb5-257" tabindex="-1"></a>│   │   ├── decimal_to_american.md</span>
+<span id="cb5-258"><a href="#cb5-258" tabindex="-1"></a>│   │   ├── decimal_to_fractional.html</span>
+<span id="cb5-259"><a href="#cb5-259" tabindex="-1"></a>│   │   ├── decimal_to_fractional.md</span>
+<span id="cb5-260"><a href="#cb5-260" tabindex="-1"></a>│   │   ├── detect_flb.html</span>
+<span id="cb5-261"><a href="#cb5-261" tabindex="-1"></a>│   │   ├── detect_flb.md</span>
+<span id="cb5-262"><a href="#cb5-262" tabindex="-1"></a>│   │   ├── devig_basic.html</span>
+<span id="cb5-263"><a href="#cb5-263" tabindex="-1"></a>│   │   ├── devig_basic.md</span>
+<span id="cb5-264"><a href="#cb5-264" tabindex="-1"></a>│   │   ├── devig_odds.html</span>
+<span id="cb5-265"><a href="#cb5-265" tabindex="-1"></a>│   │   ├── devig_odds.md</span>
+<span id="cb5-266"><a href="#cb5-266" tabindex="-1"></a>│   │   ├── devig_power.html</span>
+<span id="cb5-267"><a href="#cb5-267" tabindex="-1"></a>│   │   ├── devig_power.md</span>
+<span id="cb5-268"><a href="#cb5-268" tabindex="-1"></a>│   │   ├── devig_shin.html</span>
+<span id="cb5-269"><a href="#cb5-269" tabindex="-1"></a>│   │   ├── devig_shin.md</span>
+<span id="cb5-270"><a href="#cb5-270" tabindex="-1"></a>│   │   ├── disconnect_db.html</span>
+<span id="cb5-271"><a href="#cb5-271" tabindex="-1"></a>│   │   ├── disconnect_db.md</span>
+<span id="cb5-272"><a href="#cb5-272" tabindex="-1"></a>│   │   ├── download_all_fd.html</span>
+<span id="cb5-273"><a href="#cb5-273" tabindex="-1"></a>│   │   ├── download_all_fd.md</span>
+<span id="cb5-274"><a href="#cb5-274" tabindex="-1"></a>│   │   ├── download_fd_csv.html</span>
+<span id="cb5-275"><a href="#cb5-275" tabindex="-1"></a>│   │   ├── download_fd_csv.md</span>
+<span id="cb5-276"><a href="#cb5-276" tabindex="-1"></a>│   │   ├── dskellam.html</span>
+<span id="cb5-277"><a href="#cb5-277" tabindex="-1"></a>│   │   ├── dskellam.md</span>
+<span id="cb5-278"><a href="#cb5-278" tabindex="-1"></a>│   │   ├── edge_credible_interval.html</span>
+<span id="cb5-279"><a href="#cb5-279" tabindex="-1"></a>│   │   ├── edge_credible_interval.md</span>
+<span id="cb5-280"><a href="#cb5-280" tabindex="-1"></a>│   │   ├── empirical_bayes_shrink.html</span>
+<span id="cb5-281"><a href="#cb5-281" tabindex="-1"></a>│   │   ├── empirical_bayes_shrink.md</span>
+<span id="cb5-282"><a href="#cb5-282" tabindex="-1"></a>│   │   ├── ensemble_predict.html</span>
+<span id="cb5-283"><a href="#cb5-283" tabindex="-1"></a>│   │   ├── ensemble_predict.md</span>
+<span id="cb5-284"><a href="#cb5-284" tabindex="-1"></a>│   │   ├── estimate_league_strength.html</span>
+<span id="cb5-285"><a href="#cb5-285" tabindex="-1"></a>│   │   ├── estimate_league_strength.md</span>
+<span id="cb5-286"><a href="#cb5-286" tabindex="-1"></a>│   │   ├── evaluate_brms.html</span>
+<span id="cb5-287"><a href="#cb5-287" tabindex="-1"></a>│   │   ├── evaluate_brms.md</span>
+<span id="cb5-288"><a href="#cb5-288" tabindex="-1"></a>│   │   ├── evaluate_dc.html</span>
+<span id="cb5-289"><a href="#cb5-289" tabindex="-1"></a>│   │   ├── evaluate_dc.md</span>
+<span id="cb5-290"><a href="#cb5-290" tabindex="-1"></a>│   │   ├── evaluate_glm_baseline.html</span>
+<span id="cb5-291"><a href="#cb5-291" tabindex="-1"></a>│   │   ├── evaluate_glm_baseline.md</span>
+<span id="cb5-292"><a href="#cb5-292" tabindex="-1"></a>│   │   ├── evaluate_glm_baseline_single.html</span>
+<span id="cb5-293"><a href="#cb5-293" tabindex="-1"></a>│   │   ├── evaluate_glm_baseline_single.md</span>
+<span id="cb5-294"><a href="#cb5-294" tabindex="-1"></a>│   │   ├── evaluate_market_baselines.html</span>
+<span id="cb5-295"><a href="#cb5-295" tabindex="-1"></a>│   │   ├── evaluate_market_baselines.md</span>
+<span id="cb5-296"><a href="#cb5-296" tabindex="-1"></a>│   │   ├── evaluate_xgboost.html</span>
+<span id="cb5-297"><a href="#cb5-297" tabindex="-1"></a>│   │   ├── evaluate_xgboost.md</span>
+<span id="cb5-298"><a href="#cb5-298" tabindex="-1"></a>│   │   ├── expanding_clv_window.html</span>
+<span id="cb5-299"><a href="#cb5-299" tabindex="-1"></a>│   │   ├── expanding_clv_window.md</span>
+<span id="cb5-300"><a href="#cb5-300" tabindex="-1"></a>│   │   ├── fd_url.html</span>
+<span id="cb5-301"><a href="#cb5-301" tabindex="-1"></a>│   │   ├── fd_url.md</span>
+<span id="cb5-302"><a href="#cb5-302" tabindex="-1"></a>│   │   ├── fetch_fbref_advanced_all.html</span>
+<span id="cb5-303"><a href="#cb5-303" tabindex="-1"></a>│   │   ├── fetch_fbref_advanced_all.md</span>
+<span id="cb5-304"><a href="#cb5-304" tabindex="-1"></a>│   │   ├── fetch_fbref_all.html</span>
+<span id="cb5-305"><a href="#cb5-305" tabindex="-1"></a>│   │   ├── fetch_fbref_all.md</span>
+<span id="cb5-306"><a href="#cb5-306" tabindex="-1"></a>│   │   ├── fetch_fbref_matches.html</span>
+<span id="cb5-307"><a href="#cb5-307" tabindex="-1"></a>│   │   ├── fetch_fbref_matches.md</span>
+<span id="cb5-308"><a href="#cb5-308" tabindex="-1"></a>│   │   ├── fetch_fbref_season_stats.html</span>
+<span id="cb5-309"><a href="#cb5-309" tabindex="-1"></a>│   │   ├── fetch_fbref_season_stats.md</span>
+<span id="cb5-310"><a href="#cb5-310" tabindex="-1"></a>│   │   ├── fetch_fbref_team_match_logs.html</span>
+<span id="cb5-311"><a href="#cb5-311" tabindex="-1"></a>│   │   ├── fetch_fbref_team_match_logs.md</span>
+<span id="cb5-312"><a href="#cb5-312" tabindex="-1"></a>│   │   ├── fetch_league_injuries.html</span>
+<span id="cb5-313"><a href="#cb5-313" tabindex="-1"></a>│   │   ├── fetch_league_injuries.md</span>
+<span id="cb5-314"><a href="#cb5-314" tabindex="-1"></a>│   │   ├── fetch_league_suspensions.html</span>
+<span id="cb5-315"><a href="#cb5-315" tabindex="-1"></a>│   │   ├── fetch_league_suspensions.md</span>
+<span id="cb5-316"><a href="#cb5-316" tabindex="-1"></a>│   │   ├── fetch_league_transfers.html</span>
+<span id="cb5-317"><a href="#cb5-317" tabindex="-1"></a>│   │   ├── fetch_league_transfers.md</span>
+<span id="cb5-318"><a href="#cb5-318" tabindex="-1"></a>│   │   ├── fetch_squad_values.html</span>
+<span id="cb5-319"><a href="#cb5-319" tabindex="-1"></a>│   │   ├── fetch_squad_values.md</span>
+<span id="cb5-320"><a href="#cb5-320" tabindex="-1"></a>│   │   ├── fetch_understat_xg.html</span>
+<span id="cb5-321"><a href="#cb5-321" tabindex="-1"></a>│   │   ├── fetch_understat_xg.md</span>
+<span id="cb5-322"><a href="#cb5-322" tabindex="-1"></a>│   │   ├── find_best_accas.html</span>
+<span id="cb5-323"><a href="#cb5-323" tabindex="-1"></a>│   │   ├── find_best_accas.md</span>
+<span id="cb5-324"><a href="#cb5-324" tabindex="-1"></a>│   │   ├── find_value_bets.html</span>
+<span id="cb5-325"><a href="#cb5-325" tabindex="-1"></a>│   │   ├── find_value_bets.md</span>
+<span id="cb5-326"><a href="#cb5-326" tabindex="-1"></a>│   │   ├── first_reliable_matchday.html</span>
+<span id="cb5-327"><a href="#cb5-327" tabindex="-1"></a>│   │   ├── first_reliable_matchday.md</span>
+<span id="cb5-328"><a href="#cb5-328" tabindex="-1"></a>│   │   ├── fit_brms_poisson.html</span>
+<span id="cb5-329"><a href="#cb5-329" tabindex="-1"></a>│   │   ├── fit_brms_poisson.md</span>
+<span id="cb5-330"><a href="#cb5-330" tabindex="-1"></a>│   │   ├── fit_dixon_coles.html</span>
+<span id="cb5-331"><a href="#cb5-331" tabindex="-1"></a>│   │   ├── fit_dixon_coles.md</span>
+<span id="cb5-332"><a href="#cb5-332" tabindex="-1"></a>│   │   ├── fit_isotonic_regression.html</span>
+<span id="cb5-333"><a href="#cb5-333" tabindex="-1"></a>│   │   ├── fit_isotonic_regression.md</span>
+<span id="cb5-334"><a href="#cb5-334" tabindex="-1"></a>│   │   ├── fit_platt_scaling.html</span>
+<span id="cb5-335"><a href="#cb5-335" tabindex="-1"></a>│   │   ├── fit_platt_scaling.md</span>
+<span id="cb5-336"><a href="#cb5-336" tabindex="-1"></a>│   │   ├── fit_poisson_glm.html</span>
+<span id="cb5-337"><a href="#cb5-337" tabindex="-1"></a>│   │   ├── fit_poisson_glm.md</span>
+<span id="cb5-338"><a href="#cb5-338" tabindex="-1"></a>│   │   ├── fit_xgboost.html</span>
+<span id="cb5-339"><a href="#cb5-339" tabindex="-1"></a>│   │   ├── fit_xgboost.md</span>
+<span id="cb5-340"><a href="#cb5-340" tabindex="-1"></a>│   │   ├── footbet<span class="sc">-</span>package.html</span>
+<span id="cb5-341"><a href="#cb5-341" tabindex="-1"></a>│   │   ├── footbet<span class="sc">-</span>package.md</span>
+<span id="cb5-342"><a href="#cb5-342" tabindex="-1"></a>│   │   ├── footbet.html</span>
+<span id="cb5-343"><a href="#cb5-343" tabindex="-1"></a>│   │   ├── form_streak.html</span>
+<span id="cb5-344"><a href="#cb5-344" tabindex="-1"></a>│   │   ├── form_streak.md</span>
+<span id="cb5-345"><a href="#cb5-345" tabindex="-1"></a>│   │   ├── fractional_to_decimal.html</span>
+<span id="cb5-346"><a href="#cb5-346" tabindex="-1"></a>│   │   ├── fractional_to_decimal.md</span>
+<span id="cb5-347"><a href="#cb5-347" tabindex="-1"></a>│   │   ├── generate_bias_alerts.html</span>
+<span id="cb5-348"><a href="#cb5-348" tabindex="-1"></a>│   │   ├── generate_bias_alerts.md</span>
+<span id="cb5-349"><a href="#cb5-349" tabindex="-1"></a>│   │   ├── generate_cv_walkforward_mermaid.html</span>
+<span id="cb5-350"><a href="#cb5-350" tabindex="-1"></a>│   │   ├── generate_cv_walkforward_mermaid.md</span>
+<span id="cb5-351"><a href="#cb5-351" tabindex="-1"></a>│   │   ├── generate_data_pipeline_mermaid.html</span>
+<span id="cb5-352"><a href="#cb5-352" tabindex="-1"></a>│   │   ├── generate_data_pipeline_mermaid.md</span>
+<span id="cb5-353"><a href="#cb5-353" tabindex="-1"></a>│   │   ├── generate_kelly_decision_mermaid.html</span>
+<span id="cb5-354"><a href="#cb5-354" tabindex="-1"></a>│   │   ├── generate_kelly_decision_mermaid.md</span>
+<span id="cb5-355"><a href="#cb5-355" tabindex="-1"></a>│   │   ├── h2h_record.html</span>
+<span id="cb5-356"><a href="#cb5-356" tabindex="-1"></a>│   │   ├── h2h_record.md</span>
+<span id="cb5-357"><a href="#cb5-357" tabindex="-1"></a>│   │   ├── identify_value_bet.html</span>
+<span id="cb5-358"><a href="#cb5-358" tabindex="-1"></a>│   │   ├── identify_value_bet.md</span>
+<span id="cb5-359"><a href="#cb5-359" tabindex="-1"></a>│   │   ├── importance_sample_rare.html</span>
+<span id="cb5-360"><a href="#cb5-360" tabindex="-1"></a>│   │   ├── importance_sample_rare.md</span>
+<span id="cb5-361"><a href="#cb5-361" tabindex="-1"></a>│   │   ├── index.html</span>
+<span id="cb5-362"><a href="#cb5-362" tabindex="-1"></a>│   │   ├── index.md</span>
+<span id="cb5-363"><a href="#cb5-363" tabindex="-1"></a>│   │   ├── insert_match_odds.html</span>
+<span id="cb5-364"><a href="#cb5-364" tabindex="-1"></a>│   │   ├── insert_match_odds.md</span>
+<span id="cb5-365"><a href="#cb5-365" tabindex="-1"></a>│   │   ├── insert_matches.html</span>
+<span id="cb5-366"><a href="#cb5-366" tabindex="-1"></a>│   │   ├── insert_matches.md</span>
+<span id="cb5-367"><a href="#cb5-367" tabindex="-1"></a>│   │   ├── insert_transfers.html</span>
+<span id="cb5-368"><a href="#cb5-368" tabindex="-1"></a>│   │   ├── insert_transfers.md</span>
+<span id="cb5-369"><a href="#cb5-369" tabindex="-1"></a>│   │   ├── is_season_start.html</span>
+<span id="cb5-370"><a href="#cb5-370" tabindex="-1"></a>│   │   ├── is_season_start.md</span>
+<span id="cb5-371"><a href="#cb5-371" tabindex="-1"></a>│   │   ├── join_understat_xg.html</span>
+<span id="cb5-372"><a href="#cb5-372" tabindex="-1"></a>│   │   ├── join_understat_xg.md</span>
+<span id="cb5-373"><a href="#cb5-373" tabindex="-1"></a>│   │   ├── join_xg_to_matches.html</span>
+<span id="cb5-374"><a href="#cb5-374" tabindex="-1"></a>│   │   ├── join_xg_to_matches.md</span>
+<span id="cb5-375"><a href="#cb5-375" tabindex="-1"></a>│   │   ├── joint_outcome_probability.html</span>
+<span id="cb5-376"><a href="#cb5-376" tabindex="-1"></a>│   │   ├── joint_outcome_probability.md</span>
+<span id="cb5-377"><a href="#cb5-377" tabindex="-1"></a>│   │   ├── kalman.html</span>
+<span id="cb5-378"><a href="#cb5-378" tabindex="-1"></a>│   │   ├── kalman.md</span>
+<span id="cb5-379"><a href="#cb5-379" tabindex="-1"></a>│   │   ├── kalman_strengths.html</span>
+<span id="cb5-380"><a href="#cb5-380" tabindex="-1"></a>│   │   ├── kalman_strengths.md</span>
+<span id="cb5-381"><a href="#cb5-381" tabindex="-1"></a>│   │   ├── kalman_tune.html</span>
+<span id="cb5-382"><a href="#cb5-382" tabindex="-1"></a>│   │   ├── kalman_tune.md</span>
+<span id="cb5-383"><a href="#cb5-383" tabindex="-1"></a>│   │   ├── kalman_update.html</span>
+<span id="cb5-384"><a href="#cb5-384" tabindex="-1"></a>│   │   ├── kalman_update.md</span>
+<span id="cb5-385"><a href="#cb5-385" tabindex="-1"></a>│   │   ├── kelly_fraction.html</span>
+<span id="cb5-386"><a href="#cb5-386" tabindex="-1"></a>│   │   ├── kelly_fraction.md</span>
+<span id="cb5-387"><a href="#cb5-387" tabindex="-1"></a>│   │   ├── key_players_unavailable.html</span>
+<span id="cb5-388"><a href="#cb5-388" tabindex="-1"></a>│   │   ├── key_players_unavailable.md</span>
+<span id="cb5-389"><a href="#cb5-389" tabindex="-1"></a>│   │   ├── lambdas_from_hda.html</span>
+<span id="cb5-390"><a href="#cb5-390" tabindex="-1"></a>│   │   ├── lambdas_from_hda.md</span>
+<span id="cb5-391"><a href="#cb5-391" tabindex="-1"></a>│   │   ├── league_table.html</span>
+<span id="cb5-392"><a href="#cb5-392" tabindex="-1"></a>│   │   ├── league_table.md</span>
+<span id="cb5-393"><a href="#cb5-393" tabindex="-1"></a>│   │   ├── leakage_fix.html</span>
+<span id="cb5-394"><a href="#cb5-394" tabindex="-1"></a>│   │   ├── leakage_fix.md</span>
+<span id="cb5-395"><a href="#cb5-395" tabindex="-1"></a>│   │   ├── line_movement.html</span>
+<span id="cb5-396"><a href="#cb5-396" tabindex="-1"></a>│   │   ├── line_movement.md</span>
+<span id="cb5-397"><a href="#cb5-397" tabindex="-1"></a>│   │   ├── load_closing_ah_prices.html</span>
+<span id="cb5-398"><a href="#cb5-398" tabindex="-1"></a>│   │   ├── load_closing_ah_prices.md</span>
+<span id="cb5-399"><a href="#cb5-399" tabindex="-1"></a>│   │   ├── log_loss.html</span>
+<span id="cb5-400"><a href="#cb5-400" tabindex="-1"></a>│   │   ├── log_loss.md</span>
+<span id="cb5-401"><a href="#cb5-401" tabindex="-1"></a>│   │   ├── log_prediction.html</span>
+<span id="cb5-402"><a href="#cb5-402" tabindex="-1"></a>│   │   ├── log_prediction.md</span>
+<span id="cb5-403"><a href="#cb5-403" tabindex="-1"></a>│   │   ├── log_predictions_batch.html</span>
+<span id="cb5-404"><a href="#cb5-404" tabindex="-1"></a>│   │   ├── log_predictions_batch.md</span>
+<span id="cb5-405"><a href="#cb5-405" tabindex="-1"></a>│   │   ├── make_match_id.html</span>
+<span id="cb5-406"><a href="#cb5-406" tabindex="-1"></a>│   │   ├── make_match_id.md</span>
+<span id="cb5-407"><a href="#cb5-407" tabindex="-1"></a>│   │   ├── margin_k_factor.html</span>
+<span id="cb5-408"><a href="#cb5-408" tabindex="-1"></a>│   │   ├── margin_k_factor.md</span>
+<span id="cb5-409"><a href="#cb5-409" tabindex="-1"></a>│   │   ├── matches_since_event.html</span>
+<span id="cb5-410"><a href="#cb5-410" tabindex="-1"></a>│   │   ├── matches_since_event.md</span>
+<span id="cb5-411"><a href="#cb5-411" tabindex="-1"></a>│   │   ├── matches_to_long.html</span>
+<span id="cb5-412"><a href="#cb5-412" tabindex="-1"></a>│   │   ├── matches_to_long.md</span>
+<span id="cb5-413"><a href="#cb5-413" tabindex="-1"></a>│   │   ├── multi_kelly_stakes.html</span>
+<span id="cb5-414"><a href="#cb5-414" tabindex="-1"></a>│   │   ├── multi_kelly_stakes.md</span>
+<span id="cb5-415"><a href="#cb5-415" tabindex="-1"></a>│   │   ├── oagd.html</span>
+<span id="cb5-416"><a href="#cb5-416" tabindex="-1"></a>│   │   ├── oagd.md</span>
+<span id="cb5-417"><a href="#cb5-417" tabindex="-1"></a>│   │   ├── oagd_add_odds.html</span>
+<span id="cb5-418"><a href="#cb5-418" tabindex="-1"></a>│   │   ├── oagd_add_odds.md</span>
+<span id="cb5-419"><a href="#cb5-419" tabindex="-1"></a>│   │   ├── oagd_backtest.html</span>
+<span id="cb5-420"><a href="#cb5-420" tabindex="-1"></a>│   │   ├── oagd_backtest.md</span>
+<span id="cb5-421"><a href="#cb5-421" tabindex="-1"></a>│   │   ├── oagd_backtest_league.html</span>
+<span id="cb5-422"><a href="#cb5-422" tabindex="-1"></a>│   │   ├── oagd_backtest_league.md</span>
+<span id="cb5-423"><a href="#cb5-423" tabindex="-1"></a>│   │   ├── oagd_backtest_summary.html</span>
+<span id="cb5-424"><a href="#cb5-424" tabindex="-1"></a>│   │   ├── oagd_backtest_summary.md</span>
+<span id="cb5-425"><a href="#cb5-425" tabindex="-1"></a>│   │   ├── oagd_edge.html</span>
+<span id="cb5-426"><a href="#cb5-426" tabindex="-1"></a>│   │   ├── oagd_edge.md</span>
+<span id="cb5-427"><a href="#cb5-427" tabindex="-1"></a>│   │   ├── oagd_fit_window.html</span>
+<span id="cb5-428"><a href="#cb5-428" tabindex="-1"></a>│   │   ├── oagd_fit_window.md</span>
+<span id="cb5-429"><a href="#cb5-429" tabindex="-1"></a>│   │   ├── oagd_form.html</span>
+<span id="cb5-430"><a href="#cb5-430" tabindex="-1"></a>│   │   ├── oagd_form.md</span>
+<span id="cb5-431"><a href="#cb5-431" tabindex="-1"></a>│   │   ├── oagd_grid.html</span>
+<span id="cb5-432"><a href="#cb5-432" tabindex="-1"></a>│   │   ├── oagd_grid.md</span>
+<span id="cb5-433"><a href="#cb5-433" tabindex="-1"></a>│   │   ├── oagd_match_data.html</span>
+<span id="cb5-434"><a href="#cb5-434" tabindex="-1"></a>│   │   ├── oagd_match_data.md</span>
+<span id="cb5-435"><a href="#cb5-435" tabindex="-1"></a>│   │   ├── oagd_pnl.html</span>
+<span id="cb5-436"><a href="#cb5-436" tabindex="-1"></a>│   │   ├── oagd_pnl.md</span>
+<span id="cb5-437"><a href="#cb5-437" tabindex="-1"></a>│   │   ├── oagd_predict.html</span>
+<span id="cb5-438"><a href="#cb5-438" tabindex="-1"></a>│   │   ├── oagd_predict.md</span>
+<span id="cb5-439"><a href="#cb5-439" tabindex="-1"></a>│   │   ├── oagd_predict_all.html</span>
+<span id="cb5-440"><a href="#cb5-440" tabindex="-1"></a>│   │   ├── oagd_predict_all.md</span>
+<span id="cb5-441"><a href="#cb5-441" tabindex="-1"></a>│   │   ├── oagd_predict_match.html</span>
+<span id="cb5-442"><a href="#cb5-442" tabindex="-1"></a>│   │   ├── oagd_predict_match.md</span>
+<span id="cb5-443"><a href="#cb5-443" tabindex="-1"></a>│   │   ├── oagd_residuals.html</span>
+<span id="cb5-444"><a href="#cb5-444" tabindex="-1"></a>│   │   ├── oagd_residuals.md</span>
+<span id="cb5-445"><a href="#cb5-445" tabindex="-1"></a>│   │   ├── oagd_roll_fits.html</span>
+<span id="cb5-446"><a href="#cb5-446" tabindex="-1"></a>│   │   ├── oagd_roll_fits.md</span>
+<span id="cb5-447"><a href="#cb5-447" tabindex="-1"></a>│   │   ├── oagd_stake.html</span>
+<span id="cb5-448"><a href="#cb5-448" tabindex="-1"></a>│   │   ├── oagd_stake.md</span>
+<span id="cb5-449"><a href="#cb5-449" tabindex="-1"></a>│   │   ├── parse_fd_csv.html</span>
+<span id="cb5-450"><a href="#cb5-450" tabindex="-1"></a>│   │   ├── parse_fd_csv.md</span>
+<span id="cb5-451"><a href="#cb5-451" tabindex="-1"></a>│   │   ├── parse_fd_odds.html</span>
+<span id="cb5-452"><a href="#cb5-452" tabindex="-1"></a>│   │   ├── parse_fd_odds.md</span>
+<span id="cb5-453"><a href="#cb5-453" tabindex="-1"></a>│   │   ├── pinnacle_implied.html</span>
+<span id="cb5-454"><a href="#cb5-454" tabindex="-1"></a>│   │   ├── pinnacle_implied.md</span>
+<span id="cb5-455"><a href="#cb5-455" tabindex="-1"></a>│   │   ├── pinnacle_implied_elo.html</span>
+<span id="cb5-456"><a href="#cb5-456" tabindex="-1"></a>│   │   ├── pinnacle_implied_elo.md</span>
+<span id="cb5-457"><a href="#cb5-457" tabindex="-1"></a>│   │   ├── plot_dark_bar.html</span>
+<span id="cb5-458"><a href="#cb5-458" tabindex="-1"></a>│   │   ├── plot_dark_bar.md</span>
+<span id="cb5-459"><a href="#cb5-459" tabindex="-1"></a>│   │   ├── plot_dark_box.html</span>
+<span id="cb5-460"><a href="#cb5-460" tabindex="-1"></a>│   │   ├── plot_dark_box.md</span>
+<span id="cb5-461"><a href="#cb5-461" tabindex="-1"></a>│   │   ├── plot_dark_heatmap.html</span>
+<span id="cb5-462"><a href="#cb5-462" tabindex="-1"></a>│   │   ├── plot_dark_heatmap.md</span>
+<span id="cb5-463"><a href="#cb5-463" tabindex="-1"></a>│   │   ├── plot_dark_line.html</span>
+<span id="cb5-464"><a href="#cb5-464" tabindex="-1"></a>│   │   ├── plot_dark_line.md</span>
+<span id="cb5-465"><a href="#cb5-465" tabindex="-1"></a>│   │   ├── plot_xgb_importance.html</span>
+<span id="cb5-466"><a href="#cb5-466" tabindex="-1"></a>│   │   ├── plot_xgb_importance.md</span>
+<span id="cb5-467"><a href="#cb5-467" tabindex="-1"></a>│   │   ├── predict_ah.html</span>
+<span id="cb5-468"><a href="#cb5-468" tabindex="-1"></a>│   │   ├── predict_ah.md</span>
+<span id="cb5-469"><a href="#cb5-469" tabindex="-1"></a>│   │   ├── predict_brms.html</span>
+<span id="cb5-470"><a href="#cb5-470" tabindex="-1"></a>│   │   ├── predict_brms.md</span>
+<span id="cb5-471"><a href="#cb5-471" tabindex="-1"></a>│   │   ├── predict_correct_score.html</span>
+<span id="cb5-472"><a href="#cb5-472" tabindex="-1"></a>│   │   ├── predict_correct_score.md</span>
+<span id="cb5-473"><a href="#cb5-473" tabindex="-1"></a>│   │   ├── predict_dc.html</span>
+<span id="cb5-474"><a href="#cb5-474" tabindex="-1"></a>│   │   ├── predict_dc.md</span>
+<span id="cb5-475"><a href="#cb5-475" tabindex="-1"></a>│   │   ├── predict_glm.html</span>
+<span id="cb5-476"><a href="#cb5-476" tabindex="-1"></a>│   │   ├── predict_glm.md</span>
+<span id="cb5-477"><a href="#cb5-477" tabindex="-1"></a>│   │   ├── predict_isotonic.html</span>
+<span id="cb5-478"><a href="#cb5-478" tabindex="-1"></a>│   │   ├── predict_isotonic.md</span>
+<span id="cb5-479"><a href="#cb5-479" tabindex="-1"></a>│   │   ├── predict_matches_brms.html</span>
+<span id="cb5-480"><a href="#cb5-480" tabindex="-1"></a>│   │   ├── predict_matches_brms.md</span>
+<span id="cb5-481"><a href="#cb5-481" tabindex="-1"></a>│   │   ├── predict_matches_dc.html</span>
+<span id="cb5-482"><a href="#cb5-482" tabindex="-1"></a>│   │   ├── predict_matches_dc.md</span>
+<span id="cb5-483"><a href="#cb5-483" tabindex="-1"></a>│   │   ├── predict_matches_glm.html</span>
+<span id="cb5-484"><a href="#cb5-484" tabindex="-1"></a>│   │   ├── predict_matches_glm.md</span>
+<span id="cb5-485"><a href="#cb5-485" tabindex="-1"></a>│   │   ├── predict_matches_xgb.html</span>
+<span id="cb5-486"><a href="#cb5-486" tabindex="-1"></a>│   │   ├── predict_matches_xgb.md</span>
+<span id="cb5-487"><a href="#cb5-487" tabindex="-1"></a>│   │   ├── predict_ou.html</span>
+<span id="cb5-488"><a href="#cb5-488" tabindex="-1"></a>│   │   ├── predict_ou.md</span>
+<span id="cb5-489"><a href="#cb5-489" tabindex="-1"></a>│   │   ├── predict_platt.html</span>
+<span id="cb5-490"><a href="#cb5-490" tabindex="-1"></a>│   │   ├── predict_platt.md</span>
+<span id="cb5-491"><a href="#cb5-491" tabindex="-1"></a>│   │   ├── predict_xgboost.html</span>
+<span id="cb5-492"><a href="#cb5-492" tabindex="-1"></a>│   │   ├── predict_xgboost.md</span>
+<span id="cb5-493"><a href="#cb5-493" tabindex="-1"></a>│   │   ├── prepare_xgb_features.html</span>
+<span id="cb5-494"><a href="#cb5-494" tabindex="-1"></a>│   │   ├── prepare_xgb_features.md</span>
+<span id="cb5-495"><a href="#cb5-495" tabindex="-1"></a>│   │   ├── query_predictions.html</span>
+<span id="cb5-496"><a href="#cb5-496" tabindex="-1"></a>│   │   ├── query_predictions.md</span>
+<span id="cb5-497"><a href="#cb5-497" tabindex="-1"></a>│   │   ├── ranger_walkforward_cv.html</span>
+<span id="cb5-498"><a href="#cb5-498" tabindex="-1"></a>│   │   ├── ranger_walkforward_cv.md</span>
+<span id="cb5-499"><a href="#cb5-499" tabindex="-1"></a>│   │   ├── ratio_normalize.html</span>
+<span id="cb5-500"><a href="#cb5-500" tabindex="-1"></a>│   │   ├── ratio_normalize.md</span>
+<span id="cb5-501"><a href="#cb5-501" tabindex="-1"></a>│   │   ├── reliability_curve_data.html</span>
+<span id="cb5-502"><a href="#cb5-502" tabindex="-1"></a>│   │   ├── reliability_curve_data.md</span>
+<span id="cb5-503"><a href="#cb5-503" tabindex="-1"></a>│   │   ├── reliability_threshold.html</span>
+<span id="cb5-504"><a href="#cb5-504" tabindex="-1"></a>│   │   ├── reliability_threshold.md</span>
+<span id="cb5-505"><a href="#cb5-505" tabindex="-1"></a>│   │   ├── rest_days.html</span>
+<span id="cb5-506"><a href="#cb5-506" tabindex="-1"></a>│   │   ├── rest_days.md</span>
+<span id="cb5-507"><a href="#cb5-507" tabindex="-1"></a>│   │   ├── rolling_goals.html</span>
+<span id="cb5-508"><a href="#cb5-508" tabindex="-1"></a>│   │   ├── rolling_goals.md</span>
+<span id="cb5-509"><a href="#cb5-509" tabindex="-1"></a>│   │   ├── rolling_progressive.html</span>
+<span id="cb5-510"><a href="#cb5-510" tabindex="-1"></a>│   │   ├── rolling_progressive.md</span>
+<span id="cb5-511"><a href="#cb5-511" tabindex="-1"></a>│   │   ├── rolling_psxg.html</span>
+<span id="cb5-512"><a href="#cb5-512" tabindex="-1"></a>│   │   ├── rolling_psxg.md</span>
+<span id="cb5-513"><a href="#cb5-513" tabindex="-1"></a>│   │   ├── rolling_shot_quality.html</span>
+<span id="cb5-514"><a href="#cb5-514" tabindex="-1"></a>│   │   ├── rolling_shot_quality.md</span>
+<span id="cb5-515"><a href="#cb5-515" tabindex="-1"></a>│   │   ├── rolling_sot.html</span>
+<span id="cb5-516"><a href="#cb5-516" tabindex="-1"></a>│   │   ├── rolling_sot.md</span>
+<span id="cb5-517"><a href="#cb5-517" tabindex="-1"></a>│   │   ├── rolling_xg.html</span>
+<span id="cb5-518"><a href="#cb5-518" tabindex="-1"></a>│   │   ├── rolling_xg.md</span>
+<span id="cb5-519"><a href="#cb5-519" tabindex="-1"></a>│   │   ├── rps_1x2.html</span>
+<span id="cb5-520"><a href="#cb5-520" tabindex="-1"></a>│   │   ├── rps_1x2.md</span>
+<span id="cb5-521"><a href="#cb5-521" tabindex="-1"></a>│   │   ├── score_matrix.html</span>
+<span id="cb5-522"><a href="#cb5-522" tabindex="-1"></a>│   │   ├── score_matrix.md</span>
+<span id="cb5-523"><a href="#cb5-523" tabindex="-1"></a>│   │   ├── score_matrix_probs.html</span>
+<span id="cb5-524"><a href="#cb5-524" tabindex="-1"></a>│   │   ├── score_matrix_probs.md</span>
+<span id="cb5-525"><a href="#cb5-525" tabindex="-1"></a>│   │   ├── score_matrix_to_1x2.html</span>
+<span id="cb5-526"><a href="#cb5-526" tabindex="-1"></a>│   │   ├── score_matrix_to_1x2.md</span>
+<span id="cb5-527"><a href="#cb5-527" tabindex="-1"></a>│   │   ├── score_matrix_to_ah.html</span>
+<span id="cb5-528"><a href="#cb5-528" tabindex="-1"></a>│   │   ├── score_matrix_to_ah.md</span>
+<span id="cb5-529"><a href="#cb5-529" tabindex="-1"></a>│   │   ├── score_matrix_to_ou.html</span>
+<span id="cb5-530"><a href="#cb5-530" tabindex="-1"></a>│   │   ├── score_matrix_to_ou.md</span>
+<span id="cb5-531"><a href="#cb5-531" tabindex="-1"></a>│   │   ├── score_probability.html</span>
+<span id="cb5-532"><a href="#cb5-532" tabindex="-1"></a>│   │   ├── score_probability.md</span>
+<span id="cb5-533"><a href="#cb5-533" tabindex="-1"></a>│   │   ├── seasonal_k.html</span>
+<span id="cb5-534"><a href="#cb5-534" tabindex="-1"></a>│   │   ├── seasonal_k.md</span>
+<span id="cb5-535"><a href="#cb5-535" tabindex="-1"></a>│   │   ├── setup_nix_libs.html</span>
+<span id="cb5-536"><a href="#cb5-536" tabindex="-1"></a>│   │   ├── setup_nix_libs.md</span>
+<span id="cb5-537"><a href="#cb5-537" tabindex="-1"></a>│   │   ├── shrink_team_strength.html</span>
+<span id="cb5-538"><a href="#cb5-538" tabindex="-1"></a>│   │   ├── shrink_team_strength.md</span>
+<span id="cb5-539"><a href="#cb5-539" tabindex="-1"></a>│   │   ├── simulate_bankroll_growth.html</span>
+<span id="cb5-540"><a href="#cb5-540" tabindex="-1"></a>│   │   ├── simulate_bankroll_growth.md</span>
+<span id="cb5-541"><a href="#cb5-541" tabindex="-1"></a>│   │   ├── simulate_correlated_matches.html</span>
+<span id="cb5-542"><a href="#cb5-542" tabindex="-1"></a>│   │   ├── simulate_correlated_matches.md</span>
+<span id="cb5-543"><a href="#cb5-543" tabindex="-1"></a>│   │   ├── simulate_match_vr.html</span>
+<span id="cb5-544"><a href="#cb5-544" tabindex="-1"></a>│   │   ├── simulate_match_vr.md</span>
+<span id="cb5-545"><a href="#cb5-545" tabindex="-1"></a>│   │   ├── simulate_pnl.html</span>
+<span id="cb5-546"><a href="#cb5-546" tabindex="-1"></a>│   │   ├── simulate_pnl.md</span>
+<span id="cb5-547"><a href="#cb5-547" tabindex="-1"></a>│   │   ├── simulation.html</span>
+<span id="cb5-548"><a href="#cb5-548" tabindex="-1"></a>│   │   ├── simulation.md</span>
+<span id="cb5-549"><a href="#cb5-549" tabindex="-1"></a>│   │   ├── standard_league_strengths.html</span>
+<span id="cb5-550"><a href="#cb5-550" tabindex="-1"></a>│   │   ├── standard_league_strengths.md</span>
+<span id="cb5-551"><a href="#cb5-551" tabindex="-1"></a>│   │   ├── standardise_fbref_advanced.html</span>
+<span id="cb5-552"><a href="#cb5-552" tabindex="-1"></a>│   │   ├── standardise_fbref_advanced.md</span>
+<span id="cb5-553"><a href="#cb5-553" tabindex="-1"></a>│   │   ├── stat_discrimination.html</span>
+<span id="cb5-554"><a href="#cb5-554" tabindex="-1"></a>│   │   ├── stat_discrimination.md</span>
+<span id="cb5-555"><a href="#cb5-555" tabindex="-1"></a>│   │   ├── stat_stability.html</span>
+<span id="cb5-556"><a href="#cb5-556" tabindex="-1"></a>│   │   ├── stat_stability.md</span>
+<span id="cb5-557"><a href="#cb5-557" tabindex="-1"></a>│   │   ├── stringdist_sim.html</span>
+<span id="cb5-558"><a href="#cb5-558" tabindex="-1"></a>│   │   ├── stringdist_sim.md</span>
+<span id="cb5-559"><a href="#cb5-559" tabindex="-1"></a>│   │   ├── summarise_ah_clv.html</span>
+<span id="cb5-560"><a href="#cb5-560" tabindex="-1"></a>│   │   ├── summarise_ah_clv.md</span>
+<span id="cb5-561"><a href="#cb5-561" tabindex="-1"></a>│   │   ├── summarise_betting_performance.html</span>
+<span id="cb5-562"><a href="#cb5-562" tabindex="-1"></a>│   │   ├── summarise_betting_performance.md</span>
+<span id="cb5-563"><a href="#cb5-563" tabindex="-1"></a>│   │   ├── summarise_clv.html</span>
+<span id="cb5-564"><a href="#cb5-564" tabindex="-1"></a>│   │   ├── summarise_clv.md</span>
+<span id="cb5-565"><a href="#cb5-565" tabindex="-1"></a>│   │   ├── summarise_cv.html</span>
+<span id="cb5-566"><a href="#cb5-566" tabindex="-1"></a>│   │   ├── summarise_cv.md</span>
+<span id="cb5-567"><a href="#cb5-567" tabindex="-1"></a>│   │   ├── summarise_pnl.html</span>
+<span id="cb5-568"><a href="#cb5-568" tabindex="-1"></a>│   │   ├── summarise_pnl.md</span>
+<span id="cb5-569"><a href="#cb5-569" tabindex="-1"></a>│   │   ├── summarize_flb.html</span>
+<span id="cb5-570"><a href="#cb5-570" tabindex="-1"></a>│   │   ├── summarize_flb.md</span>
+<span id="cb5-571"><a href="#cb5-571" tabindex="-1"></a>│   │   ├── target_leagues.html</span>
+<span id="cb5-572"><a href="#cb5-572" tabindex="-1"></a>│   │   ├── target_leagues.md</span>
+<span id="cb5-573"><a href="#cb5-573" tabindex="-1"></a>│   │   ├── target_seasons.html</span>
+<span id="cb5-574"><a href="#cb5-574" tabindex="-1"></a>│   │   ├── target_seasons.md</span>
+<span id="cb5-575"><a href="#cb5-575" tabindex="-1"></a>│   │   ├── team_form_score.html</span>
+<span id="cb5-576"><a href="#cb5-576" tabindex="-1"></a>│   │   ├── team_form_score.md</span>
+<span id="cb5-577"><a href="#cb5-577" tabindex="-1"></a>│   │   ├── team_position.html</span>
+<span id="cb5-578"><a href="#cb5-578" tabindex="-1"></a>│   │   ├── team_position.md</span>
+<span id="cb5-579"><a href="#cb5-579" tabindex="-1"></a>│   │   ├── temporal_split.html</span>
+<span id="cb5-580"><a href="#cb5-580" tabindex="-1"></a>│   │   ├── temporal_split.md</span>
+<span id="cb5-581"><a href="#cb5-581" tabindex="-1"></a>│   │   ├── theme_dark_plotly.html</span>
+<span id="cb5-582"><a href="#cb5-582" tabindex="-1"></a>│   │   ├── theme_dark_plotly.md</span>
+<span id="cb5-583"><a href="#cb5-583" tabindex="-1"></a>│   │   ├── top_scorelines.html</span>
+<span id="cb5-584"><a href="#cb5-584" tabindex="-1"></a>│   │   ├── top_scorelines.md</span>
+<span id="cb5-585"><a href="#cb5-585" tabindex="-1"></a>│   │   ├── tune_xgboost.html</span>
+<span id="cb5-586"><a href="#cb5-586" tabindex="-1"></a>│   │   ├── tune_xgboost.md</span>
+<span id="cb5-587"><a href="#cb5-587" tabindex="-1"></a>│   │   ├── understat_team_mapping.html</span>
+<span id="cb5-588"><a href="#cb5-588" tabindex="-1"></a>│   │   ├── understat_team_mapping.md</span>
+<span id="cb5-589"><a href="#cb5-589" tabindex="-1"></a>│   │   ├── update_prediction_outcome.html</span>
+<span id="cb5-590"><a href="#cb5-590" tabindex="-1"></a>│   │   ├── update_prediction_outcome.md</span>
+<span id="cb5-591"><a href="#cb5-591" tabindex="-1"></a>│   │   ├── walk_forward_splits.html</span>
+<span id="cb5-592"><a href="#cb5-592" tabindex="-1"></a>│   │   ├── walk_forward_splits.md</span>
+<span id="cb5-593"><a href="#cb5-593" tabindex="-1"></a>│   │   ├── wrap_mermaid_fenced.html</span>
+<span id="cb5-594"><a href="#cb5-594" tabindex="-1"></a>│   │   ├── wrap_mermaid_fenced.md</span>
+<span id="cb5-595"><a href="#cb5-595" tabindex="-1"></a>│   │   ├── wrap_mermaid_html.html</span>
+<span id="cb5-596"><a href="#cb5-596" tabindex="-1"></a>│   │   ├── wrap_mermaid_html.md</span>
+<span id="cb5-597"><a href="#cb5-597" tabindex="-1"></a>│   │   ├── write_matches_parquet.html</span>
+<span id="cb5-598"><a href="#cb5-598" tabindex="-1"></a>│   │   ├── write_matches_parquet.md</span>
+<span id="cb5-599"><a href="#cb5-599" tabindex="-1"></a>│   │   ├── write_odds_parquet.html</span>
+<span id="cb5-600"><a href="#cb5-600" tabindex="-1"></a>│   │   ├── write_odds_parquet.md</span>
+<span id="cb5-601"><a href="#cb5-601" tabindex="-1"></a>│   │   ├── xg_overperformance.html</span>
+<span id="cb5-602"><a href="#cb5-602" tabindex="-1"></a>│   │   ├── xg_overperformance.md</span>
+<span id="cb5-603"><a href="#cb5-603" tabindex="-1"></a>│   │   ├── xgboost_walkforward_cv.html</span>
+<span id="cb5-604"><a href="#cb5-604" tabindex="-1"></a>│   │   └── xgboost_walkforward_cv.md</span>
+<span id="cb5-605"><a href="#cb5-605" tabindex="-1"></a>│   ├── search.json</span>
+<span id="cb5-606"><a href="#cb5-606" tabindex="-1"></a>│   └── sitemap.xml</span>
+<span id="cb5-607"><a href="#cb5-607" tabindex="-1"></a>├── inst</span>
+<span id="cb5-608"><a href="#cb5-608" tabindex="-1"></a>│   └── extdata</span>
+<span id="cb5-609"><a href="#cb5-609" tabindex="-1"></a>│       └── vignettes</span>
+<span id="cb5-610"><a href="#cb5-610" tabindex="-1"></a>├── man</span>
+<span id="cb5-611"><a href="#cb5-611" tabindex="-1"></a>│   ├── COUNTRY_COLORS.Rd</span>
+<span id="cb5-612"><a href="#cb5-612" tabindex="-1"></a>│   ├── TIER_COLORS.Rd</span>
+<span id="cb5-613"><a href="#cb5-613" tabindex="-1"></a>│   ├── acca_ev.Rd</span>
+<span id="cb5-614"><a href="#cb5-614" tabindex="-1"></a>│   ├── acca_odds.Rd</span>
+<span id="cb5-615"><a href="#cb5-615" tabindex="-1"></a>│   ├── accumulator_probability.Rd</span>
+<span id="cb5-616"><a href="#cb5-616" tabindex="-1"></a>│   ├── add_form_scores.Rd</span>
+<span id="cb5-617"><a href="#cb5-617" tabindex="-1"></a>│   ├── add_form_streaks.Rd</span>
+<span id="cb5-618"><a href="#cb5-618" tabindex="-1"></a>│   ├── add_h2h_features.Rd</span>
+<span id="cb5-619"><a href="#cb5-619" tabindex="-1"></a>│   ├── add_league_metadata.Rd</span>
+<span id="cb5-620"><a href="#cb5-620" tabindex="-1"></a>│   ├── add_league_positions.Rd</span>
+<span id="cb5-621"><a href="#cb5-621" tabindex="-1"></a>│   ├── add_matches_since.Rd</span>
+<span id="cb5-622"><a href="#cb5-622" tabindex="-1"></a>│   ├── add_player_availability.Rd</span>
+<span id="cb5-623"><a href="#cb5-623" tabindex="-1"></a>│   ├── add_ratio_features.Rd</span>
+<span id="cb5-624"><a href="#cb5-624" tabindex="-1"></a>│   ├── add_rest_days.Rd</span>
+<span id="cb5-625"><a href="#cb5-625" tabindex="-1"></a>│   ├── add_time_slider.Rd</span>
+<span id="cb5-626"><a href="#cb5-626" tabindex="-1"></a>│   ├── add_understat_xg.Rd</span>
+<span id="cb5-627"><a href="#cb5-627" tabindex="-1"></a>│   ├── adjust_for_league_strength.Rd</span>
+<span id="cb5-628"><a href="#cb5-628" tabindex="-1"></a>│   ├── ah_bets_from_preds.Rd</span>
+<span id="cb5-629"><a href="#cb5-629" tabindex="-1"></a>│   ├── american_to_decimal.Rd</span>
+<span id="cb5-630"><a href="#cb5-630" tabindex="-1"></a>│   ├── analyze_steam_moves.Rd</span>
+<span id="cb5-631"><a href="#cb5-631" tabindex="-1"></a>│   ├── apply_asof_cutoff.Rd</span>
+<span id="cb5-632"><a href="#cb5-632" tabindex="-1"></a>│   ├── apply_guardrails.Rd</span>
+<span id="cb5-633"><a href="#cb5-633" tabindex="-1"></a>│   ├── attach_clv.Rd</span>
+<span id="cb5-634"><a href="#cb5-634" tabindex="-1"></a>│   ├── bankroll_growth_target.Rd</span>
+<span id="cb5-635"><a href="#cb5-635" tabindex="-1"></a>│   ├── bet_returns.Rd</span>
+<span id="cb5-636"><a href="#cb5-636" tabindex="-1"></a>│   ├── betting_sharpe_ratio.Rd</span>
+<span id="cb5-637"><a href="#cb5-637" tabindex="-1"></a>│   ├── blend_with_market.Rd</span>
+<span id="cb5-638"><a href="#cb5-638" tabindex="-1"></a>│   ├── brier_1x2.Rd</span>
+<span id="cb5-639"><a href="#cb5-639" tabindex="-1"></a>│   ├── brier_decomposition.Rd</span>
+<span id="cb5-640"><a href="#cb5-640" tabindex="-1"></a>│   ├── brier_decomposition_1x2.Rd</span>
+<span id="cb5-641"><a href="#cb5-641" tabindex="-1"></a>│   ├── brms_ah_ci.Rd</span>
+<span id="cb5-642"><a href="#cb5-642" tabindex="-1"></a>│   ├── brms_converged.Rd</span>
+<span id="cb5-643"><a href="#cb5-643" tabindex="-1"></a>│   ├── brms_diagnostics.Rd</span>
+<span id="cb5-644"><a href="#cb5-644" tabindex="-1"></a>│   ├── brms_loo.Rd</span>
+<span id="cb5-645"><a href="#cb5-645" tabindex="-1"></a>│   ├── brms_r2.Rd</span>
+<span id="cb5-646"><a href="#cb5-646" tabindex="-1"></a>│   ├── brms_waic.Rd</span>
+<span id="cb5-647"><a href="#cb5-647" tabindex="-1"></a>│   ├── calc_overround.Rd</span>
+<span id="cb5-648"><a href="#cb5-648" tabindex="-1"></a>│   ├── closing_line_value.Rd</span>
+<span id="cb5-649"><a href="#cb5-649" tabindex="-1"></a>│   ├── clv.Rd</span>
+<span id="cb5-650"><a href="#cb5-650" tabindex="-1"></a>│   ├── clv_1x2.Rd</span>
+<span id="cb5-651"><a href="#cb5-651" tabindex="-1"></a>│   ├── collect_fold_predictions.Rd</span>
+<span id="cb5-652"><a href="#cb5-652" tabindex="-1"></a>│   ├── collect_fold_predictions_single.Rd</span>
+<span id="cb5-653"><a href="#cb5-653" tabindex="-1"></a>│   ├── compute_elo.Rd</span>
+<span id="cb5-654"><a href="#cb5-654" tabindex="-1"></a>│   ├── compute_ensemble_weights.Rd</span>
+<span id="cb5-655"><a href="#cb5-655" tabindex="-1"></a>│   ├── compute_gamestate_xg.Rd</span>
+<span id="cb5-656"><a href="#cb5-656" tabindex="-1"></a>│   ├── compute_matches_since.Rd</span>
+<span id="cb5-657"><a href="#cb5-657" tabindex="-1"></a>│   ├── compute_meta_analytics.Rd</span>
+<span id="cb5-658"><a href="#cb5-658" tabindex="-1"></a>│   ├── compute_rest_days.Rd</span>
+<span id="cb5-659"><a href="#cb5-659" tabindex="-1"></a>│   ├── compute_shot_quality.Rd</span>
+<span id="cb5-660"><a href="#cb5-660" tabindex="-1"></a>│   ├── compute_xg_features.Rd</span>
+<span id="cb5-661"><a href="#cb5-661" tabindex="-1"></a>│   ├── compute_xg_xag_composite.Rd</span>
+<span id="cb5-662"><a href="#cb5-662" tabindex="-1"></a>│   ├── connect_db.Rd</span>
+<span id="cb5-663"><a href="#cb5-663" tabindex="-1"></a>│   ├── consensus_implied.Rd</span>
+<span id="cb5-664"><a href="#cb5-664" tabindex="-1"></a>│   ├── convert_odds.Rd</span>
+<span id="cb5-665"><a href="#cb5-665" tabindex="-1"></a>│   ├── correct_score_value.Rd</span>
+<span id="cb5-666"><a href="#cb5-666" tabindex="-1"></a>│   ├── create_predictions_schema.Rd</span>
+<span id="cb5-667"><a href="#cb5-667" tabindex="-1"></a>│   ├── create_schema.Rd</span>
+<span id="cb5-668"><a href="#cb5-668" tabindex="-1"></a>│   ├── cumulative_xg_ratio.Rd</span>
+<span id="cb5-669"><a href="#cb5-669" tabindex="-1"></a>│   ├── cv_xgboost.Rd</span>
+<span id="cb5-670"><a href="#cb5-670" tabindex="-1"></a>│   ├── data_validation.Rd</span>
+<span id="cb5-671"><a href="#cb5-671" tabindex="-1"></a>│   ├── dc_score_matrix.Rd</span>
+<span id="cb5-672"><a href="#cb5-672" tabindex="-1"></a>│   ├── dc_tau.Rd</span>
+<span id="cb5-673"><a href="#cb5-673" tabindex="-1"></a>│   ├── decimal_to_american.Rd</span>
+<span id="cb5-674"><a href="#cb5-674" tabindex="-1"></a>│   ├── decimal_to_fractional.Rd</span>
+<span id="cb5-675"><a href="#cb5-675" tabindex="-1"></a>│   ├── detect_flb.Rd</span>
+<span id="cb5-676"><a href="#cb5-676" tabindex="-1"></a>│   ├── devig_basic.Rd</span>
+<span id="cb5-677"><a href="#cb5-677" tabindex="-1"></a>│   ├── devig_odds.Rd</span>
+<span id="cb5-678"><a href="#cb5-678" tabindex="-1"></a>│   ├── devig_power.Rd</span>
+<span id="cb5-679"><a href="#cb5-679" tabindex="-1"></a>│   ├── devig_shin.Rd</span>
+<span id="cb5-680"><a href="#cb5-680" tabindex="-1"></a>│   ├── disconnect_db.Rd</span>
+<span id="cb5-681"><a href="#cb5-681" tabindex="-1"></a>│   ├── download_all_fd.Rd</span>
+<span id="cb5-682"><a href="#cb5-682" tabindex="-1"></a>│   ├── download_fd_csv.Rd</span>
+<span id="cb5-683"><a href="#cb5-683" tabindex="-1"></a>│   ├── dskellam.Rd</span>
+<span id="cb5-684"><a href="#cb5-684" tabindex="-1"></a>│   ├── edge_credible_interval.Rd</span>
+<span id="cb5-685"><a href="#cb5-685" tabindex="-1"></a>│   ├── empirical_bayes_shrink.Rd</span>
+<span id="cb5-686"><a href="#cb5-686" tabindex="-1"></a>│   ├── ensemble_predict.Rd</span>
+<span id="cb5-687"><a href="#cb5-687" tabindex="-1"></a>│   ├── estimate_league_strength.Rd</span>
+<span id="cb5-688"><a href="#cb5-688" tabindex="-1"></a>│   ├── evaluate_brms.Rd</span>
+<span id="cb5-689"><a href="#cb5-689" tabindex="-1"></a>│   ├── evaluate_dc.Rd</span>
+<span id="cb5-690"><a href="#cb5-690" tabindex="-1"></a>│   ├── evaluate_glm_baseline.Rd</span>
+<span id="cb5-691"><a href="#cb5-691" tabindex="-1"></a>│   ├── evaluate_glm_baseline_single.Rd</span>
+<span id="cb5-692"><a href="#cb5-692" tabindex="-1"></a>│   ├── evaluate_market_baselines.Rd</span>
+<span id="cb5-693"><a href="#cb5-693" tabindex="-1"></a>│   ├── evaluate_xgboost.Rd</span>
+<span id="cb5-694"><a href="#cb5-694" tabindex="-1"></a>│   ├── expanding_clv_window.Rd</span>
+<span id="cb5-695"><a href="#cb5-695" tabindex="-1"></a>│   ├── fd_url.Rd</span>
+<span id="cb5-696"><a href="#cb5-696" tabindex="-1"></a>│   ├── fetch_fbref_advanced_all.Rd</span>
+<span id="cb5-697"><a href="#cb5-697" tabindex="-1"></a>│   ├── fetch_fbref_all.Rd</span>
+<span id="cb5-698"><a href="#cb5-698" tabindex="-1"></a>│   ├── fetch_fbref_matches.Rd</span>
+<span id="cb5-699"><a href="#cb5-699" tabindex="-1"></a>│   ├── fetch_fbref_season_stats.Rd</span>
+<span id="cb5-700"><a href="#cb5-700" tabindex="-1"></a>│   ├── fetch_fbref_team_match_logs.Rd</span>
+<span id="cb5-701"><a href="#cb5-701" tabindex="-1"></a>│   ├── fetch_league_injuries.Rd</span>
+<span id="cb5-702"><a href="#cb5-702" tabindex="-1"></a>│   ├── fetch_league_suspensions.Rd</span>
+<span id="cb5-703"><a href="#cb5-703" tabindex="-1"></a>│   ├── fetch_league_transfers.Rd</span>
+<span id="cb5-704"><a href="#cb5-704" tabindex="-1"></a>│   ├── fetch_squad_values.Rd</span>
+<span id="cb5-705"><a href="#cb5-705" tabindex="-1"></a>│   ├── fetch_understat_xg.Rd</span>
+<span id="cb5-706"><a href="#cb5-706" tabindex="-1"></a>│   ├── find_best_accas.Rd</span>
+<span id="cb5-707"><a href="#cb5-707" tabindex="-1"></a>│   ├── find_value_bets.Rd</span>
+<span id="cb5-708"><a href="#cb5-708" tabindex="-1"></a>│   ├── first_reliable_matchday.Rd</span>
+<span id="cb5-709"><a href="#cb5-709" tabindex="-1"></a>│   ├── fit_brms_poisson.Rd</span>
+<span id="cb5-710"><a href="#cb5-710" tabindex="-1"></a>│   ├── fit_dixon_coles.Rd</span>
+<span id="cb5-711"><a href="#cb5-711" tabindex="-1"></a>│   ├── fit_isotonic_regression.Rd</span>
+<span id="cb5-712"><a href="#cb5-712" tabindex="-1"></a>│   ├── fit_platt_scaling.Rd</span>
+<span id="cb5-713"><a href="#cb5-713" tabindex="-1"></a>│   ├── fit_poisson_glm.Rd</span>
+<span id="cb5-714"><a href="#cb5-714" tabindex="-1"></a>│   ├── fit_xgboost.Rd</span>
+<span id="cb5-715"><a href="#cb5-715" tabindex="-1"></a>│   ├── footbet<span class="sc">-</span>package.Rd</span>
+<span id="cb5-716"><a href="#cb5-716" tabindex="-1"></a>│   ├── form_streak.Rd</span>
+<span id="cb5-717"><a href="#cb5-717" tabindex="-1"></a>│   ├── fractional_to_decimal.Rd</span>
+<span id="cb5-718"><a href="#cb5-718" tabindex="-1"></a>│   ├── generate_bias_alerts.Rd</span>
+<span id="cb5-719"><a href="#cb5-719" tabindex="-1"></a>│   ├── generate_cv_walkforward_mermaid.Rd</span>
+<span id="cb5-720"><a href="#cb5-720" tabindex="-1"></a>│   ├── generate_data_pipeline_mermaid.Rd</span>
+<span id="cb5-721"><a href="#cb5-721" tabindex="-1"></a>│   ├── generate_kelly_decision_mermaid.Rd</span>
+<span id="cb5-722"><a href="#cb5-722" tabindex="-1"></a>│   ├── h2h_record.Rd</span>
+<span id="cb5-723"><a href="#cb5-723" tabindex="-1"></a>│   ├── identify_value_bet.Rd</span>
+<span id="cb5-724"><a href="#cb5-724" tabindex="-1"></a>│   ├── importance_sample_rare.Rd</span>
+<span id="cb5-725"><a href="#cb5-725" tabindex="-1"></a>│   ├── insert_match_odds.Rd</span>
+<span id="cb5-726"><a href="#cb5-726" tabindex="-1"></a>│   ├── insert_matches.Rd</span>
+<span id="cb5-727"><a href="#cb5-727" tabindex="-1"></a>│   ├── insert_transfers.Rd</span>
+<span id="cb5-728"><a href="#cb5-728" tabindex="-1"></a>│   ├── is_season_start.Rd</span>
+<span id="cb5-729"><a href="#cb5-729" tabindex="-1"></a>│   ├── join_understat_xg.Rd</span>
+<span id="cb5-730"><a href="#cb5-730" tabindex="-1"></a>│   ├── join_xg_to_matches.Rd</span>
+<span id="cb5-731"><a href="#cb5-731" tabindex="-1"></a>│   ├── joint_outcome_probability.Rd</span>
+<span id="cb5-732"><a href="#cb5-732" tabindex="-1"></a>│   ├── kalman.Rd</span>
+<span id="cb5-733"><a href="#cb5-733" tabindex="-1"></a>│   ├── kalman_strengths.Rd</span>
+<span id="cb5-734"><a href="#cb5-734" tabindex="-1"></a>│   ├── kalman_tune.Rd</span>
+<span id="cb5-735"><a href="#cb5-735" tabindex="-1"></a>│   ├── kalman_update.Rd</span>
+<span id="cb5-736"><a href="#cb5-736" tabindex="-1"></a>│   ├── kelly_fraction.Rd</span>
+<span id="cb5-737"><a href="#cb5-737" tabindex="-1"></a>│   ├── key_players_unavailable.Rd</span>
+<span id="cb5-738"><a href="#cb5-738" tabindex="-1"></a>│   ├── lambdas_from_hda.Rd</span>
+<span id="cb5-739"><a href="#cb5-739" tabindex="-1"></a>│   ├── league_table.Rd</span>
+<span id="cb5-740"><a href="#cb5-740" tabindex="-1"></a>│   ├── leakage_fix.Rd</span>
+<span id="cb5-741"><a href="#cb5-741" tabindex="-1"></a>│   ├── line_movement.Rd</span>
+<span id="cb5-742"><a href="#cb5-742" tabindex="-1"></a>│   ├── load_closing_ah_prices.Rd</span>
+<span id="cb5-743"><a href="#cb5-743" tabindex="-1"></a>│   ├── log_loss.Rd</span>
+<span id="cb5-744"><a href="#cb5-744" tabindex="-1"></a>│   ├── log_prediction.Rd</span>
+<span id="cb5-745"><a href="#cb5-745" tabindex="-1"></a>│   ├── log_predictions_batch.Rd</span>
+<span id="cb5-746"><a href="#cb5-746" tabindex="-1"></a>│   ├── make_match_id.Rd</span>
+<span id="cb5-747"><a href="#cb5-747" tabindex="-1"></a>│   ├── margin_k_factor.Rd</span>
+<span id="cb5-748"><a href="#cb5-748" tabindex="-1"></a>│   ├── matches_since_event.Rd</span>
+<span id="cb5-749"><a href="#cb5-749" tabindex="-1"></a>│   ├── matches_to_long.Rd</span>
+<span id="cb5-750"><a href="#cb5-750" tabindex="-1"></a>│   ├── multi_kelly_stakes.Rd</span>
+<span id="cb5-751"><a href="#cb5-751" tabindex="-1"></a>│   ├── oagd.Rd</span>
+<span id="cb5-752"><a href="#cb5-752" tabindex="-1"></a>│   ├── oagd_add_odds.Rd</span>
+<span id="cb5-753"><a href="#cb5-753" tabindex="-1"></a>│   ├── oagd_backtest.Rd</span>
+<span id="cb5-754"><a href="#cb5-754" tabindex="-1"></a>│   ├── oagd_backtest_league.Rd</span>
+<span id="cb5-755"><a href="#cb5-755" tabindex="-1"></a>│   ├── oagd_backtest_summary.Rd</span>
+<span id="cb5-756"><a href="#cb5-756" tabindex="-1"></a>│   ├── oagd_edge.Rd</span>
+<span id="cb5-757"><a href="#cb5-757" tabindex="-1"></a>│   ├── oagd_fit_window.Rd</span>
+<span id="cb5-758"><a href="#cb5-758" tabindex="-1"></a>│   ├── oagd_form.Rd</span>
+<span id="cb5-759"><a href="#cb5-759" tabindex="-1"></a>│   ├── oagd_grid.Rd</span>
+<span id="cb5-760"><a href="#cb5-760" tabindex="-1"></a>│   ├── oagd_match_data.Rd</span>
+<span id="cb5-761"><a href="#cb5-761" tabindex="-1"></a>│   ├── oagd_pnl.Rd</span>
+<span id="cb5-762"><a href="#cb5-762" tabindex="-1"></a>│   ├── oagd_predict.Rd</span>
+<span id="cb5-763"><a href="#cb5-763" tabindex="-1"></a>│   ├── oagd_predict_all.Rd</span>
+<span id="cb5-764"><a href="#cb5-764" tabindex="-1"></a>│   ├── oagd_predict_match.Rd</span>
+<span id="cb5-765"><a href="#cb5-765" tabindex="-1"></a>│   ├── oagd_residuals.Rd</span>
+<span id="cb5-766"><a href="#cb5-766" tabindex="-1"></a>│   ├── oagd_roll_fits.Rd</span>
+<span id="cb5-767"><a href="#cb5-767" tabindex="-1"></a>│   ├── oagd_stake.Rd</span>
+<span id="cb5-768"><a href="#cb5-768" tabindex="-1"></a>│   ├── parse_fd_csv.Rd</span>
+<span id="cb5-769"><a href="#cb5-769" tabindex="-1"></a>│   ├── parse_fd_odds.Rd</span>
+<span id="cb5-770"><a href="#cb5-770" tabindex="-1"></a>│   ├── pinnacle_implied.Rd</span>
+<span id="cb5-771"><a href="#cb5-771" tabindex="-1"></a>│   ├── pinnacle_implied_elo.Rd</span>
+<span id="cb5-772"><a href="#cb5-772" tabindex="-1"></a>│   ├── plot_dark_bar.Rd</span>
+<span id="cb5-773"><a href="#cb5-773" tabindex="-1"></a>│   ├── plot_dark_box.Rd</span>
+<span id="cb5-774"><a href="#cb5-774" tabindex="-1"></a>│   ├── plot_dark_heatmap.Rd</span>
+<span id="cb5-775"><a href="#cb5-775" tabindex="-1"></a>│   ├── plot_dark_line.Rd</span>
+<span id="cb5-776"><a href="#cb5-776" tabindex="-1"></a>│   ├── plot_xgb_importance.Rd</span>
+<span id="cb5-777"><a href="#cb5-777" tabindex="-1"></a>│   ├── predict_ah.Rd</span>
+<span id="cb5-778"><a href="#cb5-778" tabindex="-1"></a>│   ├── predict_brms.Rd</span>
+<span id="cb5-779"><a href="#cb5-779" tabindex="-1"></a>│   ├── predict_correct_score.Rd</span>
+<span id="cb5-780"><a href="#cb5-780" tabindex="-1"></a>│   ├── predict_dc.Rd</span>
+<span id="cb5-781"><a href="#cb5-781" tabindex="-1"></a>│   ├── predict_glm.Rd</span>
+<span id="cb5-782"><a href="#cb5-782" tabindex="-1"></a>│   ├── predict_isotonic.Rd</span>
+<span id="cb5-783"><a href="#cb5-783" tabindex="-1"></a>│   ├── predict_matches_brms.Rd</span>
+<span id="cb5-784"><a href="#cb5-784" tabindex="-1"></a>│   ├── predict_matches_dc.Rd</span>
+<span id="cb5-785"><a href="#cb5-785" tabindex="-1"></a>│   ├── predict_matches_glm.Rd</span>
+<span id="cb5-786"><a href="#cb5-786" tabindex="-1"></a>│   ├── predict_matches_xgb.Rd</span>
+<span id="cb5-787"><a href="#cb5-787" tabindex="-1"></a>│   ├── predict_ou.Rd</span>
+<span id="cb5-788"><a href="#cb5-788" tabindex="-1"></a>│   ├── predict_platt.Rd</span>
+<span id="cb5-789"><a href="#cb5-789" tabindex="-1"></a>│   ├── predict_xgboost.Rd</span>
+<span id="cb5-790"><a href="#cb5-790" tabindex="-1"></a>│   ├── prepare_xgb_features.Rd</span>
+<span id="cb5-791"><a href="#cb5-791" tabindex="-1"></a>│   ├── query_predictions.Rd</span>
+<span id="cb5-792"><a href="#cb5-792" tabindex="-1"></a>│   ├── ranger_walkforward_cv.Rd</span>
+<span id="cb5-793"><a href="#cb5-793" tabindex="-1"></a>│   ├── ratio_normalize.Rd</span>
+<span id="cb5-794"><a href="#cb5-794" tabindex="-1"></a>│   ├── reliability_curve_data.Rd</span>
+<span id="cb5-795"><a href="#cb5-795" tabindex="-1"></a>│   ├── reliability_threshold.Rd</span>
+<span id="cb5-796"><a href="#cb5-796" tabindex="-1"></a>│   ├── rest_days.Rd</span>
+<span id="cb5-797"><a href="#cb5-797" tabindex="-1"></a>│   ├── rolling_goals.Rd</span>
+<span id="cb5-798"><a href="#cb5-798" tabindex="-1"></a>│   ├── rolling_progressive.Rd</span>
+<span id="cb5-799"><a href="#cb5-799" tabindex="-1"></a>│   ├── rolling_psxg.Rd</span>
+<span id="cb5-800"><a href="#cb5-800" tabindex="-1"></a>│   ├── rolling_shot_quality.Rd</span>
+<span id="cb5-801"><a href="#cb5-801" tabindex="-1"></a>│   ├── rolling_sot.Rd</span>
+<span id="cb5-802"><a href="#cb5-802" tabindex="-1"></a>│   ├── rolling_xg.Rd</span>
+<span id="cb5-803"><a href="#cb5-803" tabindex="-1"></a>│   ├── rps_1x2.Rd</span>
+<span id="cb5-804"><a href="#cb5-804" tabindex="-1"></a>│   ├── score_matrix.Rd</span>
+<span id="cb5-805"><a href="#cb5-805" tabindex="-1"></a>│   ├── score_matrix_probs.Rd</span>
+<span id="cb5-806"><a href="#cb5-806" tabindex="-1"></a>│   ├── score_matrix_to_1x2.Rd</span>
+<span id="cb5-807"><a href="#cb5-807" tabindex="-1"></a>│   ├── score_matrix_to_ah.Rd</span>
+<span id="cb5-808"><a href="#cb5-808" tabindex="-1"></a>│   ├── score_matrix_to_ou.Rd</span>
+<span id="cb5-809"><a href="#cb5-809" tabindex="-1"></a>│   ├── score_probability.Rd</span>
+<span id="cb5-810"><a href="#cb5-810" tabindex="-1"></a>│   ├── seasonal_k.Rd</span>
+<span id="cb5-811"><a href="#cb5-811" tabindex="-1"></a>│   ├── setup_nix_libs.Rd</span>
+<span id="cb5-812"><a href="#cb5-812" tabindex="-1"></a>│   ├── shrink_team_strength.Rd</span>
+<span id="cb5-813"><a href="#cb5-813" tabindex="-1"></a>│   ├── simulate_bankroll_growth.Rd</span>
+<span id="cb5-814"><a href="#cb5-814" tabindex="-1"></a>│   ├── simulate_correlated_matches.Rd</span>
+<span id="cb5-815"><a href="#cb5-815" tabindex="-1"></a>│   ├── simulate_match_vr.Rd</span>
+<span id="cb5-816"><a href="#cb5-816" tabindex="-1"></a>│   ├── simulate_pnl.Rd</span>
+<span id="cb5-817"><a href="#cb5-817" tabindex="-1"></a>│   ├── simulation.Rd</span>
+<span id="cb5-818"><a href="#cb5-818" tabindex="-1"></a>│   ├── standard_league_strengths.Rd</span>
+<span id="cb5-819"><a href="#cb5-819" tabindex="-1"></a>│   ├── standardise_fbref_advanced.Rd</span>
+<span id="cb5-820"><a href="#cb5-820" tabindex="-1"></a>│   ├── stat_discrimination.Rd</span>
+<span id="cb5-821"><a href="#cb5-821" tabindex="-1"></a>│   ├── stat_stability.Rd</span>
+<span id="cb5-822"><a href="#cb5-822" tabindex="-1"></a>│   ├── stringdist_sim.Rd</span>
+<span id="cb5-823"><a href="#cb5-823" tabindex="-1"></a>│   ├── summarise_ah_clv.Rd</span>
+<span id="cb5-824"><a href="#cb5-824" tabindex="-1"></a>│   ├── summarise_betting_performance.Rd</span>
+<span id="cb5-825"><a href="#cb5-825" tabindex="-1"></a>│   ├── summarise_clv.Rd</span>
+<span id="cb5-826"><a href="#cb5-826" tabindex="-1"></a>│   ├── summarise_cv.Rd</span>
+<span id="cb5-827"><a href="#cb5-827" tabindex="-1"></a>│   ├── summarise_pnl.Rd</span>
+<span id="cb5-828"><a href="#cb5-828" tabindex="-1"></a>│   ├── summarize_flb.Rd</span>
+<span id="cb5-829"><a href="#cb5-829" tabindex="-1"></a>│   ├── target_leagues.Rd</span>
+<span id="cb5-830"><a href="#cb5-830" tabindex="-1"></a>│   ├── target_seasons.Rd</span>
+<span id="cb5-831"><a href="#cb5-831" tabindex="-1"></a>│   ├── team_form_score.Rd</span>
+<span id="cb5-832"><a href="#cb5-832" tabindex="-1"></a>│   ├── team_position.Rd</span>
+<span id="cb5-833"><a href="#cb5-833" tabindex="-1"></a>│   ├── temporal_split.Rd</span>
+<span id="cb5-834"><a href="#cb5-834" tabindex="-1"></a>│   ├── theme_dark_plotly.Rd</span>
+<span id="cb5-835"><a href="#cb5-835" tabindex="-1"></a>│   ├── top_scorelines.Rd</span>
+<span id="cb5-836"><a href="#cb5-836" tabindex="-1"></a>│   ├── tune_xgboost.Rd</span>
+<span id="cb5-837"><a href="#cb5-837" tabindex="-1"></a>│   ├── understat_team_mapping.Rd</span>
+<span id="cb5-838"><a href="#cb5-838" tabindex="-1"></a>│   ├── update_prediction_outcome.Rd</span>
+<span id="cb5-839"><a href="#cb5-839" tabindex="-1"></a>│   ├── walk_forward_splits.Rd</span>
+<span id="cb5-840"><a href="#cb5-840" tabindex="-1"></a>│   ├── wrap_mermaid_fenced.Rd</span>
+<span id="cb5-841"><a href="#cb5-841" tabindex="-1"></a>│   ├── wrap_mermaid_html.Rd</span>
+<span id="cb5-842"><a href="#cb5-842" tabindex="-1"></a>│   ├── write_matches_parquet.Rd</span>
+<span id="cb5-843"><a href="#cb5-843" tabindex="-1"></a>│   ├── write_odds_parquet.Rd</span>
+<span id="cb5-844"><a href="#cb5-844" tabindex="-1"></a>│   ├── xg_overperformance.Rd</span>
+<span id="cb5-845"><a href="#cb5-845" tabindex="-1"></a>│   └── xgboost_walkforward_cv.Rd</span>
+<span id="cb5-846"><a href="#cb5-846" tabindex="-1"></a>├── package.nix</span>
+<span id="cb5-847"><a href="#cb5-847" tabindex="-1"></a>├── pkgdown</span>
+<span id="cb5-848"><a href="#cb5-848" tabindex="-1"></a>│   ├── extra.css</span>
+<span id="cb5-849"><a href="#cb5-849" tabindex="-1"></a>│   └── extra.js</span>
+<span id="cb5-850"><a href="#cb5-850" tabindex="-1"></a>├── plans</span>
+<span id="cb5-851"><a href="#cb5-851" tabindex="-1"></a>│   ├── IMPL_oagd_model.md</span>
+<span id="cb5-852"><a href="#cb5-852" tabindex="-1"></a>│   ├── MODEL_CATALOGUE.md</span>
+<span id="cb5-853"><a href="#cb5-853" tabindex="-1"></a>│   ├── PLAN_ah_improvements.md</span>
+<span id="cb5-854"><a href="#cb5-854" tabindex="-1"></a>│   ├── PLAN_brms_crew.md</span>
+<span id="cb5-855"><a href="#cb5-855" tabindex="-1"></a>│   ├── PLAN_dashboard_leaderboard.md</span>
+<span id="cb5-856"><a href="#cb5-856" tabindex="-1"></a>│   ├── PLAN_oagd_model.md</span>
+<span id="cb5-857"><a href="#cb5-857" tabindex="-1"></a>│   ├── PLAN_scaffold.md</span>
+<span id="cb5-858"><a href="#cb5-858" tabindex="-1"></a>│   ├── PLAN_vignettes.md</span>
+<span id="cb5-859"><a href="#cb5-859" tabindex="-1"></a>│   └── PLAN_xg_kalman_dc.md</span>
+<span id="cb5-860"><a href="#cb5-860" tabindex="-1"></a>├── push_to_cachix.sh</span>
+<span id="cb5-861"><a href="#cb5-861" tabindex="-1"></a>├── scripts</span>
+<span id="cb5-862"><a href="#cb5-862" tabindex="-1"></a>│   └── run_cv.R</span>
+<span id="cb5-863"><a href="#cb5-863" tabindex="-1"></a>├── tests</span>
+<span id="cb5-864"><a href="#cb5-864" tabindex="-1"></a>│   ├── testthat</span>
+<span id="cb5-865"><a href="#cb5-865" tabindex="-1"></a>│   │   ├── _snaps</span>
+<span id="cb5-866"><a href="#cb5-866" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>data.R</span>
+<span id="cb5-867"><a href="#cb5-867" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>database.R</span>
+<span id="cb5-868"><a href="#cb5-868" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>dc.R</span>
+<span id="cb5-869"><a href="#cb5-869" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>devig.R</span>
+<span id="cb5-870"><a href="#cb5-870" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>features.R</span>
+<span id="cb5-871"><a href="#cb5-871" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>kelly.R</span>
+<span id="cb5-872"><a href="#cb5-872" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>models.R</span>
+<span id="cb5-873"><a href="#cb5-873" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>parse.R</span>
+<span id="cb5-874"><a href="#cb5-874" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>transfers.R</span>
+<span id="cb5-875"><a href="#cb5-875" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>adversarial<span class="sc">-</span>utils.R</span>
+<span id="cb5-876"><a href="#cb5-876" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>betting<span class="sc">-</span>accumulators.R</span>
+<span id="cb5-877"><a href="#cb5-877" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>betting<span class="sc">-</span>advanced.R</span>
+<span id="cb5-878"><a href="#cb5-878" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>betting<span class="sc">-</span>kelly.R</span>
+<span id="cb5-879"><a href="#cb5-879" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>betting<span class="sc">-</span>performance.R</span>
+<span id="cb5-880"><a href="#cb5-880" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data<span class="sc">-</span>understat.R</span>
+<span id="cb5-881"><a href="#cb5-881" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data_download.R</span>
+<span id="cb5-882"><a href="#cb5-882" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data_fbref.R</span>
+<span id="cb5-883"><a href="#cb5-883" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data_parse.R</span>
+<span id="cb5-884"><a href="#cb5-884" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>data_transfers.R</span>
+<span id="cb5-885"><a href="#cb5-885" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>database<span class="sc">-</span>predictions.R</span>
+<span id="cb5-886"><a href="#cb5-886" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>database.R</span>
+<span id="cb5-887"><a href="#cb5-887" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>devig.R</span>
+<span id="cb5-888"><a href="#cb5-888" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>form<span class="sc">-</span>streaks.R</span>
+<span id="cb5-889"><a href="#cb5-889" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>h2h.R</span>
+<span id="cb5-890"><a href="#cb5-890" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>league<span class="sc">-</span>position.R</span>
+<span id="cb5-891"><a href="#cb5-891" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>rest<span class="sc">-</span>days.R</span>
+<span id="cb5-892"><a href="#cb5-892" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features<span class="sc">-</span>xg<span class="sc">-</span>advanced.R</span>
+<span id="cb5-893"><a href="#cb5-893" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>features.R</span>
+<span id="cb5-894"><a href="#cb5-894" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>integration<span class="sc">-</span>real<span class="sc">-</span>data.R</span>
+<span id="cb5-895"><a href="#cb5-895" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>kelly.R</span>
+<span id="cb5-896"><a href="#cb5-896" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>mocked<span class="sc">-</span>http.R</span>
+<span id="cb5-897"><a href="#cb5-897" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>model_kalman.R</span>
+<span id="cb5-898"><a href="#cb5-898" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>model_oagd.R</span>
+<span id="cb5-899"><a href="#cb5-899" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>model_oagd_integration.R</span>
+<span id="cb5-900"><a href="#cb5-900" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>clv.R</span>
+<span id="cb5-901"><a href="#cb5-901" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>correct<span class="sc">-</span>score.R</span>
+<span id="cb5-902"><a href="#cb5-902" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>ensemble.R</span>
+<span id="cb5-903"><a href="#cb5-903" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>eval<span class="sc">-</span>advanced.R</span>
+<span id="cb5-904"><a href="#cb5-904" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models<span class="sc">-</span>xgboost.R</span>
+<span id="cb5-905"><a href="#cb5-905" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models_baseline.R</span>
+<span id="cb5-906"><a href="#cb5-906" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models_brms.R</span>
+<span id="cb5-907"><a href="#cb5-907" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models_dc.R</span>
+<span id="cb5-908"><a href="#cb5-908" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>models_eval.R</span>
+<span id="cb5-909"><a href="#cb5-909" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>odds<span class="sc">-</span>conversion.R</span>
+<span id="cb5-910"><a href="#cb5-910" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>player<span class="sc">-</span>availability.R</span>
+<span id="cb5-911"><a href="#cb5-911" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>property<span class="sc">-</span>invariants.R</span>
+<span id="cb5-912"><a href="#cb5-912" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>simulation.R</span>
+<span id="cb5-913"><a href="#cb5-913" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>snapshot<span class="sc">-</span>api.R</span>
+<span id="cb5-914"><a href="#cb5-914" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>snapshot<span class="sc">-</span>cli<span class="sc">-</span>errors.R</span>
+<span id="cb5-915"><a href="#cb5-915" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>snapshot<span class="sc">-</span>diagrams.R</span>
+<span id="cb5-916"><a href="#cb5-916" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>snapshot<span class="sc">-</span>messages.R</span>
+<span id="cb5-917"><a href="#cb5-917" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>snapshot<span class="sc">-</span>targets.R</span>
+<span id="cb5-918"><a href="#cb5-918" tabindex="-1"></a>│   │   ├── test<span class="sc">-</span>utils.R</span>
+<span id="cb5-919"><a href="#cb5-919" tabindex="-1"></a>│   │   └── test<span class="sc">-</span>xg_features.R</span>
+<span id="cb5-920"><a href="#cb5-920" tabindex="-1"></a>│   └── testthat.R</span>
+<span id="cb5-921"><a href="#cb5-921" tabindex="-1"></a>└── vignettes</span>
+<span id="cb5-922"><a href="#cb5-922" tabindex="-1"></a>    ├── ah<span class="sc">-</span>backtest.qmd</span>
+<span id="cb5-923"><a href="#cb5-923" tabindex="-1"></a>    ├── data<span class="sc">-</span>cleaning.qmd</span>
+<span id="cb5-924"><a href="#cb5-924" tabindex="-1"></a>    ├── data<span class="sc">-</span>sources.qmd</span>
+<span id="cb5-925"><a href="#cb5-925" tabindex="-1"></a>    ├── eda.qmd</span>
+<span id="cb5-926"><a href="#cb5-926" tabindex="-1"></a>    ├── glossary.qmd</span>
+<span id="cb5-927"><a href="#cb5-927" tabindex="-1"></a>    └── models<span class="sc">-</span>betting.qmd</span></code></pre></div>
+</details>
 </div>
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>
