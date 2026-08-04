@@ -9,6 +9,23 @@ template:
     in_header: |
       <script>localStorage.setItem('theme','dark');document.documentElement.setAttribute('data-bs-theme','dark');</script>
       <link href="https://fonts.googleapis.com/css2?family=Titillium+Web:wght@400;600&display=swap" rel="stylesheet">
+      <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+      <script>
+        mermaid.initialize({
+          startOnLoad: true,
+          securityLevel: 'loose',
+          theme: 'dark',
+          themeVariables: {
+            background: '#000000',
+            primaryColor: '#999999',
+            primaryTextColor: '#000000',
+            primaryBorderColor: '#CC0000',
+            lineColor: '#CC0000',
+            secondaryColor: '#333333',
+            tertiaryColor: '#333333'
+          }
+        });
+      </script>
     after_body: |
       <script>
         fetch(window.location.href, {method: 'HEAD'}).then(function(r) {
